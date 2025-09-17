@@ -1,0 +1,10 @@
+{
+  "name": "fullstack-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "concurrently \"npm run dev --prefix CT471_App\" \"npm start --prefix CT471_SQL\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
