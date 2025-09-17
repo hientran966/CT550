@@ -20,7 +20,6 @@ class ProjectService {
         try {
             await connection.beginTransaction();
 
-            // Bước 1: Chèn tạm chưa có `id`
             const [result] = await connection.execute(
                 "INSERT INTO DuAn (tenDA, ngayBD, ngayKT, deactive, trangThai, idNguoiTao) VALUES (?, ?, ?, ?, ?, ?)",
                 [
@@ -33,11 +32,9 @@ class ProjectService {
                 ]
             );
 
-            // Bước 2: Lấy autoId để tạo id định dạng DAxxxxxx
             const autoId = result.insertId;
             const newId = "DA" + autoId.toString().padStart(6, "0");
 
-            // Bước 3: Cập nhật id
             await connection.execute(
                 "UPDATE DuAn SET id = ? WHERE autoId = ?",
                 [newId, autoId]
@@ -56,6 +53,7 @@ class ProjectService {
     async find(filter = {}) {
         let sql = "SELECT * FROM DuAn WHERE deactive IS NULL";
         let params = [];
+        
         if (filter.tenDA) {
             sql += " AND tenDA LIKE ?";
             params.push(`%${filter.tenDA}%`);
@@ -82,7 +80,7 @@ class ProjectService {
 
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM DuAn WHERE id = ? AND deactive IS NULL",
+            "SELECT * FROM DuAn WHERE autoId = ? AND deactive IS NULL",
             [id]
         );
         return rows[0] || null;
@@ -102,7 +100,7 @@ class ProjectService {
             throw new Error("Không có trường nào để cập nhật.");
         }
 
-        const sql = `UPDATE DuAn SET ${fields.join(", ")} WHERE id = ?`;
+        const sql = `UPDATE DuAn SET ${fields.join(", ")} WHERE autoId = ?`;
         params.push(id);
 
         await this.mysql.execute(sql, params);
@@ -112,7 +110,7 @@ class ProjectService {
     async delete(id) {
         const deletedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
         await this.mysql.execute(
-            "UPDATE DuAn SET deactive = ? WHERE id = ?",
+            "UPDATE DuAn SET deactive = ? WHERE autoId = ?",
             [deletedDate, id]
         );
         return id;
@@ -120,7 +118,7 @@ class ProjectService {
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE DuAn SET deactive = NULL WHERE id = ?",
+            "UPDATE DuAn SET deactive = NULL WHERE autoId = ?",
             [id]
         );
         return result.affectedRows > 0;
@@ -139,8 +137,8 @@ class ProjectService {
         const sql = `
             SELECT DISTINCT da.*
             FROM DuAn        da
-            JOIN CongViec    cv ON cv.idDuAn     = da.id
-            JOIN PhanCong    pc ON pc.idCongViec = cv.id
+            JOIN CongViec    cv ON cv.idDuAn     = da.autoId
+            JOIN PhanCong    pc ON pc.idCongViec = cv.autoId
             WHERE pc.idNguoiNhan = ?
             AND da.deactive IS NULL
         `;

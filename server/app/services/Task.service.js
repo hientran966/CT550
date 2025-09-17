@@ -19,9 +19,8 @@ class TaskService {
     const task = await this.extractTaskData(payload);
     const connection = await this.mysql.getConnection();
     try {
-      await connection.beginTransaction(); // Bắt đầu transaction
+      await connection.beginTransaction();
 
-      // Bước 1: Chèn task chưa có id
       const [result] = await connection.execute(
         `INSERT INTO CongViec (tenCV, moTa, ngayBD, ngayKT, deactive, idNguoiTao, idDuAn)
         VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -36,23 +35,21 @@ class TaskService {
         ]
       );
 
-      // Bước 2: Lấy autoId để gán id mới dạng CVxxxxxx
       const autoId = result.insertId;
       const newId = "CV" + autoId.toString().padStart(6, "0");
 
-      // Bước 3: Cập nhật id theo định dạng
       await connection.execute(
         "UPDATE CongViec SET id = ? WHERE autoId = ?",
         [newId, autoId]
       );
 
-      await connection.commit(); // Hoàn tất transaction
+      await connection.commit();
       return { id: newId, ...task };
     } catch (error) {
-      await connection.rollback(); // Rollback nếu có lỗi
+      await connection.rollback();
       throw error;
     } finally {
-      connection.release(); // Giải phóng kết nối
+      connection.release();
     }
   }
 
@@ -86,7 +83,7 @@ class TaskService {
 
   async findById(id) {
     const [rows] = await this.mysql.execute(
-      "SELECT * FROM CongViec WHERE id = ? AND deactive IS NULL",
+      "SELECT * FROM CongViec WHERE autoId = ? AND deactive IS NULL",
       [id]
     );
     return rows[0] || null;
@@ -102,7 +99,7 @@ class TaskService {
       fields.push(`${key} = ?`);
       params.push(task[key]);
     }
-    sql += fields.join(", ") + " WHERE id = ?";
+    sql += fields.join(", ") + " WHERE autoId = ?";
     params.push(id);
     await this.mysql.execute(sql, params);
     return { ...task, id };
@@ -112,7 +109,7 @@ class TaskService {
     const user = await this.findById(id);
     if (!user) return null;
     const deletedAt = new Date();
-    await this.mysql.execute("UPDATE CongViec SET deactive = ? WHERE id = ?", [
+    await this.mysql.execute("UPDATE CongViec SET deactive = ? WHERE autoId = ?", [
       deletedAt,
       id,
     ]);
@@ -121,7 +118,7 @@ class TaskService {
 
   async restore(id) {
     const [result] = await this.mysql.execute(
-      "UPDATE CongViec SET deactive = NULL WHERE id = ?",
+      "UPDATE CongViec SET deactive = NULL WHERE autoId = ?",
       [id]
     );
     return result.affectedRows > 0;
@@ -135,8 +132,8 @@ class TaskService {
 
   async findByAccountId(accountId) {
     const sql = `
-      SELECT DISTINCT  cv.* FROM CongViec cv
-      INNER JOIN PhanCong pc ON cv.id = pc.idCongViec
+      SELECT DISTINCT cv.* FROM CongViec cv
+      INNER JOIN PhanCong pc ON cv.autoId = pc.idCongViec
       WHERE pc.idNguoiNhan = ? AND cv.deactive IS NULL
     `;
     const [rows] = await this.mysql.execute(sql, [accountId]);

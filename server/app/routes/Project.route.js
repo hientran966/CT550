@@ -1,5 +1,5 @@
 const express = require("express");
-const project = require("../controllers/DuAn.controller");
+const project = require("../controllers/Project.controller");
 
 const router = express.Router();
 

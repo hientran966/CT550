@@ -1,5 +1,5 @@
 const express = require("express");
-const calendar = require("../controllers/LichNghi.controller");
+const calendar = require("../controllers/Calendar.controller");
 
 const router = express.Router();
 
@@ -12,8 +12,5 @@ router.route("/:id")
     .get(calendar.findOne)
     .put(calendar.update)
     .delete(calendar.delete);
-
-router.post("/ngaybu", calendar.createNgayBu);
-router.get("/ngaybu/:idNgayBu", calendar.getNgayBu);
 
 module.exports = router;

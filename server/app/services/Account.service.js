@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 
-class AuthService {
+class AccountService {
     constructor(mysql) {
         this.mysql = mysql;
     }
@@ -8,13 +8,11 @@ class AuthService {
     async extractAuthData(payload) {
         const auth = {
             email: payload.email,
-            tenNV: payload.tenNV,
+            ten: payload.ten,
             gioiTinh: payload.gioiTinh ?? "Nam",
             SDT: payload.SDT,
             diaChi: payload.diaChi,
-            vaiTro: payload.vaiTro ?? "VT000001",
-            idPhong: payload.idPhong ?? null,
-            avatar: payload.avatar ?? "FI000001",
+            avatar: payload.avatar ?? 1,
             deactive: payload.deactive ?? null,
             admin: payload.admin ?? false,
         };
@@ -26,7 +24,7 @@ class AuthService {
 
     async create(payload) {
         if (!payload) throw new Error("Không có dữ liệu đầu vào");
-        if (!payload.tenNV) throw new Error("Cần có tên nhân viên");
+        if (!payload.ten) throw new Error("Cần có tên người dùng");
         if (!payload.email) throw new Error("Cần có email");
 
         // Kiểm tra trùng email
@@ -35,6 +33,13 @@ class AuthService {
             [payload.email]
         );
         if (email.length > 0) throw new Error("Tài khoản đã tồn tại");
+
+        //Kiểm tra tên
+        const [name] = await this.mysql.execute(
+            "SELECT id FROM TaiKhoan WHERE ten = ?",
+            [payload.ten]
+        );
+        if (name.length > 0) throw new Error("Tên người dùng đã tồn tại");
 
         // Mật khẩu mặc định
         if (!payload.Password) payload.Password = "defaultPW";
@@ -49,11 +54,11 @@ class AuthService {
             const updateAt = new Date();
 
             const [result] = await connection.execute(
-                `INSERT INTO TaiKhoan (email, tenNV, gioiTinh, SDT, diaChi, vaiTro, Password, deactive, avatar, idPhong, updateAt, admin)
+                `INSERT INTO TaiKhoan (email, ten, gioiTinh, SDT, diaChi, vaiTro, Password, deactive, avatar, idPhong, updateAt, admin)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     auth.email,
-                    auth.tenNV,
+                    auth.ten,
                     auth.gioiTinh,
                     auth.SDT,
                     auth.diaChi,
@@ -86,25 +91,20 @@ class AuthService {
     }
 
     async find(filter = {}) {
-        let sql = `
-            SELECT tk.*, vt.phanQuyen
-            FROM TaiKhoan tk
-            LEFT JOIN VaiTro vt ON tk.vaiTro = vt.id
-            WHERE tk.deactive IS NULL
-        `;
+        let sql = `SELECT * FROM TaiKhoan WHERE deactive IS NULL`;
         const params = [];
 
         if (filter.email) {
-            sql += " AND tk.email LIKE ?";
+            sql += " AND email LIKE ?";
             params.push(`%${filter.email}%`);
         }
         if (filter.vaiTro) {
-            sql += " AND tk.vaiTro = ?";
+            sql += " AND vaiTro = ?";
             params.push(filter.vaiTro);
         }
-        if (filter.tenNV) {
-            sql += " AND tk.tenNV LIKE ?";
-            params.push(`%${filter.tenNV}%`);
+        if (filter.ten) {
+            sql += " AND ten LIKE ?";
+            params.push(`%${filter.ten}%`);
         }
 
         const [rows] = await this.mysql.execute(sql, params);
@@ -113,12 +113,7 @@ class AuthService {
 
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            `
-            SELECT tk.*, vt.tenVaiTro
-            FROM TaiKhoan tk
-            LEFT JOIN VaiTro vt ON tk.vaiTro = vt.id
-            WHERE tk.id = ? AND tk.deactive IS NULL
-            `,
+            `SELECT * FROM TaiKhoan WHERE autoId = ? AND deactive IS NULL`,
             [id]
         );
         return rows[0] || null;
@@ -141,7 +136,7 @@ class AuthService {
             fields.push("updateAt = ?");
             params.push(new Date());
         }
-        sql += fields.join(", ") + " WHERE id = ?";
+        sql += fields.join(", ") + " WHERE autoId = ?";
         params.push(id);
 
         await this.mysql.execute(sql, params);
@@ -152,13 +147,13 @@ class AuthService {
         const user = await this.findById(id);
         if (!user) return null;
         const deletedAt = new Date();
-        await this.mysql.execute("UPDATE TaiKhoan SET deactive = ? WHERE id = ?", [deletedAt, id]);
+        await this.mysql.execute("UPDATE TaiKhoan SET deactive = ? WHERE autoId = ?", [deletedAt, id]);
         return { ...user, deactive: deletedAt };
     }
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE TaiKhoan SET deactive = NULL WHERE id = ?",
+            "UPDATE TaiKhoan SET deactive = NULL WHERE autoId = ?",
             [id]
         );
         return result.affectedRows > 0;
@@ -174,10 +169,10 @@ class AuthService {
         return await bcrypt.compare(inputPassword, storedPassword);
     }
 
-    async login(email, Password) {
+    async login(identifier, Password) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM TaiKhoan WHERE email = ?",
-            [email]
+            "SELECT * FROM TaiKhoan WHERE email = ? OR ten = ?",
+            [identifier, identifier]
         );
         const auth = rows[0];
         if (!auth) throw new Error("Tài khoản không tồn tại");
@@ -189,7 +184,7 @@ class AuthService {
 
     async getAvatar(id) {
         const [userRows] = await this.mysql.execute(
-            "SELECT avatar FROM TaiKhoan WHERE id = ?",
+            "SELECT avatar FROM TaiKhoan WHERE autoId = ?",
             [id]
         );
         if (!userRows.length || !userRows[0].avatar) return null;
@@ -216,36 +211,17 @@ class AuthService {
             sql += " AND vaiTro = ?";
             params.push(filter.vaiTro);
         }
-        if (filter.tenNV) {
-            sql += " AND tenNV LIKE ?";
-            params.push(`%${filter.tenNV}%`);
+        if (filter.ten) {
+            sql += " AND ten LIKE ?";
+            params.push(`%${filter.ten}%`);
         }
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
     }
 
-    async getUserDepartment(id) {
-        const [rows] = await this.mysql.execute(
-            "SELECT pb.*,lp.phanQuyen FROM PhongBan pb JOIN TaiKhoan tk ON pb.id = tk.idPhong JOIN LoaiPhongBan lp ON pb.loaiPhongBan = lp.id WHERE tk.id = ? AND tk.deactive IS NULL",
-            [id]
-        )
-
-        return rows;
-    }
-
-    async getDepartment(id) {
-        const [accounts] = await this.mysql.execute(
-            `SELECT * FROM TaiKhoan
-            WHERE idPhong = ? AND deactive IS NULL`,
-            [id]
-        );
-
-        return accounts;
-    }
-
     async changePassword(id, oldPassword, newPassword) {
         const [rows] = await this.mysql.execute(
-            "SELECT Password FROM TaiKhoan WHERE id = ?",
+            "SELECT Password FROM TaiKhoan WHERE autoId = ?",
             [id]
         );
         if (rows.length === 0) {
@@ -263,7 +239,7 @@ class AuthService {
 
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         await this.mysql.execute(
-            "UPDATE TaiKhoan SET Password = ?, updateAt = ? WHERE id = ?",
+            "UPDATE TaiKhoan SET Password = ?, updateAt = ? WHERE autoId = ?",
             [hashedNewPassword, new Date(), id]
         );
 
@@ -274,27 +250,15 @@ class AuthService {
         const [rows] = await this.mysql.execute(
             `SELECT COUNT(DISTINCT PhanCong.idCongViec) AS count
             FROM TaiKhoan
-            JOIN PhanCong ON TaiKhoan.id = PhanCong.idNguoiNhan
-            WHERE TaiKhoan.id = ? 
+            JOIN PhanCong ON TaiKhoan.autoId = PhanCong.idNguoiNhan
+            WHERE TaiKhoan.autoId = ? 
             AND TaiKhoan.deactive IS NULL 
             AND PhanCong.trangThai = 'Đang thực hiện'`,
             [id]
         );
         return rows[0].count;
     }
-
-    async getRole(id) {
-        const [rows] = await this.mysql.execute(
-            "SELECT vt.phanQuyen FROM TaiKhoan AS tk JOIN VaiTro AS vt ON tk.vaiTro = vt.id WHERE tk.id = ? AND tk.deactive IS NULL",
-            [id]
-        );
-        if (rows.length === 0) {
-            const error = new Error("Tài khoản không tồn tại");
-            error.statusCode = 404;
-            throw error;
-        }
-        return rows[0];
-    }
+    
 }
 
-module.exports = AuthService;
+module.exports = AccountService;

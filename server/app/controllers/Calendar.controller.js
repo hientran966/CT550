@@ -1,6 +1,6 @@
 const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
-const CalendarService = require ("../services/LichNghi.service");
+const CalendarService = require ("../services/Calendar.service");
 
 //Tạo lịch nghỉ
 exports.create = async (req, res, next) => {
@@ -123,37 +123,5 @@ exports.deleteAll = async (req, res, next) => {
         return next(
             new ApiError(500, "Đã xảy ra lỗi khi xóa tất cả lịch")
         );
-    }
-};
-
-//Tạo ngày bù
-exports.createNgayBu = async (req, res, next) => {
-    if (!req.body.ngayBDBu || !req.body.ngayKTBu) {
-        return next(new ApiError(400, "Ngày bắt đầu và kết thúc ngày bù không được để trống"));
-    }
-
-    try {
-        const calendarService = new CalendarService(MySQL.pool);
-        const idNgayBu = await calendarService.createDate(req.body);
-        return res.send({ idNgayBu });
-    } catch (error) {
-        console.error(error);
-        return next(
-            new ApiError(500, "Đã xảy ra lỗi khi tạo ngày bù")
-        );
-    }
-};
-
-exports.getNgayBu = async (req, res, next) => {
-    try {
-        const calendarService = new CalendarService(MySQL.connection);
-        const ngayBu = await calendarService.getNgayBu(req.params.idNgayBu);
-        if (!ngayBu) {
-            return next(new ApiError(404, "Không tìm thấy ngày bù"));
-        }
-        return res.send(ngayBu);
-    } catch (error) {
-        console.error(error);
-        return next(new ApiError(500, "Đã xảy ra lỗi khi lấy ngày bù"));
     }
 };

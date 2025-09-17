@@ -2,7 +2,7 @@ const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
 const path = require("path");
 const fs = require("fs");
-const AuthService = require("../services/TaiKhoan.service");
+const AuthService = require("../services/Account.service");
 
 //Tạo tài khoản
 exports.create = async (req, res, next) => {
@@ -195,33 +195,6 @@ exports.getDeactive = async (req, res, next) => {
     return res.send(documents);
 };
 
-//Lấy phòng ban của tài khoản
-exports.getUserDepartment = async (req, res, next) => {
-    try {
-        const authService = new AuthService(MySQL.connection);
-        const department = await authService.getUserDepartment(req.params.id);
-        if (!department) {
-            return next(new ApiError(404, "Department not found"));
-        }
-        return res.send(department);
-    } catch (error) {
-        console.error("Get user department error:", error);
-        next(new ApiError(500, "An error occurred while retrieving user department"));
-    }
-}
-
-//Lấy danh sách tài khoản cùng phòng ban
-exports.getDepartment = async (req, res, next) => {
-    try {
-        const authService = new AuthService(MySQL.connection);
-        const accounts = await authService.getDepartment(req.params.id);
-        return res.send(accounts);
-    } catch (error) {
-        console.error("Get department error:", error);
-        next(new ApiError(500, "An error occurred while retrieving department accounts"));
-    }
-};
-
 //Đổi mật khẩu
 exports.changePassword = async (req, res, next) => {
     const { oldPassword, newPassword } = req.body;
@@ -250,17 +223,5 @@ exports.getAssignNumber = async (req, res, next) => {
     } catch (error) {
         console.error("Get assignments count error:", error);
         next(new ApiError(500, "An error occurred while retrieving assignments count"));
-    }
-}
-
-// Lấy phân quyền của tài khoản
-exports.getRole = async (req, res, next) => {
-    try {
-        const authService = new AuthService(MySQL.connection);
-        const permissions = await authService.getRole(req.params.id);
-        return res.send(permissions);
-    } catch (error) {
-        console.error("Get permissions error:", error);
-        next(new ApiError(500, "An error occurred while retrieving permissions"));
     }
 }

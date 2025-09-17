@@ -11,8 +11,7 @@ class CalendarService {
             ngayBD: payload.ngayBD,
             ngayKT: payload.ngayKT,
             deactive: payload.deactive ?? null,
-            ngayBDBu: payload.ngayBDBu,
-            ngayKTBu: payload.ngayKTBu,
+            idDuAn: payload.idDuAn ?? null,
         };
     }
 
@@ -22,23 +21,14 @@ class CalendarService {
         try {
             await connection.beginTransaction();
 
-            // Tạo ngày bù nếu có
-            calendar.idNgayBu = null;
-            if (calendar.ngayBDBu && calendar.ngayKTBu) {
-                calendar.idNgayBu = await this.createDate({
-                    ngayBDBu: calendar.ngayBDBu,
-                    ngayKTBu: calendar.ngayKTBu
-                }, connection);
-            }
-
             const [result] = await connection.execute(
-                "INSERT INTO LichNghi (tieuDe, ngayBD, ngayKT, deactive, idNgayBu) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO LichNghi (tieuDe, ngayBD, ngayKT, deactive, idDuAn) VALUES (?, ?, ?, ?, ?)",
                 [
                     calendar.tieuDe,
                     calendar.ngayBD,
                     calendar.ngayKT,
                     calendar.deactive,
-                    calendar.idNgayBu,
+                    calendar.idDuAn,
                 ]
             );
 
@@ -58,25 +48,6 @@ class CalendarService {
         } finally {
             connection.release();
         }
-    }
-
-    async createDate(payload, connection = this.mysql) {
-        const calendar = await this.extractCalendarData(payload);
-
-        const [result] = await connection.execute(
-            "INSERT INTO NgayBu (ngayBD, ngayKT) VALUES (?, ?)",
-            [calendar.ngayBDBu, calendar.ngayKTBu]
-        );
-
-        const autoId = result.insertId;
-        const newId = "NB" + autoId.toString().padStart(6, "0");
-
-        await connection.execute(
-            "UPDATE NgayBu SET id = ? WHERE autoId = ?",
-            [newId, autoId]
-        );
-
-        return newId;
     }
 
     async find(filter = {}) {
@@ -100,7 +71,7 @@ class CalendarService {
     
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM LichNghi WHERE id = ? AND deactive IS NULL",
+            "SELECT * FROM LichNghi WHERE autoId = ? AND deactive IS NULL",
             [id]
         );
         return rows[0] || null;
@@ -116,7 +87,7 @@ class CalendarService {
             fields.push(`${key} = ?`);
             params.push(calendar[key]);
         }
-        sql += fields.join(", ") + " WHERE id = ?";
+        sql += fields.join(", ") + " WHERE autoId = ?";
         params.push(id);
         const [result] = await this.mysql.execute(sql, params);
         if (result.affectedRows === 0) {
@@ -127,7 +98,7 @@ class CalendarService {
 
     async delete(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE LichNghi SET deactive = NOW() WHERE id = ?",
+            "UPDATE LichNghi SET deactive = NOW() WHERE autoId = ?",
             [id]
         );
         if (result.affectedRows === 0) {
@@ -138,7 +109,7 @@ class CalendarService {
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE LichNghi SET deactive = NULL WHERE id = ?",
+            "UPDATE LichNghi SET deactive = NULL WHERE autoId = ?",
             [id]
         );
         return result.affectedRows > 0;
@@ -153,14 +124,6 @@ class CalendarService {
         return deletedAt;
     }
 
-    async getNgayBu(idNgayBu) {
-        if (!idNgayBu) return null;
-        const [rows] = await this.mysql.execute(
-            "SELECT ngayBD, ngayKT FROM NgayBu WHERE id = ?",
-            [idNgayBu]
-        );
-        return rows[0] || null;
-    }
 }
 
 module.exports = CalendarService;

@@ -2,17 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const ApiError = require("./app/api-error");
-const authRouter = require("./app/routes/TaiKhoan.route");
-const departmentRouter = require("./app/routes/PhongBan.route");
-const projectRouter = require("./app/routes/DuAn.route");
+const authRouter = require("./app/routes/Account.route");
+const projectRouter = require("./app/routes/Project.route");
 const taskRouter = require("./app/routes/Task.route");
-const assignmentRouter = require("./app/routes/PhanCong.route");
+const assignmentRouter = require("./app/routes/Assignment.route");
 const notificationRouter = require("./app/routes/ThongBao.route");
 const fileRouter = require("./app/routes/File.route");
-const taskGroupRouter = require("./app/routes/NhomCongViec.route");
-const calendarRouter = require("./app/routes/LichNghi.route")
-const roleRouter = require("./app/routes/VaiTro.route");
-const deptRoleRouter = require("./app/routes/LoaiPhongBan.route");
+const calendarRouter = require("./app/routes/Calendar.route")
 
 const app = express();
 
@@ -25,16 +21,12 @@ app.get("/", (req, res) => {
 });
 // Import routes
 app.use("/api/auth", authRouter);
-app.use("/api/phongban", departmentRouter);
 app.use("/api/duan", projectRouter);
 app.use("/api/congviec", taskRouter);
 app.use("/api/phancong", assignmentRouter);
 app.use("/api/thongbao", notificationRouter);
 app.use("/api/file", fileRouter);
-app.use("/api/nhomviec", taskGroupRouter);
 app.use("/api/lich", calendarRouter)
-app.use("/api/vaitro", roleRouter);
-app.use("/api/loaiphong", deptRoleRouter);
 
 //handle 404
 app.use((req, res, next) => {

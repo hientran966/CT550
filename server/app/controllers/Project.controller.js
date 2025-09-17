@@ -1,6 +1,6 @@
 const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
-const ProjectService = require("../services/DuAn.service");
+const ProjectService = require("../services/Project.service");
 
 //Tạo dự án
 exports.create = async (req, res, next) => {
