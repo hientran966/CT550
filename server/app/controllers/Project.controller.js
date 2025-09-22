@@ -21,7 +21,7 @@ exports.create = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi tạo dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo dự án")
         );
     }
 };
@@ -48,7 +48,7 @@ exports.findAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi lấy danh sách dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách dự án")
         );
     }
 
@@ -68,6 +68,7 @@ exports.findOne = async (req, res, next) => {
         return next(
             new ApiError(
                 500,
+                error.message ||
                 `Đã xảy ra lỗi khi lấy dự án với id=${req.params.id}`
             )
         );
@@ -83,7 +84,7 @@ exports.update = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi cập nhật dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi cập nhật dự án")
         );
     }
 };
@@ -97,7 +98,7 @@ exports.delete = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi xóa dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa dự án")
         );
     }
 };
@@ -111,7 +112,7 @@ exports.restore = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi khôi phục dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi khôi phục dự án")
         );
     }
 };
@@ -125,7 +126,7 @@ exports.deleteAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi xóa tất cả dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa tất cả dự án")
         );
     }
 };
@@ -141,6 +142,7 @@ exports.findByAccountId = async (req, res, next) => {
         return next(
             new ApiError(
                 500,
+                error.message ||
                 `Đã xảy ra lỗi khi lấy dự án theo idNguoiNhan=${req.params.id}`
             )
         );

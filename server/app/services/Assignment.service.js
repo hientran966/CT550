@@ -4,19 +4,20 @@ class AssignmentService {
     }
 
     async extractAssignmentData(payload) {
-        const result = {};
-        if (payload.moTa !== undefined) result.moTa = payload.moTa;
-        if (payload.idCongViec !== undefined) result.idCongViec = payload.idCongViec;
-        if (payload.tienDoCaNhan !== undefined) result.tienDoCaNhan = payload.tienDoCaNhan;
-        if (payload.doQuanTrong !== undefined) result.doQuanTrong = payload.doQuanTrong;
-        if (payload.idNguoiNhan !== undefined) result.idNguoiNhan = payload.idNguoiNhan;
-        result.ngayNhan = payload.ngayNhan ?? null;
-        result.ngayHoanTat = payload.ngayHoanTat ?? null;
-        result.trangThai = payload.trangThai ?? "Chưa bắt đầu";
-        return result;
+        return {
+            moTa: payload.moTa ?? null,
+            idCongViec: payload.idCongViec ?? null,
+            tienDoCaNhan: payload.tienDoCaNhan ?? null,
+            doQuanTrong: payload.doQuanTrong ?? null,
+            idNguoiNhan: payload.idNguoiNhan ?? null,
+            ngayNhan: payload.ngayNhan ?? null,
+            ngayHoanTat: payload.ngayHoanTat ?? null,
+            trangThai: payload.trangThai ?? "Chưa bắt đầu",
+            deactive: payload.deactive ?? null,
+        };
     }
 
-    extractReportData(payload) {
+    async extractReportData(payload) {
         return {
             moTa: payload.moTa ?? null,
             tienDoCaNhan: payload.tienDoCaNhan ?? null,
@@ -33,8 +34,8 @@ class AssignmentService {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                `INSERT INTO PhanCong (idCongViec, doQuanTrong, tienDoCaNhan, idNguoiNhan, ngayNhan, ngayHoanTat, trangThai, moTa)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO PhanCong (idCongViec, doQuanTrong, tienDoCaNhan, idNguoiNhan, ngayNhan, ngayHoanTat, trangThai, moTa, deactive)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     assignment.idCongViec,
                     assignment.doQuanTrong,
@@ -44,6 +45,7 @@ class AssignmentService {
                     assignment.ngayHoanTat,
                     assignment.trangThai,
                     assignment.moTa,
+                    assignment.deactive,
                 ]
             );
 
@@ -97,7 +99,7 @@ class AssignmentService {
             "SELECT * FROM PhanCong WHERE idCongViec = ? AND deactive IS NULL",
             [taskId]
         );
-        return rows || null;
+        return rows;
     }
 
     async update(id, payload) {
@@ -113,7 +115,7 @@ class AssignmentService {
         sql += fields.join(", ") + " WHERE autoId = ?";
         params.push(id);
         await this.mysql.execute(sql, params);
-        return { ...assignment };
+        return { ...assignment, id };
     }
 
     async delete(id) {
@@ -124,7 +126,7 @@ class AssignmentService {
             "UPDATE PhanCong SET deactive = ? WHERE autoId = ?",
             [deletedAt, id]
         );
-        return id;
+        return { ...assignment, deactive: deletedAt, id };
     }
 
     async restore(id) {
@@ -153,7 +155,7 @@ class AssignmentService {
 
         try {
             await connection.beginTransaction();
-            const reportData = this.extractReportData(payload);
+            const reportData = await this.extractReportData(payload);
 
             const [result] = await connection.execute(
                 `INSERT INTO BaoCao
@@ -223,7 +225,7 @@ class AssignmentService {
             "SELECT * FROM BaoCao WHERE idPhanCong = ?",
             [id]
         );
-        return rows || null;
+        return rows;
     }
 }
 

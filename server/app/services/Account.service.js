@@ -12,7 +12,7 @@ class AccountService {
             gioiTinh: payload.gioiTinh ?? "Nam",
             SDT: payload.SDT,
             diaChi: payload.diaChi,
-            avatar: payload.avatar ?? 1,
+            avatar: payload.avatar ?? null,
             deactive: payload.deactive ?? null,
             admin: payload.admin ?? false,
         };
@@ -54,19 +54,17 @@ class AccountService {
             const updateAt = new Date();
 
             const [result] = await connection.execute(
-                `INSERT INTO TaiKhoan (email, ten, gioiTinh, SDT, diaChi, vaiTro, Password, deactive, avatar, idPhong, updateAt, admin)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO TaiKhoan (email, ten, gioiTinh, SDT, diaChi, Password, deactive, avatar, updateAt, admin)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     auth.email,
                     auth.ten,
                     auth.gioiTinh,
                     auth.SDT,
                     auth.diaChi,
-                    auth.vaiTro,
                     hashedPassword,
                     auth.deactive,
                     auth.avatar,
-                    auth.idPhong,
                     updateAt,
                     auth.admin ? 1 : 0
                 ]

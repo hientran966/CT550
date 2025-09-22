@@ -17,7 +17,7 @@ exports.create = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "An error occurred while creating the account")
+            new ApiError(500, error.message || "An error occurred while creating the account")
         );
     } 
 };
@@ -41,7 +41,7 @@ exports.findAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "An error occurred while retrieving the account")
+            new ApiError(500, error.message || "An error occurred while retrieving the account")
         );
     }
 
@@ -61,6 +61,7 @@ exports.findOne = async (req, res, next) => {
         return next(
             new ApiError(
                 500,
+                error.message ||
                 `Error retieving account with id=${req.params.id}`
             )
         );
@@ -82,7 +83,7 @@ exports.update = async (req, res, next) => {
         return res.send({message: "Account was updated successfully"});
     } catch (error) {
         return next(
-            new ApiError(500, `Error updating account with id=${req.params.id}`)
+            new ApiError(500, error.message || `Error updating account with id=${req.params.id}`)
         );
     }
 };
@@ -98,7 +99,7 @@ exports.delete = async (req, res, next) => {
         return res.send({message: "Account was deleted successfully"});
     } catch (error) {
         return next(
-            new ApiError(500, `Could not delete account with id=${req.params.id}`)
+            new ApiError(500, error.message || `Could not delete account with id=${req.params.id}`)
         );
     }
 };
@@ -114,7 +115,7 @@ exports.restore = async (req, res, next) => {
         return res.send({message: "Account was restored successfully"});
     } catch (error) {
         return next(
-            new ApiError(500, `Could not restore account with id=${req.params.id}`)
+            new ApiError(500, error.message || `Could not restore account with id=${req.params.id}`)
         );
     }
 };
@@ -129,7 +130,7 @@ exports.deleteAll = async (_req, res, next) => {
         });
     } catch (error) {
         return next(
-            new ApiError(500, "An error occurred while removing all accounts")
+            new ApiError(500, error.message || "An error occurred while removing all accounts")
         );
     }
 };
@@ -142,7 +143,7 @@ exports.login = async (req, res, next) => {
         res.send(account);
     } catch (error) {
         console.error("Login error:", error);
-        next(new ApiError(401, "Login failed"));
+        next(new ApiError(401, error.message || "Login failed"));
     }
 };
 
@@ -152,20 +153,20 @@ exports.getAvatar = async (req, res, next) => {
         const authService = new AuthService(MySQL.connection);
         const duongDan = await authService.getAvatar(req.params.id);
         if (!duongDan) {
-            return next(new ApiError(404, "Avatar not found"));
+            return next(new ApiError(404, error.message || "Avatar not found"));
         }
         const absolutePath = path.isAbsolute(duongDan)
             ? duongDan
             : path.join(__dirname, "..", "..", duongDan);
         fs.access(absolutePath, fs.constants.F_OK, (err) => {
             if (err) {
-                return next(new ApiError(404, "Avatar file not found"));
+                return next(new ApiError(404, err.message || "Avatar file not found"));
             }
             res.sendFile(absolutePath);
         });
     } catch (error) {
         console.error("Get avatar error:", error);
-        next(new ApiError(500, "An error occurred while retrieving the avatar"));
+        next(new ApiError(500, error.message || "An error occurred while retrieving the avatar"));
     }
 };
 
@@ -188,7 +189,7 @@ exports.getDeactive = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "An error occurred while retrieving the account")
+            new ApiError(500, error.message || "An error occurred while retrieving the account")
         );
     }
 
@@ -222,6 +223,6 @@ exports.getAssignNumber = async (req, res, next) => {
         return res.send({ count });
     } catch (error) {
         console.error("Get assignments count error:", error);
-        next(new ApiError(500, "An error occurred while retrieving assignments count"));
+        next(new ApiError(500, error.message || "An error occurred while retrieving assignments count"));
     }
 }

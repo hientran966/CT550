@@ -6,7 +6,7 @@ const authRouter = require("./app/routes/Account.route");
 const projectRouter = require("./app/routes/Project.route");
 const taskRouter = require("./app/routes/Task.route");
 const assignmentRouter = require("./app/routes/Assignment.route");
-const notificationRouter = require("./app/routes/ThongBao.route");
+const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const calendarRouter = require("./app/routes/Calendar.route")
 

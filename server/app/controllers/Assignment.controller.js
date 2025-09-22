@@ -17,7 +17,7 @@ exports.create = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi tạo tham gia")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo phân công")
         );
     }
 };
@@ -44,27 +44,28 @@ exports.findAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi lấy danh sách tham gia")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách phân công")
         );
     }
 
     return res.send(documents);
 };
 
-//Lấy tham gia theo id
+//Lấy phân công theo id
 exports.findOne = async (req, res, next) => {
     try {
         const assignmentService = new AssignmentService(MySQL.connection);
         const document = await assignmentService.findById(req.params.id);
         if (!document){
-            return next(new ApiError(404, "Tham gia không tồn tại"));
+            return next(new ApiError(404, "Phân công không tồn tại"));
         }
         return res.send(document);
     } catch (error) {
         return next(
             new ApiError(
                 500,
-                `Đã xảy ra lỗi khi lấy tham gia với id=${req.params.id}`
+                error.message ||
+                `Đã xảy ra lỗi khi lấy phân công với id=${req.params.id}`
             )
         );
     }
@@ -76,7 +77,7 @@ exports.update = async (req, res, next) => {
         const assignmentService = new AssignmentService(MySQL.connection);
         const document = await assignmentService.update(req.params.id, req.body);
         if (!document){
-            return next(new ApiError(404, "Tham gia không tồn tại"));
+            return next(new ApiError(404, "Phân công không tồn tại"));
         }  
         return res.send(document);
     } catch (error) {
@@ -84,7 +85,8 @@ exports.update = async (req, res, next) => {
         return next(
             new ApiError(
                 500,
-                `Đã xảy ra lỗi khi cập nhật tham gia với id=${req.params.id}`
+                error.message ||
+                `Đã xảy ra lỗi khi cập nhật phân công với id=${req.params.id}`
             )
         );
     }
@@ -96,15 +98,16 @@ exports.delete = async (req, res, next) => {
         const assignmentService = new AssignmentService(MySQL.connection);
         const document = await assignmentService.delete(req.params.id);
         if (!document){
-            return next(new ApiError(404, "Tham gia không tồn tại"));
+            return next(new ApiError(404, "Phân công không tồn tại"));
         }
-        return res.send({message: "Tham gia đã được xóa thành công"});
+        return res.send({message: "phân công đã được xóa thành công"});
     } catch (error) {
         console.error(error);
         return next(
             new ApiError(
                 500,
-                `Đã xảy ra lỗi khi xóa tham gia với id=${req.params.id}`
+                error.message ||
+                `Đã xảy ra lỗi khi xóa phân công với id=${req.params.id}`
             )
         );
     }
@@ -116,13 +119,13 @@ exports.restore = async (req, res, next) => {
         const assignmentService = new AssignmentService(MySQL.connection);
         const document = await assignmentService.restore(req.params.id);
         if (!document){
-            return next(new ApiError(404, "Tham gia không tồn tại"));
+            return next(new ApiError(404, "Phân công không tồn tại"));
         }
-        return res.send({message: "Khôi phục tham gia thành công"});
+        return res.send({message: "Khôi phục phân công thành công"});
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi khôi phục tham gia")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi khôi phục phân công")
         );
     }
 };
@@ -132,16 +135,16 @@ exports.deleteAll = async (req, res, next) => {
     try {
         const assignmentService = new AssignmentService(MySQL.connection);
         const document = await assignmentService.deleteAll();
-        return res.send({message: "Xóa tất cả tham gia thành công"});
+        return res.send({message: "Xóa tất cả phân công thành công"});
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi xóa tất cả tham gia")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa tất cả phân công")
         );
     }
 };
 
-//Lấy tham gia theo công việc
+//Lấy phân công theo công việc
 exports.findByTask = async (req, res, next) => {
     try {
         const assignmentService = new AssignmentService(MySQL.connection);
@@ -150,7 +153,7 @@ exports.findByTask = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, `Đã xảy ra lỗi khi lấy tham gia cho công việc với id=${req.params.task}`)
+            new ApiError(500, error.message || `Đã xảy ra lỗi khi lấy phân công cho công việc với id=${req.params.task}`)
         );
     }
 };
@@ -167,7 +170,7 @@ exports.report = async (req, res, next) => {
         return res.send(result);
     } catch (error) {
         console.error(error);
-        return next(new ApiError(500, "Đã xảy ra lỗi khi gửi báo cáo"));
+        return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi gửi báo cáo"));
     }
 };
 
@@ -182,6 +185,6 @@ exports.getReport = async (req, res, next) => {
         return res.send(report);
     } catch (error) {
         console.error(error);
-        return next(new ApiError(500, "Đã xảy ra lỗi khi lấy báo cáo"));
+        return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy báo cáo"));
     }
 };

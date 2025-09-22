@@ -15,7 +15,7 @@ exports.create = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi tạo công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo công việc")
         );
     }
 };
@@ -43,7 +43,7 @@ exports.findAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi lấy danh sách công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách công việc")
         );
     }
 
@@ -63,6 +63,7 @@ exports.findOne = async (req, res, next) => {
         return next(
             new ApiError(
                 500,
+                error.message ||
                 `Đã xảy ra lỗi khi lấy công việc với id=${req.params.id}`
             )
         );
@@ -82,7 +83,7 @@ exports.update = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi cập nhật công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi cập nhật công việc")
         );
     }
 };
@@ -96,7 +97,7 @@ exports.delete = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi xóa công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa công việc")
         );
     }
 };
@@ -113,7 +114,7 @@ exports.restore = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi khôi phục công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi khôi phục công việc")
         );
     }
 };
@@ -127,7 +128,7 @@ exports.deleteAll = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi xóa tất cả công việc")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa tất cả công việc")
         );
     }
 };
@@ -140,7 +141,7 @@ exports.findByProject = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(
-            new ApiError(500, "Đã xảy ra lỗi khi lấy công việc theo dự án")
+            new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy công việc theo dự án")
         );
     }
 };
@@ -152,6 +153,6 @@ exports.findByAccountId = async (req, res, next) => {
     return res.send(documents);
   } catch (error) {
     console.error(error);
-    return next(new ApiError(500, "Đã xảy ra lỗi khi lấy công việc theo tài khoản"));
+    return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy công việc theo tài khoản"));
   }
 };
