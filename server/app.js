@@ -6,6 +6,7 @@ const authRouter = require("./app/routes/Account.route");
 const projectRouter = require("./app/routes/Project.route");
 const taskRouter = require("./app/routes/Task.route");
 const assignmentRouter = require("./app/routes/Assignment.route");
+const contactRouter = require("./app/routes/Contact.route");
 const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const calendarRouter = require("./app/routes/Calendar.route")
@@ -24,6 +25,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/duan", projectRouter);
 app.use("/api/congviec", taskRouter);
 app.use("/api/phancong", assignmentRouter);
+app.use("/api/lienhe", contactRouter);
 app.use("/api/thongbao", notificationRouter);
 app.use("/api/file", fileRouter);
 app.use("/api/lich", calendarRouter)
