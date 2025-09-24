@@ -9,7 +9,8 @@ const assignmentRouter = require("./app/routes/Assignment.route");
 const contactRouter = require("./app/routes/Contact.route");
 const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
-const calendarRouter = require("./app/routes/Calendar.route")
+const calendarRouter = require("./app/routes/Calendar.route");
+const chatbotRouter = require("./app/routes/Chatbot.route");
 
 const app = express();
 
@@ -28,7 +29,8 @@ app.use("/api/phancong", assignmentRouter);
 app.use("/api/lienhe", contactRouter);
 app.use("/api/thongbao", notificationRouter);
 app.use("/api/file", fileRouter);
-app.use("/api/lich", calendarRouter)
+app.use("/api/lich", calendarRouter);
+app.use("/api/ask", chatbotRouter);
 
 //handle 404
 app.use((req, res, next) => {
