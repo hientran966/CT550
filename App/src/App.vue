@@ -17,10 +17,6 @@ import SideBar from './components/SideBar.vue';
 </script>
 
 <style>
-.sidebar {
-
-}
-
 .main-content {
   background-color: #ffe3e3;
   min-height: 100vh;

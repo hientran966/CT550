@@ -12,10 +12,10 @@
       <template #title>Home</template>
     </el-menu-item>
 
-    <!-- Contact -->
-    <el-menu-item index="/contact">
-      <el-icon><IconMenu color="white"/></el-icon>
-      <template #title>Contact</template>
+    <!-- Project -->
+    <el-menu-item index="/projects">
+      <el-icon><Files /></el-icon>
+      <template #title>Dự án</template>
     </el-menu-item>
 
     <!-- About -->
@@ -27,7 +27,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Document, Menu as IconMenu, Location } from "@element-plus/icons-vue";
+import { Document, Files, Location } from "@element-plus/icons-vue";
 </script>
 
 <style>
