@@ -1,12 +1,11 @@
 <template>
-  <el-table :data="projects" style="width: 100%" border >
-    <el-table-column prop="tenDA" label="Tên dự án" width="250" />
-    <el-table-column prop="ngayBD" label="Ngày bắt đầu" sortable width="250" :formatter="formatDate"/>
-    <el-table-column prop="ngayKT" label="Ngày kết thúc" sortable width="250" :formatter="formatDate"/>
+  <el-table :data="projects" style="width: 100%" border :table-layout="'auto'" ref="tableRef" @row-click="onRowClick">
+    <el-table-column prop="name" label="Tên dự án" />
+    <el-table-column prop="start_date" label="Ngày bắt đầu" sortable :formatter="formatDate"/>
+    <el-table-column prop="end_date" label="Ngày kết thúc" sortable :formatter="formatDate"/>
     <el-table-column
-      prop="trangThai"
+      prop="status"
       label="Trạng thái"
-      width="250"
       :filters="[
         { text: 'Chưa bắt đầu', value: 'Chưa bắt đầu' },
         { text: 'Đang tiến hành', value: 'Đang tiến hành' },
@@ -17,15 +16,15 @@
       <template #default="scope">
         <el-tag
           :type="
-            scope.row.trangThai === 'Đang tiến hành' ? 'primary' : 'success'
+            scope.row.status === 'Đang tiến hành' ? 'primary' : 'success'
           "
           disable-transitions
         >
-          {{ scope.row.trangThai }}
+          {{ scope.row.status }}
         </el-tag>
       </template>
     </el-table-column>
-    <el-table-column prop="idNguoiTao" label="Quản lý" width="250">
+    <el-table-column prop="created_by" label="Quản lý" width="250">
         <template #default="scope">
             <el-avatar> user </el-avatar>
         </template>
@@ -36,12 +35,16 @@
 <script lang="ts" setup>
 import type { TableInstance } from "element-plus";
 import { ref } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 interface Project {
-  tenDA: string;
-  ngayBD: string;
-  ngayKT: string;
-  trangThai: string;
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
 }
 
 const props = defineProps<{
@@ -51,7 +54,11 @@ const props = defineProps<{
 const tableRef = ref<TableInstance>();
 
 const filterTag = (value: string, row: Project) => {
-  return row.trangThai === value;
+  return row.status === value;
+};
+
+const onRowClick = (row: Project) => {
+  router.push({ name: "tasks", params: { id: row.id } });
 };
 
 const formatDate = (_: any, __: any, cellValue: string) => {
