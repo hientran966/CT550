@@ -5,13 +5,12 @@ class TaskService {
 
   async extractTaskData(payload) {
     return {
-      tenCV: payload.tenCV,
-      moTa: payload.moTa,
-      ngayBD: payload.ngayBD ?? null,
-      ngayKT: payload.ngayKT ?? null,
-      deactive: payload.deactive ?? null,
-      idNguoiTao: payload.idNguoiTao ?? null,
-      idDuAn: payload.idDuAn ?? null,
+      title: payload.title,
+      description: payload.description,
+      start_date: payload.start_date ?? null,
+      due_date: payload.due_date ?? null,
+      created_by: payload.created_by ?? null,
+      project_id: payload.project_id ?? null,
     };
   }
 
@@ -22,29 +21,20 @@ class TaskService {
       await connection.beginTransaction();
 
       const [result] = await connection.execute(
-        `INSERT INTO CongViec (tenCV, moTa, ngayBD, ngayKT, deactive, idNguoiTao, idDuAn)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id)
+        VALUES (?, ?, ?, ?, ?, ?)`,
         [
-          task.tenCV,
-          task.moTa,
-          task.ngayBD,
-          task.ngayKT,
-          task.deactive,
-          task.idNguoiTao,
-          task.idDuAn,
+          task.title,
+          task.description,
+          task.start_date,
+          task.due_date,
+          task.created_by,
+          task.project_id,
         ]
       );
 
-      const autoId = result.insertId;
-      const newId = "CV" + autoId.toString().padStart(6, "0");
-
-      await connection.execute(
-        "UPDATE CongViec SET id = ? WHERE autoId = ?",
-        [newId, autoId]
-      );
-
       await connection.commit();
-      return { id: newId, ...task };
+      return { id: result.insertId, ...task };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -54,28 +44,28 @@ class TaskService {
   }
 
   async find(filter = {}) {
-    let sql = "SELECT * FROM CongViec WHERE deactive IS NULL";
+    let sql = "SELECT * FROM tasks WHERE deleted_at IS NULL";
     let params = [];
 
-    if (filter.tenCV) {
-      sql += " AND tenCV LIKE ?";
-      params.push(`%${filter.tenCV}%`);
+    if (filter.title) {
+      sql += " AND title LIKE ?";
+      params.push(`%${filter.title}%`);
     }
-    if (filter.idDuAn) {
-      sql += " AND idDuAn = ?";
-      params.push(filter.idDuAn);
+    if (filter.project_id) {
+      sql += " AND project_id = ?";
+      params.push(filter.project_id);
     }
-    if (filter.ngayBD) {
-      sql += " AND ngayBD >= ?";
-      params.push(filter.ngayBD);
+    if (filter.start_date) {
+      sql += " AND start_date >= ?";
+      params.push(filter.start_date);
     }
-    if (filter.ngayKT) {
-      sql += " AND ngayKT <= ?";
-      params.push(filter.ngayKT);
+    if (filter.due_date) {
+      sql += " AND due_date <= ?";
+      params.push(filter.due_date);
     }
-    if (filter.idNguoiTao) {
-      sql += " AND idNguoiTao = ?";
-      params.push(filter.idNguoiTao);
+    if (filter.created_by) {
+      sql += " AND created_by = ?";
+      params.push(filter.created_by);
     }
     const [rows] = await this.mysql.execute(sql, params);
     return rows;
@@ -83,7 +73,7 @@ class TaskService {
 
   async findById(id) {
     const [rows] = await this.mysql.execute(
-      "SELECT * FROM CongViec WHERE autoId = ? AND deactive IS NULL",
+      "SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL",
       [id]
     );
     return rows[0] || null;
@@ -91,7 +81,7 @@ class TaskService {
 
   async update(id, payload) {
     const task = await this.extractTaskData(payload);
-    let sql = "UPDATE CongViec SET ";
+    let sql = "UPDATE tasks SET ";
     const fields = [];
     const params = [];
     for (const key in task) {
@@ -99,7 +89,7 @@ class TaskService {
       fields.push(`${key} = ?`);
       params.push(task[key]);
     }
-    sql += fields.join(", ") + " WHERE autoId = ?";
+    sql += fields.join(", ") + " WHERE id = ?";
     params.push(id);
     await this.mysql.execute(sql, params);
     return { ...task, id };
@@ -109,32 +99,26 @@ class TaskService {
     const user = await this.findById(id);
     if (!user) return null;
     const deletedAt = new Date();
-    await this.mysql.execute("UPDATE CongViec SET deactive = ? WHERE autoId = ?", [
+    await this.mysql.execute("UPDATE tasks SET deleted_at = ? WHERE id = ?", [
       deletedAt,
       id,
     ]);
-    return { ...user, deactive: deletedAt };
+    return { ...user, deleted_at: deletedAt };
   }
 
   async restore(id) {
     const [result] = await this.mysql.execute(
-      "UPDATE CongViec SET deactive = NULL WHERE autoId = ?",
+      "UPDATE tasks SET deleted_at = NULL WHERE id = ?",
       [id]
     );
     return result.affectedRows > 0;
   }
 
-  async deleteAll() {
-    const deletedAt = new Date();
-    await this.mysql.execute("UPDATE CongViec SET deactive = ?", [deletedAt]);
-    return true;
-  }
-
   async findByAccountId(accountId) {
     const sql = `
-      SELECT DISTINCT cv.* FROM CongViec cv
-      INNER JOIN PhanCong pc ON cv.autoId = pc.idCongViec
-      WHERE pc.idNguoiNhan = ? AND cv.deactive IS NULL
+      SELECT DISTINCT cv.* FROM tasks cv
+      INNER JOIN PhanCong pc ON cv.id = pc.idtasks
+      WHERE pc.idNguoiNhan = ? AND cv.deleted_at IS NULL
     `;
     const [rows] = await this.mysql.execute(sql, [accountId]);
     return rows;

@@ -8,37 +8,36 @@ class FileService {
 
     async extractFileData(payload) {
         return {
-            tenFile: payload.tenFile ?? null,
-            idNguoiTao: payload.idNguoiTao ?? null,
-            idCongViec: payload.idCongViec ?? null,
-            idPhanCong: payload.idPhanCong ?? null,
-            idDuAn: payload.idDuAn ?? null,
-            deactive: payload.deactive ?? null,
+            file_name: payload.file_name ?? null,
+            project_id: payload.project_id ?? null,
+            task_id: payload.task_id ?? null,
+            created_by: payload.created_by ?? null,
         };
     }
 
     async extractVersionData(payload) {
         return {
-            ngayUpload: payload.ngayUpload ?? new Date(),
-            deactive: payload.deactive ?? null,
-            trangThai: payload.trangThai ?? "Chờ duyệt",
-            idFile: payload.idFile ?? null,
+            file_id: payload.file_id ?? null,
+            version_number: payload.version_number ?? null,
+            file_url: payload.file_url ?? null,
+            status: payload.status ?? "Chờ duyệt",
+            file_type: payload.file_type ?? null,
         };
     }
 
-    // Lưu file từ payload chứa base64 với tên duy nhất
     async saveFileFromPayload(payload) {
-        const { tenFile, fileDataBase64 } = payload;
+        const { file_name, file } = payload;
         const uploadsDir = path.join(__dirname, '../../uploads');
         if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
-        // Tạo tên file duy nhất
-        const ext = path.extname(tenFile);
-        const baseName = path.basename(tenFile, ext);
+        const ext = path.extname(file_name);
+        const baseName = path.basename(file_name, ext);
         const uniqueName = `${baseName}_${Date.now()}${ext}`;
-        const filePath = path.join(uploadsDir, uniqueName);
-        fs.writeFileSync(filePath, Buffer.from(fileDataBase64, 'base64'));
+        const destPath = path.join(uploadsDir, uniqueName);
+
+        fs.copyFileSync(file, destPath);
+
         return path.join('uploads', uniqueName);
     }
 
@@ -46,64 +45,52 @@ class FileService {
         const file = await this.extractFileData(payload);
         const version = await this.extractVersionData(payload);
 
-        if (!payload.tenFile || typeof payload.tenFile !== 'string') {
+        if (!payload.file_name || typeof payload.file_name !== 'string') {
             throw new Error("Tên file không hợp lệ.");
+        }
+
+        let fileType = null;
+        if (payload.file_name) {
+            fileType = path.extname(payload.file_name).replace('.', '').toLowerCase();
+            version.file_type = fileType;
         }
 
         const connection = await this.mysql.getConnection();
         try {
             await connection.beginTransaction();
 
-            // Lưu file vật lý
-            let duongDan = null;
-            if (payload.fileDataBase64 && payload.tenFile) {
-                duongDan = await this.saveFileFromPayload(payload);
+            let file_url = null;
+            if (payload.file && payload.file_name) {
+                file_url = await this.saveFileFromPayload(payload);
             }
-            version.duongDan = duongDan;
+            version.file_url = file_url;
 
-            // B1: Tạo bản ghi File (chưa có id)
             const [fileResult] = await connection.execute(
-                "INSERT INTO File (tenFile, idNguoiTao, idCongViec, idPhanCong, idDuAn) VALUES (?, ?, ?, ?, ?)",
-                [file.tenFile, file.idNguoiTao, file.idCongViec, file.idPhanCong, file.idDuAn]
-            );
-            const fileAutoId = fileResult.insertId;
-            const fileId = "FI" + fileAutoId.toString().padStart(6, "0");
-            file.id = fileId;
-
-            await connection.execute(
-                "UPDATE File SET id = ? WHERE autoId = ?",
-                [fileId, fileAutoId]
+                "INSERT INTO files (file_name, project_id, task_id, created_by) VALUES (?, ?, ?, ?)",
+                [file.file_name, file.project_id, file.task_id, file.created_by]
             );
 
-            // B2: Tạo phiên bản đầu tiên
+            const fileId = fileResult.insertId;
+
             const [verCountRows] = await connection.execute(
-                "SELECT COUNT(*) as count FROM PhienBan WHERE idFile = ? AND deactive IS NULL",
+                "SELECT COUNT(*) as count FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
                 [fileId]
             );
-            version.soPB = verCountRows[0].count + 1;
+            version.version_number = verCountRows[0].count + 1;
 
             const [verResult] = await connection.execute(
-                "INSERT INTO PhienBan (soPB, duongDan, ngayUpload, trangThai, deactive, idFile) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO file_versions (version_number, file_url, file_type, status, file_id) VALUES (?, ?, ?, ?, ?)",
                 [
-                    version.soPB,
-                    version.duongDan,
-                    version.ngayUpload,
-                    version.trangThai,
-                    version.deactive,
+                    version.version_number,
+                    version.file_url,
+                    version.file_type,
+                    version.status,
                     fileId
                 ]
             );
-            const verAutoId = verResult.insertId;
-            const versionId = "PB" + verAutoId.toString().padStart(6, "0");
-            version.id = versionId;
-
-            await connection.execute(
-                "UPDATE PhienBan SET id = ? WHERE autoId = ?",
-                [versionId, verAutoId]
-            );
 
             await connection.commit();
-            return { ...file, duongDan: version.duongDan, idFile: fileId, idVersion: versionId };
+            return { ...file, file_url: version.file_url, file_id: fileId, idVersion: verResult.insertId };
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -113,27 +100,23 @@ class FileService {
     }
 
     async find(filter = {}) {
-        let sql = "SELECT * FROM File WHERE deactive IS NULL";
+        let sql = "SELECT * FROM files WHERE deleted_at IS NULL";
         let params = [];
-        if (filter.tenFile) {
-            sql += " AND tenFile LIKE ?";
-            params.push(`%${filter.tenFile}%`);
+        if (filter.file_name) {
+            sql += " AND file_name LIKE ?";
+            params.push(`%${filter.file_name}%`);
         }
-        if (filter.idNguoiTao) {
-            sql += " AND idNguoiTao = ?";
-            params.push(filter.idNguoiTao);
+        if (filter.project_id) {
+            sql += " AND project_id = ?";
+            params.push(filter.project_id);
         }
-        if (filter.idCongViec) {
-            sql += " AND idCongViec = ?";
-            params.push(filter.idCongViec);
+        if (filter.task_id) {
+            sql += " AND task_id = ?";
+            params.push(filter.task_id);
         }
-        if (filter.idPhanCong) {
-            sql += " AND idPhanCong = ?";
-            params.push(filter.idPhanCong);
-        }
-        if (filter.idDuAn) {
-            sql += " AND idDuAn = ?";
-            params.push(filter.idDuAn);
+        if (filter.created_by) {
+            sql += " AND created_by = ?";
+            params.push(filter.created_by);
         }
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
@@ -141,7 +124,7 @@ class FileService {
 
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM File WHERE id = ? AND deactive IS NULL",
+            "SELECT * FROM files WHERE id = ? AND deleted_at IS NULL",
             [id]
         );
         return rows[0] || null;
@@ -149,7 +132,7 @@ class FileService {
 
     async findVersion(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM PhienBan WHERE idFile = ? AND deactive IS NULL",
+            "SELECT * FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
             [id]
         );
         return rows || null;
@@ -157,7 +140,7 @@ class FileService {
 
     async findVersionById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM PhienBan WHERE id = ? AND deactive IS NULL",
+            "SELECT * FROM file_versions WHERE id = ? AND deleted_at IS NULL",
             [id]
         );
         return rows[0] || null;
@@ -165,7 +148,7 @@ class FileService {
 
     async update(id, payload) {
         const file = await this.extractFileData(payload);
-        let sql = "UPDATE File SET ";
+        let sql = "UPDATE files SET ";
         const fields = [];
         const params = [];
         for (const key in file) {
@@ -182,45 +165,36 @@ class FileService {
     async addVersion(id, payload) {
         if (!payload) throw new Error("Thiếu payload khi thêm phiên bản file.");
 
-        let duongDan = null;
-        if (payload.fileDataBase64 && payload.tenFile) {
-            duongDan = await this.saveFileFromPayload(payload);
+        let file_url = null;
+        if (payload.file && payload.file_name) {
+            file_url = await this.saveFileFromPayload(payload);
         }
 
         const version = await this.extractVersionData(payload);
-        version.duongDan = duongDan;
+        version.file_url = file_url;
 
         const [verCountRows] = await this.mysql.execute(
-            "SELECT COUNT(*) as count FROM PhienBan WHERE idFile = ? AND deactive IS NULL",
+            "SELECT COUNT(*) as count FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
             [id]
         );
-        version.soPB = verCountRows[0].count + 1;
+        version.version_number = verCountRows[0].count + 1;
 
         const [verResult] = await this.mysql.execute(
-            "INSERT INTO PhienBan (soPB, duongDan, ngayUpload, trangThai, deactive, idFile) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO file_versions (version_number, file_url, status, file_id) VALUES (?, ?, ?, ?)",
             [
-                version.soPB,
-                version.duongDan,
-                version.ngayUpload,
-                version.trangThai,
-                version.deactive,
+                version.version_number,
+                version.file_url,
+                version.status,
                 id
             ]
         );
-        const verAutoId = verResult.insertId;
-        version.id = "PB" + verAutoId.toString().padStart(6, "0");
 
-        await this.mysql.execute(
-            "UPDATE PhienBan SET id = ? WHERE autoId = ?",
-            [version.id, verAutoId]
-        );
-
-        return { ...version, idFile: id };
+        return { ...version, file_id: id };
     }
 
     async updateVersion(id, payload) {
         const version = await this.extractVersionData(payload);
-        let sql = "UPDATE PhienBan SET ";
+        let sql = "UPDATE file_versions SET ";
         const fields = [];
         const params = [];
         for (const key in version) {
@@ -237,7 +211,7 @@ class FileService {
     async delete(id) {
         const deleteAt = new Date();
         await this.mysql.execute(
-            "UPDATE File SET deactive = ? WHERE id = ?",
+            "UPDATE files SET deleted_at = ? WHERE id = ?",
             [deleteAt, id]
         );
         return id;
@@ -245,38 +219,10 @@ class FileService {
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE File SET deactive = NULL WHERE id = ?",
+            "UPDATE files SET deleted_at = NULL WHERE id = ?",
             [id]
         );
         return result.affectedRows > 0;
-    }
-
-    async deleteAll() {
-        const deleteAt = new Date();
-        await this.mysql.execute(
-            "UPDATE File SET deactive = ?",
-            [deleteAt]
-        );
-        return deleteAt;
-    }
-
-    async approve(id) {
-        const [rows] = await this.mysql.execute(
-            "SELECT * FROM PhienBan WHERE id = ? AND deactive IS NULL",
-            [id]
-        );
-        if (rows.length === 0) {
-            throw new Error("Phiên bản không tồn tại hoặc đã bị xóa.");
-        }
-        const version = rows[0];
-        if (version.trangThai !== "Chờ duyệt") {
-            throw new Error("Phiên bản đã được duyệt hoặc không cần duyệt.");
-        }
-        await this.mysql.execute(
-            "UPDATE PhienBan SET trangThai = 'Đã duyệt' WHERE id = ?",
-            [id]
-        );
-        return { ...version, trangThai: 'Đã duyệt' };
     }
 
     async updateAvatar(idNguoiDung, payload) {
@@ -288,50 +234,37 @@ class FileService {
             const file = await this.extractFileData(payload);
             const version = await this.extractVersionData(payload);
 
-            if (!payload.tenFile || typeof payload.tenFile !== 'string') {
+            if (!payload.file_name || typeof payload.file_name !== 'string') {
                 throw new Error("Tên file không hợp lệ.");
             }
 
-            let duongDan = null;
-            if (payload.fileDataBase64 && payload.tenFile) {
-                duongDan = await this.saveFileFromPayload(payload);
+            let file_url = null;
+            if (payload.file && payload.file_name) {
+                file_url = await this.saveFileFromPayload(payload);
             }
-            version.duongDan = duongDan;
+            version.file_url = file_url;
 
             const [fileResult] = await connection.execute(
-                "INSERT INTO File (tenFile, idNguoiTao) VALUES (?, ?)",
-                [file.tenFile, idNguoiDung]
+                "INSERT INTO files (file_name, created_by) VALUES (?, ?)",
+                [file.file_name, idNguoiDung]
             );
-            const fileAutoId = fileResult.insertId;
-            const fileId = "FI" + fileAutoId.toString().padStart(6, "0");
-
-            await connection.execute(
-                "UPDATE File SET id = ? WHERE autoId = ?",
-                [fileId, fileAutoId]
-            );
+            const fileId = fileResult.insertId;
 
             // Thêm phiên bản
-            version.soPB = 1;
+            version.version_number = 1;
             const [verResult] = await connection.execute(
-                "INSERT INTO PhienBan (soPB, duongDan, ngayUpload, trangThai, idFile) VALUES (?, ?, ?, ?, ?)",
-                [version.soPB, version.duongDan, version.ngayUpload, version.trangThai, fileId]
-            );
-            const verAutoId = verResult.insertId;
-            const versionId = "PB" + verAutoId.toString().padStart(6, "0");
-
-            await connection.execute(
-                "UPDATE PhienBan SET id = ? WHERE autoId = ?",
-                [versionId, verAutoId]
+                "INSERT INTO file_versions (version_number, file_url, status, file_id) VALUES (?, ?, ?, ?)",
+                [version.version_number, version.file_url, version.status, fileId]
             );
 
             // Cập nhật avatar cho tài khoản
             await connection.execute(
-                "UPDATE TaiKhoan SET avatar = ? WHERE id = ?",
+                "UPDATE users SET avatar = ? WHERE id = ?",
                 [fileId, idNguoiDung]
             );
 
             await connection.commit();
-            return { fileId, versionId };
+            return { fileId, versionId: verResult.insertId, file_url: version.file_url };
         } catch (error) {
             await connection.rollback();
             throw error;

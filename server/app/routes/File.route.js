@@ -6,7 +6,6 @@ const router = express.Router();
 router.route("/")
     .get(file.findAll)
     .post(file.create)
-    .delete(file.deleteAll);
 
 router.route("/:id")
     .get(file.findOne)
@@ -19,9 +18,6 @@ router.route("/:id/version")
 
 router.route("/:id/version/:versionId")
     .get(file.findVersion)
-
-router.route("/:id/version/:versionId/approve")
-    .put(file.approve);
 
 router.post("/avatar/:id", file.uploadAvatar);
 

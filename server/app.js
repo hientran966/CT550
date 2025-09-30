@@ -4,8 +4,9 @@ const path = require("path");
 const ApiError = require("./app/api-error");
 const authRouter = require("./app/routes/Account.route");
 const projectRouter = require("./app/routes/Project.route");
+const memberRouter = require("./app/routes/Member.route");
 const taskRouter = require("./app/routes/Task.route");
-const assignmentRouter = require("./app/routes/Assignment.route");
+const assignmentRouter = require("./app/routes/Assign.route");
 const contactRouter = require("./app/routes/Contact.route");
 const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 // Import routes
 app.use("/api/auth", authRouter);
 app.use("/api/duan", projectRouter);
+app.use("/api/thanhvien", memberRouter);
 app.use("/api/congviec", taskRouter);
 app.use("/api/phancong", assignmentRouter);
 app.use("/api/lienhe", contactRouter);

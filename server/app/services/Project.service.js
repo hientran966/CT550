@@ -5,12 +5,12 @@ class ProjectService {
 
     async extractProjectData(payload) {
         return {
-            tenDA: payload.tenDA ?? null,
-            ngayBD: payload.ngayBD ?? null,
-            ngayKT: payload.ngayKT ?? null,
-            trangThai: payload.trangThai ?? "Chưa bắt đầu",
-            deactive: payload.deactive ?? null,
-            idNguoiTao: payload.idNguoiTao ?? null,
+            name: payload.name ?? null,
+            description: payload.description ?? null,
+            start_date: payload.start_date ?? null,
+            end_date: payload.end_date ?? null,
+            status: payload.status ?? "Đang tiến hành",
+            created_by: payload.created_by ?? null,
         };
     }
 
@@ -21,27 +21,19 @@ class ProjectService {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                "INSERT INTO DuAn (tenDA, ngayBD, ngayKT, deactive, trangThai, idNguoiTao) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO projects (name, description, start_date, end_date, status, created_by) VALUES (?, ?, ?, ?, ?, ?)",
                 [
-                    project.tenDA,
-                    project.ngayBD,
-                    project.ngayKT,
-                    project.deactive,
-                    project.trangThai,
-                    project.idNguoiTao,
+                    project.name,
+                    project.description,
+                    project.start_date,
+                    project.end_date,
+                    project.status,
+                    project.created_by,
                 ]
             );
 
-            const autoId = result.insertId;
-            const newId = "DA" + autoId.toString().padStart(6, "0");
-
-            await connection.execute(
-                "UPDATE DuAn SET id = ? WHERE autoId = ?",
-                [newId, autoId]
-            );
-
             await connection.commit();
-            return { id: newId, ...project };
+            return { id: result.insertId, ...project };
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -51,28 +43,28 @@ class ProjectService {
     }
 
     async find(filter = {}) {
-        let sql = "SELECT * FROM DuAn WHERE deactive IS NULL";
+        let sql = "SELECT * FROM projects WHERE deleted_at IS NULL";
         let params = [];
         
-        if (filter.tenDA) {
-            sql += " AND tenDA LIKE ?";
-            params.push(`%${filter.tenDA}%`);
+        if (filter.name) {
+            sql += " AND name LIKE ?";
+            params.push(`%${filter.name}%`);
         }
-        if (filter.trangThai) {
-            sql += " AND trangThai = ?";
-            params.push(filter.trangThai);
+        if (filter.status) {
+            sql += " AND status = ?";
+            params.push(filter.status);
         }
-        if (filter.idNguoiTao) {
-            sql += " AND idNguoiTao = ?";
-            params.push(filter.idNguoiTao);
+        if (filter.created_by) {
+            sql += " AND created_by = ?";
+            params.push(filter.created_by);
         }
-        if (filter.ngayBD) {
-            sql += " AND ngayBD >= ?";
-            params.push(filter.ngayBD);
+        if (filter.start_date) {
+            sql += " AND start_date >= ?";
+            params.push(filter.start_date);
         }
-        if (filter.ngayKT) {
-            sql += " AND ngayKT <= ?";
-            params.push(filter.ngayKT);
+        if (filter.end_date) {
+            sql += " AND end_date <= ?";
+            params.push(filter.end_date);
         }
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
@@ -80,7 +72,7 @@ class ProjectService {
 
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM DuAn WHERE autoId = ? AND deactive IS NULL",
+            "SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL",
             [id]
         );
         return rows[0] || null;
@@ -100,7 +92,7 @@ class ProjectService {
             throw new Error("Không có trường nào để cập nhật.");
         }
 
-        const sql = `UPDATE DuAn SET ${fields.join(", ")} WHERE autoId = ?`;
+        const sql = `UPDATE projects SET ${fields.join(", ")} WHERE id = ?`;
         params.push(id);
 
         await this.mysql.execute(sql, params);
@@ -110,7 +102,7 @@ class ProjectService {
     async delete(id) {
         const deletedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
         await this.mysql.execute(
-            "UPDATE DuAn SET deactive = ? WHERE autoId = ?",
+            "UPDATE projects SET deleted_at = ? WHERE id = ?",
             [deletedDate, id]
         );
         return id;
@@ -118,33 +110,12 @@ class ProjectService {
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE DuAn SET deactive = NULL WHERE autoId = ?",
+            "UPDATE projects SET deleted_at = NULL WHERE id = ?",
             [id]
         );
         return result.affectedRows > 0;
     }
 
-    async deleteAll() {
-        const deletedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        await this.mysql.execute(
-            "UPDATE DuAn SET deactive = ? WHERE deactive IS NULL",
-            [deletedDate]
-        );
-        return true;
-    }
-
-    async findByAccountId(accountId) {
-        const sql = `
-            SELECT DISTINCT da.*
-            FROM DuAn        da
-            JOIN CongViec    cv ON cv.idDuAn     = da.autoId
-            JOIN PhanCong    pc ON pc.idCongViec = cv.autoId
-            WHERE pc.idNguoiNhan = ?
-            AND da.deactive IS NULL
-        `;
-        const [rows] = await this.mysql.execute(sql, [accountId]);
-        return rows;
-    }
 }
 
 module.exports = ProjectService;
