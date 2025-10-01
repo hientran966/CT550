@@ -80,19 +80,22 @@ class TaskService {
   }
 
   async update(id, payload) {
-    const task = await this.extractTaskData(payload);
-    let sql = "UPDATE tasks SET ";
+    const allowedFields = ["title", "description", "start_date", "due_date", "created_by", "project_id", "status"];
     const fields = [];
     const params = [];
-    for (const key in task) {
-      if (key === "id") continue;
-      fields.push(`${key} = ?`);
-      params.push(task[key]);
+    for (const key of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        fields.push(`${key} = ?`);
+        params.push(payload[key]);
+      }
     }
-    sql += fields.join(", ") + " WHERE id = ?";
+    if (fields.length === 0) {
+      return await this.findById(id);
+    }
+    const sql = `UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`;
     params.push(id);
     await this.mysql.execute(sql, params);
-    return { ...task, id };
+    return { ...(await this.findById(id)) };
   }
 
   async delete(id) {

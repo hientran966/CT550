@@ -30,20 +30,6 @@ const customMethods = {
         }
     },
 
-    // validate riêng cho update
-    update: async (req, res, next) => {
-        if (!req.body.title) {
-            return next(new ApiError(400, "Tên công việc không được để trống"));
-        }
-        try {
-            const service = new TaskService(MySQL.connection);
-            const document = await service.update(req.params.id, req.body);
-            return res.send(document);
-        } catch (error) {
-            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi cập nhật công việc"));
-        }
-    },
-
     // filter theo project
     findByProject: async (req, res, next) => {
         try {

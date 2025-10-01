@@ -22,6 +22,11 @@ import SideBar from './components/SideBar.vue';
   min-height: 100vh;
 }
 
+.el-main {
+  padding: 0 !important;
+  height: 100%;
+}
+
 html, body, #app {
   margin: 0;
   padding: 0;
