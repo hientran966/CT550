@@ -1,17 +1,25 @@
 <template>
   <div class="kanban">
-    <el-card
+    <div
       v-for="(column, columnIndex) in columns"
       :key="columnIndex"
       class="kanban-column"
       @dragover.prevent
       @drop="onDrop($event, columnIndex)"
+      body-style=""
     >
-      <template #header>
-        <div class="card-header">
-          <strong>{{ column.name }}</strong>
+      <div class="kanban-header">
+        <strong class="column-name">{{ column.name }}</strong>
+        <el-tag
+          :type="column.name === 'Đang Chờ' ? 'warning' : column.name === 'Đang Tiến Hành' ? 'primary' : column.name === 'Đã Xong' ? 'success' : 'default'"
+          round
+        >
+          1
+        </el-tag>
+        <div class="add-task-button">
+          <el-button :icon="Plus" link ></el-button>
         </div>
-      </template>
+      </div> <!-- ////////////////// -->
 
       <div class="kanban-list">
         <el-card
@@ -25,7 +33,13 @@
           <div class="task-header">
             <strong>{{ task.title }}</strong>
             <el-tag
-              :type="task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'success'"
+              :type="
+                task.priority === 'high'
+                  ? 'danger'
+                  : task.priority === 'medium'
+                  ? 'warning'
+                  : 'success'
+              "
               size="small"
               effect="plain"
             >
@@ -51,13 +65,14 @@
           </div>
         </el-card>
       </div>
-    </el-card>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { reactive, onMounted } from "vue";
 import TaskService from "@/services/Task.service";
+import { Plus } from "@element-plus/icons-vue";
 
 interface Task {
   id: number;
@@ -76,7 +91,7 @@ function formatDate(date?: string) {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
   });
 }
 
@@ -88,19 +103,19 @@ interface Column {
 const columns = reactive<Column[]>([
   { name: "Đang Chờ", tasks: [] },
   { name: "Đang Tiến Hành", tasks: [] },
-  { name: "Đã Xong", tasks: [] }
+  { name: "Đã Xong", tasks: [] },
 ]);
 
 const statusMap: Record<string, string> = {
   todo: "Đang Chờ",
   in_progress: "Đang Tiến Hành",
-  done: "Đã Xong"
+  done: "Đã Xong",
 };
 
 const reverseStatusMap: Record<string, string> = {
   "Đang Chờ": "todo",
   "Đang Tiến Hành": "in_progress",
-  "Đã Xong": "done"
+  "Đã Xong": "done",
 };
 
 let draggedTask: Task | null = null;
@@ -151,8 +166,7 @@ onMounted(() => loadTasks());
   gap: 20px;
 }
 .kanban-column {
-  background: #f4f4f4;
-  padding: 0 !important;
+  background: rgb(244, 244, 244);
   width: 280px;
   border-radius: 8px;
   min-height: 300px;
@@ -162,6 +176,7 @@ onMounted(() => loadTasks());
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 10px;
 }
 .kanban-task {
   cursor: grab;
@@ -188,7 +203,16 @@ onMounted(() => loadTasks());
   padding: 4px;
   margin-left: 2px;
 }
-.card-header {
-  text-align: center;
+.kanban-header {
+  padding: 10px 16px;
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+  font-size: 18px;
+}
+.column-name {
+  margin-right: 8px;
+}
+.add-task-button {
+  float: right;
 }
 </style>

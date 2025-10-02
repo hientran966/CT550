@@ -1,13 +1,17 @@
 <template>
   <div class="task-layout">
-    <ProjectMenu class="menu"/>
-    <KanbanTable class="kanban"/>
+    <ProjectMenu class="menu" />
+    <div class="main-content">
+      <TaskHeader class="task-header" />
+      <TaskKanban class="kanban" />
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import ProjectMenu from "@/components/ProjectMenu.vue";
-import KanbanTable from "@/components/TaskKanban.vue";
+import TaskKanban from "@/components/TaskKanban.vue";
+import TaskHeader from "@/components/TaskHeader.vue";
 </script>
 
 <style scoped>
@@ -21,9 +25,15 @@ import KanbanTable from "@/components/TaskKanban.vue";
   max-width: 300px;
   height: 100vh;
 }
+.main-content{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100vh;
+}
 .kanban {
   flex: 1;
   overflow-x: auto;
-  margin: 16px ;
+  margin: 16px;
 }
 </style>
