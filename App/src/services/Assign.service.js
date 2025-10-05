@@ -1,27 +1,27 @@
 import createApiClient from "./api.service";
 
-class TaskService {
-    constructor(baseUrl = "/api/congviec") {
+class AssignService {
+    constructor(baseUrl = "/api/phancong") {
         this.api = createApiClient(baseUrl);
     }
 
-    async createTask(data) {
+    async createAssign(data) {
         return (await this.api.post("/", data)).data;
     }
 
-    async getTaskById(id) {
+    async getAssignById(id) {
         return (await this.api.get(`/${id}`)).data;
     }
 
-    async updateTask(id, data) {
+    async updateAssign(id, data) {
         return (await this.api.put(`/${id}`, data)).data;
     }
 
-    async deleteTask(id) {
+    async deleteAssign(id) {
         return (await this.api.delete(`/${id}`)).data;
     }
 
-    async getAllTasks() {
+    async getAllAssigns() {
         return (await this.api.get("/")).data;
     }
 
@@ -31,4 +31,4 @@ class TaskService {
     }
 }
 
-export default new TaskService();
+export default new AssignService();

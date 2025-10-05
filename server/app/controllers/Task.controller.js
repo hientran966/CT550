@@ -34,7 +34,7 @@ const customMethods = {
     findByProject: async (req, res, next) => {
         try {
             const service = new TaskService(MySQL.connection);
-            const documents = await service.find({ idDuAn: req.params.id });
+            const documents = await service.find({ project_id: req.params.id });
             return res.send(documents);
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy công việc theo dự án"));

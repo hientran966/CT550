@@ -1,25 +1,30 @@
 <template>
-  <div class="kanban">
+  <div class="kanban-container">
     <div
-      v-for="(column, columnIndex) in columns"
-      :key="columnIndex"
+      v-for="column in columns"
+      :key="column.name"
       class="kanban-column"
       @dragover.prevent
-      @drop="onDrop($event, columnIndex)"
-      body-style=""
+      @drop="onDrop($event, column.name)"
     >
       <div class="kanban-header">
         <strong class="column-name">{{ column.name }}</strong>
         <el-tag
-          :type="column.name === 'Đang Chờ' ? 'warning' : column.name === 'Đang Tiến Hành' ? 'primary' : column.name === 'Đã Xong' ? 'success' : 'default'"
+          class="task-count"
+          :type="
+            column.name === 'Đang Chờ'
+              ? 'warning'
+              : column.name === 'Đang Tiến Hành'
+              ? 'primary'
+              : column.name === 'Đã Xong'
+              ? 'success'
+              : 'default'
+          "
           round
         >
-          1
+          {{ column.tasks.length }}
         </el-tag>
-        <div class="add-task-button">
-          <el-button :icon="Plus" link ></el-button>
-        </div>
-      </div> <!-- ////////////////// -->
+      </div>
 
       <div class="kanban-list">
         <el-card
@@ -27,11 +32,14 @@
           :key="task.id"
           class="kanban-task"
           draggable="true"
-          @dragstart="onDragStart($event, task, columnIndex)"
+          @dragstart="onDragStart($event, task, column.name)"
+          @click="openTaskDetail(task)"
           shadow="hover"
         >
-          <div class="task-header">
-            <strong>{{ task.title }}</strong>
+          <div class="kanban-task-header">
+            <strong :class="{ 'done-task': task.status === 'done' }">
+              {{ task.title }}
+            </strong>
             <el-tag
               :type="
                 task.priority === 'high'
@@ -50,6 +58,12 @@
           <div class="task-body">
             <p v-if="task.description">{{ task.description }}</p>
             <p><strong>Đến hạn:</strong> {{ formatDate(task.due_date) }}</p>
+            <el-progress
+              :percentage="task.latest_progress || 0"
+              size="small"
+              style="margin-top: 8px"
+              v-if="task.latest_progress !== undefined"
+            />
           </div>
 
           <div class="task-footer">
@@ -66,13 +80,19 @@
         </el-card>
       </div>
     </div>
+    
+    <TaskDetail
+      v-if="selectedTask"
+      v-model="detailVisible"
+      :task="selectedTask"
+    />
   </div>
+
 </template>
 
 <script lang="ts" setup>
-import { reactive, onMounted } from "vue";
-import TaskService from "@/services/Task.service";
-import { Plus } from "@element-plus/icons-vue";
+import { computed, ref } from "vue";
+import TaskDetail from "./TaskDetail.vue";
 
 interface Task {
   id: number;
@@ -80,7 +100,9 @@ interface Task {
   description?: string;
   status: string;
   priority: "low" | "medium" | "high";
+  start_date?: string;
   due_date?: string;
+  latest_progress?: number;
   assignees?: { id: number; initials: string }[];
 }
 
@@ -90,21 +112,25 @@ function formatDate(date?: string) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
-interface Column {
-  name: string;
+const props = defineProps<{
   tasks: Task[];
-}
+}>();
 
-const columns = reactive<Column[]>([
-  { name: "Đang Chờ", tasks: [] },
-  { name: "Đang Tiến Hành", tasks: [] },
-  { name: "Đã Xong", tasks: [] },
-]);
+const emit = defineEmits<{
+  (e: "update-task-status", task: Task): void;
+}>();
+
+const detailVisible = ref(false);
+const selectedTask = ref<Task | null>(null);
+
+function openTaskDetail(task: Task) {
+  if (dragging.value) return;
+  selectedTask.value = task;
+  detailVisible.value = true;
+}
 
 const statusMap: Record<string, string> = {
   todo: "Đang Chờ",
@@ -118,101 +144,55 @@ const reverseStatusMap: Record<string, string> = {
   "Đã Xong": "done",
 };
 
-let draggedTask: Task | null = null;
-let fromColumnIndex: number | null = null;
+const columns = computed(() => [
+  { name: "Đang Chờ", tasks: props.tasks.filter((t) => t.status === "todo") },
+  { name: "Đang Tiến Hành", tasks: props.tasks.filter((t) => t.status === "in_progress") },
+  { name: "Đã Xong", tasks: props.tasks.filter((t) => t.status === "done") },
+]);
 
-async function loadTasks() {
-  try {
-    const tasks: Task[] = await TaskService.getAllTasks();
-    columns.forEach((col) => (col.tasks = []));
-    tasks.forEach((task) => {
-      const uiStatus = statusMap[task.status];
-      const col = columns.find((c) => c.name === uiStatus);
-      if (col) col.tasks.push(task);
-    });
-  } catch (err) {
-    console.error("Lỗi load tasks:", err);
-  }
-}
+let draggedTask = ref<Task | null>(null);
+let fromColumn = ref<string | null>(null);
+const dragging = ref(false);
 
-function onDragStart(event: DragEvent, task: Task, columnIndex: number) {
-  draggedTask = task;
-  fromColumnIndex = columnIndex;
+function onDragStart(event: DragEvent, task: Task, columnName: string) {
+  draggedTask.value = task;
+  fromColumn.value = columnName;
+  dragging.value = true;
   event.dataTransfer?.setData("text/plain", task.id.toString());
 }
 
-function onDrop(event: DragEvent, toColumnIndex: number) {
-  if (draggedTask && fromColumnIndex !== null) {
-    const fromTasks = columns[fromColumnIndex].tasks;
-    const taskIndex = fromTasks.findIndex((t) => t.id === draggedTask!.id);
-    if (taskIndex > -1) fromTasks.splice(taskIndex, 1);
-
-    const newUiStatus = columns[toColumnIndex].name;
-    draggedTask.status = reverseStatusMap[newUiStatus];
-    columns[toColumnIndex].tasks.push(draggedTask);
-
-    TaskService.updateTask(draggedTask.id, { status: draggedTask.status });
-    draggedTask = null;
-    fromColumnIndex = null;
+function onDrop(event: DragEvent, toColumnName: string) {
+  if (draggedTask.value) {
+    const newStatus = reverseStatusMap[toColumnName];
+    if (draggedTask.value.status !== newStatus) {
+      draggedTask.value.status = newStatus;
+      emit("update-task-status", draggedTask.value);
+    }
   }
+  draggedTask.value = null;
+  fromColumn.value = null;
+  dragging.value = false;
 }
-
-onMounted(() => loadTasks());
 </script>
 
 <style scoped>
-.kanban {
-  display: flex;
-  gap: 20px;
-}
-.kanban-column {
-  background: rgb(244, 244, 244);
-  width: 280px;
-  border-radius: 8px;
-  min-height: 300px;
-}
-.kanban-list {
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-}
 .kanban-task {
+  margin-bottom: 12px;
   cursor: grab;
 }
-.task-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.task-body {
-  margin: 5px 0;
-  font-size: 13px;
-}
-.task-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 5px;
+.kanban-task:active {
+  cursor: grabbing;
 }
 .avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   background: #409eff;
   color: white;
-  font-size: 11px;
-  border-radius: 50%;
-  padding: 4px;
-  margin-left: 2px;
-}
-.kanban-header {
-  padding: 10px 16px;
-  font-weight: bold;
-  border-bottom: 1px solid #ccc;
-  font-size: 18px;
-}
-.column-name {
-  margin-right: 8px;
-}
-.add-task-button {
-  float: right;
+  font-size: 12px;
+  margin-right: 4px;
 }
 </style>

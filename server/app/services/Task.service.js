@@ -6,7 +6,7 @@ class TaskService {
   async extractTaskData(payload) {
     return {
       title: payload.title,
-      description: payload.description,
+      description: payload.description ?? null,
       start_date: payload.start_date ?? null,
       due_date: payload.due_date ?? null,
       created_by: payload.created_by ?? null,
@@ -44,29 +44,48 @@ class TaskService {
   }
 
   async find(filter = {}) {
-    let sql = "SELECT * FROM tasks WHERE deleted_at IS NULL";
+    let sql = `
+      SELECT 
+        t.*, 
+        COALESCE((
+          SELECT pl.progress
+          FROM progress_logs pl
+          WHERE pl.task_id = t.id
+          ORDER BY pl.created_at DESC
+          LIMIT 1
+        ), 0) AS latest_progress,
+        (
+          SELECT JSON_ARRAYAGG(ta.user_id)
+          FROM task_assignees ta
+          WHERE ta.task_id = t.id
+        ) AS assignees
+      FROM tasks t
+      WHERE t.deleted_at IS NULL
+    `;
+
     let params = [];
 
     if (filter.title) {
-      sql += " AND title LIKE ?";
+      sql += " AND t.title LIKE ?";
       params.push(`%${filter.title}%`);
     }
     if (filter.project_id) {
-      sql += " AND project_id = ?";
+      sql += " AND t.project_id = ?";
       params.push(filter.project_id);
     }
     if (filter.start_date) {
-      sql += " AND start_date >= ?";
+      sql += " AND t.start_date >= ?";
       params.push(filter.start_date);
     }
     if (filter.due_date) {
-      sql += " AND due_date <= ?";
+      sql += " AND t.due_date <= ?";
       params.push(filter.due_date);
     }
     if (filter.created_by) {
-      sql += " AND created_by = ?";
+      sql += " AND t.created_by = ?";
       params.push(filter.created_by);
     }
+
     const [rows] = await this.mysql.execute(sql, params);
     return rows;
   }

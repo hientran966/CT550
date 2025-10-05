@@ -6,7 +6,7 @@
         <el-divider />
         <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
             <div class="left-section">
-                <el-button type="primary" :icon="Plus" plain>
+                <el-button type="primary" :icon="Plus" plain @click="emit('add-task')">
                     <strong>Thêm mới</strong>
                 </el-button>
                 <el-button-group style="margin-left: 12px;">
@@ -41,39 +41,16 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import {
-  Plus,
-  ArrowDown,
-  List,
-  Search,
-  Filter,
-  More,
-} from "@element-plus/icons-vue";
+import { Plus, Search, Filter, More } from "@element-plus/icons-vue";
 
 const search = ref("");
+
+const emit = defineEmits<{
+  (e: "add-task"): void;
+}>();
 </script>
 
 <style scoped>
-.task-header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 0 16px;
-  background-color: rgb(244, 244, 244);
-  color: rgb(0, 0, 0);
-  border-bottom: 1px solid #a9a9a984;
-  gap: 8px;
-}
-.left-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.right-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .el-divider {
   margin: 0 !important;
 }
