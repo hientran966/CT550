@@ -145,6 +145,25 @@ class TaskService {
     const [rows] = await this.mysql.execute(sql, [accountId]);
     return rows;
   }
+
+  async logProgress(taskId, progress, loggedBy) {
+    const connection = await this.mysql.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.execute(
+        `INSERT INTO progress_logs (task_id, progress, updated_by)
+        VALUES (?, ?, ?)`,
+        [taskId, progress, loggedBy]
+      );
+      await connection.commit();
+      return { id: result.insertId, task_id: taskId, progress, logged_by: loggedBy };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
 }
 
 module.exports = TaskService;

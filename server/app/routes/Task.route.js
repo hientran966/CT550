@@ -12,6 +12,9 @@ router.route("/:id")
     .put(task.update)
     .delete(task.delete);
 
+router.route("/:id/progress")
+    .post(task.logProgress);
+
 router.route("/project/:id")
     .get(task.findByProject);
 

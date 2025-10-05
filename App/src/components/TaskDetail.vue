@@ -155,6 +155,7 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
 
 interface Task {
   id: number;
@@ -210,9 +211,29 @@ const cancelEdit = () => {
 };
 
 const saveEdit = (key: string) => {
-  Object.assign(task.value, editCache.value);
-  emit("update:task", task.value);
+  const updated = { ...task.value, ...editCache.value };
+
+  if (key === "date") {
+    if (
+      updated.start_date &&
+      updated.due_date &&
+      new Date(updated.start_date) > new Date(updated.due_date)
+    ) {
+      ElMessage("Ngày kết thúc phải sau ngày bắt đầu");
+      return;
+    }
+  }
+  if (updated.start_date) {
+    updated.start_date = new Date(updated.start_date).toISOString().split("T")[0];
+  }
+  if (updated.due_date) {
+    updated.due_date = new Date(updated.due_date).toISOString().split("T")[0];
+  }
+
+  const updatedTask = { ...updated, changedField: key } as Task & { changedField: string };
+  emit("update:task", updatedTask);
   editRow.value = null;
+  visible.value = false;
 };
 
 const statusLabel = (val: string) =>

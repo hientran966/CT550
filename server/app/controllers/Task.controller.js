@@ -50,7 +50,24 @@ const customMethods = {
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy công việc theo tài khoản"));
         }
+    },
+
+    // log tiến độ công việc
+    logProgress: async (req, res, next) => {
+        const { progress, loggedBy } = req.body;
+
+        if (progress == null || progress < 0 || progress > 100) {
+            return next(new ApiError(400, "Tiến độ công việc không hợp lệ"));
+        }
+        try {
+            const service = new TaskService(MySQL.pool);
+            const document = await service.logProgress(req.params.id, progress, loggedBy);
+            return res.send(document);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi log tiến độ công việc"));
+        }
     }
+
 };
 
 module.exports = {

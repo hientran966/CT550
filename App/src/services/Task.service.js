@@ -29,6 +29,10 @@ class TaskService {
         const res = await this.api.get(`/project/${projectId}`);
         return res.data;
     }
+
+    async progressLog(id, data) {
+        return (await this.api.post(`/${id}/progress`, data)).data;
+    }
 }
 
 export default new TaskService();

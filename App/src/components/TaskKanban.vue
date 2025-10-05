@@ -85,6 +85,7 @@
       v-if="selectedTask"
       v-model="detailVisible"
       :task="selectedTask"
+      @update:task="updateTask($event)"
     />
   </div>
 
@@ -121,6 +122,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "update-task-status", task: Task): void;
+  (e: "update-task", task: Task): void;
 }>();
 
 const detailVisible = ref(false);
@@ -172,6 +174,10 @@ function onDrop(event: DragEvent, toColumnName: string) {
   draggedTask.value = null;
   fromColumn.value = null;
   dragging.value = false;
+}
+
+function updateTask(updatedTask: Task) {
+  emit("update-task", updatedTask);
 }
 </script>
 

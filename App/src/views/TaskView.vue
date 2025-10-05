@@ -7,6 +7,7 @@
         class="kanban"
         :tasks="tasks"
         @update-task-status="updateTaskStatus"
+        @update-task="updateTask"
       />
     </div>
   </div>
@@ -21,6 +22,7 @@ import TaskKanban from "@/components/TaskKanban.vue";
 import TaskHeader from "@/components/TaskHeader.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import TaskService from "@/services/Task.service";
+import { ElMessage } from "element-plus";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
@@ -47,6 +49,23 @@ const updateTaskStatus = async (task: any) => {
     await loadTasks();
   } catch (err) {
     console.error("Lỗi cập nhật status:", err);
+  }
+};
+
+const updateTask = async (updatedTask: any) => {
+  try {
+    if (updatedTask.changedField === "progress") {
+      await TaskService.progressLog(updatedTask.id, {
+        progress: updatedTask.latest_progress,
+        loggedBy: 1, // Thay bằng ID người dùng thực tế
+      });
+    } else {
+      await TaskService.updateTask(updatedTask.id, updatedTask);
+    }
+    ElMessage.success("Cập nhật task thành công");
+    await loadTasks();
+  } catch (err) {
+    console.error("Lỗi cập nhật task:", err);
   }
 };
 
