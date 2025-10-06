@@ -28,6 +28,10 @@ class ProjectService {
     async getProjectsByAccountId(accountId) {
         return (await this.api.get(`/account/${accountId}`)).data;
     }
+
+    async getMember(id) {
+        return (await this.api.get(`/${id}/member`)).data;
+    }
 }
 
 export default new ProjectService();

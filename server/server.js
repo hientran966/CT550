@@ -8,8 +8,9 @@ async function startServer() {
             host: config.db.host,
             user: config.db.username,
             password: config.db.password,
-            database: config.db.database
+            database: config.db.database,
         });
+
         console.log("Connected to the database!");
 
         const PORT = config.app.port;
@@ -17,8 +18,8 @@ async function startServer() {
             console.log(`Server is running on port ${PORT}`);
         });
     } catch (error) {
-        console.log("Cannot connect to the database!", error);
-        process.exit();
+        console.error("Cannot connect to the database:", error.message);
+        process.exit(1);
     }
 }
 

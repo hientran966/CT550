@@ -12,4 +12,10 @@ router.route("/:id")
     .put(project.update)
     .delete(project.delete);
 
+router.route("/:id/member")
+    .get(project.getMember);
+
+router.route("/account/:id")
+    .get(project.findByAccountId)
+
 module.exports = router;

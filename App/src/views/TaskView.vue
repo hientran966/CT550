@@ -26,6 +26,7 @@ import { ElMessage } from "element-plus";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
+const user = JSON.parse(localStorage.getItem('user'));
 
 const formRef = ref(false);
 const tasks = ref<any[]>([]);
@@ -57,7 +58,7 @@ const updateTask = async (updatedTask: any) => {
     if (updatedTask.changedField === "progress") {
       await TaskService.progressLog(updatedTask.id, {
         progress: updatedTask.latest_progress,
-        loggedBy: 1, // Thay bằng ID người dùng thực tế
+        loggedBy: user.id,
       });
     } else {
       await TaskService.updateTask(updatedTask.id, updatedTask);

@@ -80,10 +80,11 @@
   </el-dialog>
 </template>
 
-<script lang="ts" setup>
-import { ref, reactive, computed } from "vue";
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import TaskService from "@/services/Task.service";
+import ProjectService from "@/services/Project.service";
 import AssignService from "@/services/Assign.service";
 
 interface User {
@@ -116,6 +117,7 @@ const visible = computed({
 });
 
 const taskForm = ref();
+const users = ref<User[]>([]);
 
 const form = reactive<TaskForm>({
   title: "",
@@ -127,9 +129,7 @@ const form = reactive<TaskForm>({
 });
 
 const rules = {
-  title: [
-    { required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" },
-  ],
+  title: [{ required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" }],
   start_date: [
     { required: true, message: "Ngày bắt đầu là bắt buộc", trigger: "change" },
   ],
@@ -153,15 +153,23 @@ const rules = {
   ],
 };
 
-const users = ref<User[]>([
-  { id: 1, name: "Nguyễn Văn A" },
-  { id: 2, name: "Trần Thị B" },
-  { id: 3, name: "Lê Văn C" },
-]);
+async function fetchMembers() {
+  try {
+    if (!props.projectId) return;
+
+    const response = await ProjectService.getMember(props.projectId);
+    users.value = response || [];
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách thành viên:", error);
+    ElMessage.error("Không thể tải danh sách thành viên");
+  }
+}
 
 type DateOrString = Date | string | undefined | null;
 
-function pad(n: number) { return String(n).padStart(2, "0"); }
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
 
 function toSQLDate(value: DateOrString): string | null {
   if (!value) return null;
@@ -185,10 +193,16 @@ function handleClose() {
   resetForm();
 }
 
+onMounted(() => {
+  fetchMembers();
+});
+
 async function submitForm() {
   if (!taskForm.value) return;
   try {
     await taskForm.value.validate();
+
+    const user = JSON.parse(localStorage.getItem("user"));
 
     const payload = {
       project_id: props.projectId,
@@ -197,11 +211,11 @@ async function submitForm() {
       start_date: toSQLDate(form.start_date),
       due_date: toSQLDate(form.due_date),
       priority: form.priority,
-      created_by: 1, // giả sử user hiện tại có id = 1
+      created_by: user.id,
     };
+
     console.log("Payload:", payload);
     const createdTask = await TaskService.createTask(payload);
-
     const taskId = createdTask.id;
 
     for (const userId of form.assignees) {

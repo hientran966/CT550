@@ -116,6 +116,32 @@ class ProjectService {
         return result.affectedRows > 0;
     }
 
+    async getByUser(userId) {
+        const sql = `
+            SELECT DISTINCT p.*
+            FROM projects p
+            LEFT JOIN project_members pm ON p.id = pm.project_id
+            WHERE 
+                (p.created_by = ? OR pm.user_id = ?)
+                AND p.deleted_at IS NULL
+        `;
+        const [rows] = await this.mysql.execute(sql, [userId, userId]);
+        return rows;
+    }
+
+    async getMember(id) {
+        const sql = `
+            SELECT DISTINCT u.*
+            FROM users u
+            LEFT JOIN project_members pm ON u.id = pm.user_id
+            WHERE 
+                project_id = ?
+                AND u.deleted_at IS NULL
+        `;
+        const [rows] = await this.mysql.execute(sql, [id]);
+        return rows;
+    }
+
 }
 
 module.exports = ProjectService;

@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const ApiError = require("./app/api-error");
+const { verifyToken } = require("./app/middlewares/auth.middleware");
+
 const authRouter = require("./app/routes/Account.route");
 const projectRouter = require("./app/routes/Project.route");
 const memberRouter = require("./app/routes/Member.route");
@@ -24,6 +26,8 @@ app.get("/", (req, res) => {
 });
 // Import routes
 app.use("/api/auth", authRouter);
+
+// app.use(verifyToken);
 app.use("/api/duan", projectRouter);
 app.use("/api/thanhvien", memberRouter);
 app.use("/api/congviec", taskRouter);

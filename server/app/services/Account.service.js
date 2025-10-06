@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 class AccountService {
     constructor(mysql) {
@@ -22,21 +23,18 @@ class AccountService {
         if (!payload.name) throw new Error("Cần có tên người dùng");
         if (!payload.email) throw new Error("Cần có email");
 
-        // Kiểm tra trùng email
         const [email] = await this.mysql.execute(
             "SELECT id FROM users WHERE email = ?",
             [payload.email]
         );
         if (email.length > 0) throw new Error("Tài khoản đã tồn tại");
 
-        //Kiểm tra tên
         const [name] = await this.mysql.execute(
             "SELECT id FROM users WHERE name = ?",
             [payload.name]
         );
         if (name.length > 0) throw new Error("Tên người dùng đã tồn tại");
 
-        // Mật khẩu mặc định
         if (!payload.Password) payload.Password = "defaultPW";
 
         const auth = await this.extractAuthData(payload);
@@ -141,15 +139,35 @@ class AccountService {
 
     async login(identifier, Password) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM users WHERE email = ? OR name = ?",
+            "SELECT * FROM users WHERE (email = ? OR name = ?) AND deleted_at IS NULL",
             [identifier, identifier]
         );
+
         const auth = rows[0];
         if (!auth) throw new Error("Tài khoản không tồn tại");
-        if (!(await this.comparePassword(Password, auth.password_hash))) {
-            throw new Error("Mật khẩu không đúng");
-        }
-        return { ...auth };
+
+        const isMatch = await this.comparePassword(Password, auth.password_hash);
+        if (!isMatch) throw new Error("Mật khẩu không đúng");
+
+        const payload = {
+            id: auth.id,
+            email: auth.email,
+            name: auth.name,
+            role: auth.role,
+        };
+
+        const token = jwt.sign(
+            payload,
+            process.env.JWT_SECRET, 
+            {expiresIn: process.env.JWT_EXPIRES_IN || "7d",}
+        );
+
+        delete auth.password_hash;
+
+        return {
+            user: auth,
+            token,
+        };
     }
 
     async getDeleted(filter = {}) {

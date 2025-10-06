@@ -1,5 +1,7 @@
 const { createController } = require("./controllerFactory");
 const ProjectService = require("../services/Project.service");
+const ApiError = require("../api-error");
+const MySQL = require("../utils/mysql.util");
 
 const baseController = createController(ProjectService, {
     create: "Đã xảy ra lỗi khi tạo dự án",
@@ -13,6 +15,28 @@ const baseController = createController(ProjectService, {
     restoreError: "Đã xảy ra lỗi khi khôi phục dự án",
 });
 
+const customMethods = {
+    findByAccountId: async (req, res, next) => {
+        try {
+            const service = new ProjectService(MySQL.connection);
+            const documents = await service.getByUser(req.params.id);
+            return res.send(documents);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy dự án theo tài khoản"));
+        }
+    },
+    getMember: async (req, res, next) => {
+        try {
+            const service = new ProjectService(MySQL.connection);
+            const documents = await service.getMember(req.params.id);
+            return res.send(documents);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách thành viên"));
+        }
+    },
+};
+
 module.exports = {
-    ...baseController
+    ...baseController,
+    ...customMethods
 };

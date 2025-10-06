@@ -11,7 +11,8 @@ const projects = ref<any[]>([]);
 
 const fetchProjects = async () => {
   try {
-    const response = await ProjectService.getAllProjects();
+    const user = JSON.parse(localStorage.getItem('user'));
+    const response = await ProjectService.getProjectsByAccountId(user.id);
     projects.value = response;
   } catch (error) {
     console.error('Error fetching projects:', error);
