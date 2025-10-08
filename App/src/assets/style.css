@@ -72,8 +72,13 @@
 }
 .task-footer {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 5px;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+.assignees {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .kanban-header {
   padding: 10px 16px;

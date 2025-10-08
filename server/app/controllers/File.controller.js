@@ -4,7 +4,6 @@ const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
 
 const baseController = createController(FileService, {
-    create: "Đã xảy ra lỗi khi tạo file",
     findAll: "Đã xảy ra lỗi khi lấy danh sách file",
     findOne: "Đã xảy ra lỗi khi lấy file",
     notFound: "File không tồn tại",
@@ -16,6 +15,24 @@ const baseController = createController(FileService, {
 
 // custom methods
 const customMethods = {
+    create: async (req, res, next) => {
+        try {
+            const payload = {
+                file_name: req.file?.originalname || req.body.file_name,
+                file: req.file || req.body.file,
+                project_id: req.body.project_id,
+                task_id: req.body.task_id,
+                created_by: req.body.created_by
+            };
+
+            const service = new FileService(MySQL.pool);
+            const result = await service.create(payload);
+            return res.json({ message: "Tạo file thành công", result });
+        } catch (err) {
+            console.error(err);
+            return next(new ApiError(500, "Đã xảy ra lỗi khi tạo file"));
+        }
+    },
     findAllVersion: async (req, res, next) => {
         try {
             const service = new FileService(MySQL.connection);
@@ -53,17 +70,32 @@ const customMethods = {
     },
 
     uploadAvatar: async (req, res, next) => {
-        const { file_name } = req.body;
-        if (!file_name ) {
-            return next(new ApiError(400, "Thiếu dữ liệu file hoặc nội dung file"));
+        if (!req.file) {
+            return next(new ApiError(400, "Thiếu file upload"));
         }
+
         try {
             const service = new FileService(MySQL.pool);
-            const result = await service.updateAvatar(req.params.id, req.body);
+            const result = await service.updateAvatar(req.params.id, {
+                file_name: req.file.originalname,
+                file: req.file.path,
+            });
             return res.json({ message: "Cập nhật ảnh đại diện thành công", result });
         } catch (err) {
             console.error(err);
             return next(new ApiError(500, "Đã xảy ra lỗi khi cập nhật avatar"));
+        }
+    },
+
+    getAvatar: async (req, res, next) => {
+        try {
+            const service = new FileService(MySQL.pool);
+            const avatar = await service.getAvatar(req.params.id);
+
+            return res.json(avatar);
+        } catch (err) {
+            console.error(err);
+            return next(new ApiError(500, "Đã xảy ra lỗi khi lấy avatar"));
         }
     }
 };

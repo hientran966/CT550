@@ -2,10 +2,11 @@
   <div class="task-layout">
     <ProjectMenu class="menu" />
     <div class="main-content">
-      <TaskHeader class="task-header" :project-id="projectId" @add-task="onAdd"/>
+      <Header class="task-header" :page="'task'" :project-id="projectId" @add="onAdd"/>
       <TaskKanban
         class="kanban"
         :tasks="tasks"
+        :project-id="projectId"
         @update-task-status="updateTaskStatus"
         @update-task="updateTask"
       />
@@ -19,7 +20,7 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import ProjectMenu from "@/components/ProjectMenu.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
-import TaskHeader from "@/components/TaskHeader.vue";
+import Header from "@/components/Header.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import TaskService from "@/services/Task.service";
 import { ElMessage } from "element-plus";

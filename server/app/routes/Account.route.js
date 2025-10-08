@@ -24,4 +24,7 @@ router.route("/:id")
 router.route("/:id/password")
     .put(auth.changePassword);
 
+router.route("/email/:email")
+    .get(auth.findByEmail);
+
 module.exports = router;

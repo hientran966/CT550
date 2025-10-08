@@ -1,11 +1,12 @@
 const express = require("express");
 const file = require("../controllers/File.controller");
+const upload = require("../middlewares/upload.middleware");
 
 const router = express.Router();
 
 router.route("/")
     .get(file.findAll)
-    .post(file.create)
+    .post(upload.single("file"), file.create)
 
 router.route("/:id")
     .get(file.findOne)
@@ -19,6 +20,8 @@ router.route("/:id/version")
 router.route("/:id/version/:versionId")
     .get(file.findVersion)
 
-router.post("/avatar/:id", file.uploadAvatar);
+router.route("/avatar/:id")
+    .get(file.getAvatar)
+    .post(upload.single("avatar"), file.uploadAvatar);
 
 module.exports = router;

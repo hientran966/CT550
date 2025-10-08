@@ -68,13 +68,12 @@
 
           <div class="task-footer">
             <div class="assignees">
-              <span
-                v-for="a in task.assignees || []"
-                :key="a.id"
-                class="avatar"
-              >
-                {{ a.initials }}
-              </span>
+              <el-avatar
+                v-for="id in task.assignees || []"
+                :key="id"
+                :src="getAvatar(id)"
+                :size="24"
+              />
             </div>
           </div>
         </el-card>
@@ -85,6 +84,7 @@
       v-if="selectedTask"
       v-model="detailVisible"
       :task="selectedTask"
+      :project-id="projectId"
       @update:task="updateTask($event)"
     />
   </div>
@@ -92,8 +92,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import TaskDetail from "./TaskDetail.vue";
+import defaultAvatar from "@/assets/default-avatar.png";
+import FileService from "@/services/File.service";
 
 interface Task {
   id: number;
@@ -104,7 +106,7 @@ interface Task {
   start_date?: string;
   due_date?: string;
   latest_progress?: number;
-  assignees?: { id: number; initials: string }[];
+  assignees?: number[]; 
 }
 
 function formatDate(date?: string) {
@@ -118,6 +120,7 @@ function formatDate(date?: string) {
 
 const props = defineProps<{
   tasks: Task[];
+  projectId:number;
 }>();
 
 const emit = defineEmits<{
@@ -145,6 +148,8 @@ const reverseStatusMap: Record<string, string> = {
   "Đang Tiến Hành": "in_progress",
   "Đã Xong": "done",
 };
+
+const avatarsMap = ref<Record<number, string>>({});
 
 const columns = computed(() => [
   { name: "Đang Chờ", tasks: props.tasks.filter((t) => t.status === "todo") },
@@ -176,9 +181,41 @@ function onDrop(event: DragEvent, toColumnName: string) {
   dragging.value = false;
 }
 
+async function loadAvatars() {
+  const allUserIds = Array.from(
+    new Set(props.tasks.flatMap((t) => t.assignees || []))
+  );
+
+  const results: Record<number, string> = {};
+
+  await Promise.all(
+    allUserIds.map(async (id) => {
+      try {
+        const res = await FileService.getAvatar(id);
+        results[id] = res?.file_url || defaultAvatar;
+      } catch {
+        results[id] = defaultAvatar;
+      }
+    })
+  );
+
+  avatarsMap.value = results;
+}
+
+function getAvatar(id: number) {
+  return avatarsMap.value[id] || defaultAvatar;
+}
+
 function updateTask(updatedTask: Task) {
   emit("update-task", updatedTask);
 }
+
+watch(
+  () => props.tasks,
+  () => loadAvatars(),
+  { deep: true, immediate: true }
+);
+
 </script>
 
 <style scoped>

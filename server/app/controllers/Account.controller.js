@@ -53,7 +53,18 @@ const customMethods = {
             const statusCode = error.statusCode || 500;
             next(new ApiError(statusCode, error.message || "Có lỗi xảy ra khi đổi mật khẩu"));
         }
-    }
+    },
+
+    findByEmail: async (req, res, next) => {
+        try {
+            const service = new AuthService(MySQL.connection);
+            const documents = await service.find({ email: req.params.email });
+            return res.send(documents);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy công việc theo dự án"));
+        }
+    },
+
 };
 
 module.exports = {

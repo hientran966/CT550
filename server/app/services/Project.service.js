@@ -33,7 +33,8 @@ class ProjectService {
             );
 
             await connection.commit();
-            return { id: result.insertId, ...project };
+
+            return { id: result.insertId };
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -127,6 +128,30 @@ class ProjectService {
         `;
         const [rows] = await this.mysql.execute(sql, [userId, userId]);
         return rows;
+    }
+
+    async addMember(projectId, payload) {
+        const connection = await this.mysql.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const [result] = await connection.execute(
+                "INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)",
+                [
+                    projectId,
+                    payload.user_id,
+                    payload.role
+                ]
+            );
+
+            await connection.commit();
+            return { result };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }     
     }
 
     async getMember(id) {

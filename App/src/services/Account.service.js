@@ -49,6 +49,9 @@ class AuthService {
         return (await this.api.put(`/${id}/password`, { oldPassword, newPassword })).data;
     }
 
+    async findByEmail(email) {
+        return (await this.api.get(`/email/${email}`)).data;
+    }
 
 }
 

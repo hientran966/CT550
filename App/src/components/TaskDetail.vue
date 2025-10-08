@@ -36,7 +36,7 @@
                 </span>
                 <span v-else-if="row.key === 'assignee'">
                   {{
-                    task.assignees?.map((a) => a.initials).join(", ") ||
+                    task.assignees?.map((a) => a).join(", ") ||
                     "Chưa có"
                   }}
                 </span>
@@ -116,7 +116,7 @@
                 <!-- Người được giao -->
                 <span v-else>
                   {{
-                    task.assignees?.map((a) => a.initials).join(", ") ||
+                    task.assignees?.map((a) => a).join(", ") ||
                     "Chưa có"
                   }}
                 </span>
@@ -142,6 +142,7 @@
             style="margin-top: 16px"
             plain
             :icon="Upload"
+            @click="onUpload"
         >
         Đính Kèm File
         </el-button>
@@ -150,12 +151,17 @@
       <el-splitter-panel :min="200"> temp </el-splitter-panel>
     </el-splitter>
   </el-dialog>
+  <UploadForm 
+    v-model="formRef"
+    :project-id="props.projectId"
+    :task-id="props.task.id"/>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
+import UploadForm from "./Upload.vue";
 
 interface Task {
   id: number;
@@ -166,18 +172,21 @@ interface Task {
   start_date?: string;
   due_date?: string;
   latest_progress?: number;
-  assignees?: { id: number; initials: string }[];
+  assignees?: number[]; 
 }
 
 const props = defineProps<{
   modelValue: boolean;
   task: Task;
+  projectId: number;
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
   (e: "update:task", value: Task): void;
 }>();
+
+const formRef = ref(false);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -234,6 +243,10 @@ const saveEdit = (key: string) => {
   emit("update:task", updatedTask);
   editRow.value = null;
   visible.value = false;
+};
+
+const onUpload = () => {
+  formRef.value = true;
 };
 
 const statusLabel = (val: string) =>
