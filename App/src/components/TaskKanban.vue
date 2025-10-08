@@ -67,13 +67,8 @@
           </div>
 
           <div class="task-footer">
-            <div class="assignees">
-              <el-avatar
-                v-for="id in task.assignees || []"
-                :key="id"
-                :src="getAvatar(id)"
-                :size="24"
-              />
+            <div class="task-footer">
+              <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
             </div>
           </div>
         </el-card>
@@ -94,6 +89,7 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from "vue";
 import TaskDetail from "./TaskDetail.vue";
+import AvatarGroup from "./AvatarGroup.vue";
 import defaultAvatar from "@/assets/default-avatar.png";
 import FileService from "@/services/File.service";
 

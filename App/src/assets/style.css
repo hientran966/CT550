@@ -77,7 +77,6 @@
 }
 .assignees {
   display: flex;
-  align-items: center;
   gap: 4px;
 }
 .kanban-header {

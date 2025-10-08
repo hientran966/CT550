@@ -34,12 +34,18 @@
                 <span v-else-if="row.key === 'progress'">
                   {{ task.latest_progress ?? 0 }}%
                 </span>
-                <span v-else-if="row.key === 'assignee'">
-                  {{
-                    task.assignees?.map((a) => a).join(", ") ||
-                    "Chưa có"
-                  }}
-                </span>
+
+                <!-- ✅ AvatarGroup hiển thị assignees -->
+                <div v-else-if="row.key === 'assignee'">
+                  <AvatarGroup
+                    v-if="task.assignees && task.assignees.length"
+                    :user-ids="task.assignees"
+                    :size="32"
+                    :max="5"
+                    :tooltips="true"
+                  />
+                  <span v-else>Chưa có</span>
+                </div>
 
                 <el-button
                   size="small"
@@ -100,26 +106,26 @@
                   placeholder="Tiến độ"
                   size="small"
                 >
-                  <el-option label="0%" :value="0" />
-                  <el-option label="10%" :value="10" />
-                  <el-option label="20%" :value="20" />
-                  <el-option label="30%" :value="30" />
-                  <el-option label="40%" :value="40" />
-                  <el-option label="50%" :value="50" />
-                  <el-option label="60%" :value="60" />
-                  <el-option label="70%" :value="70" />
-                  <el-option label="80%" :value="80" />
-                  <el-option label="90%" :value="90" />
-                  <el-option label="100%" :value="100" />
+                  <el-option
+                    v-for="n in [0,10,20,30,40,50,60,70,80,90,100]"
+                    :key="n"
+                    :label="`${n}%`"
+                    :value="n"
+                  />
                 </el-select>
 
                 <!-- Người được giao -->
-                <span v-else>
-                  {{
-                    task.assignees?.map((a) => a).join(", ") ||
-                    "Chưa có"
-                  }}
-                </span>
+                <div v-else>
+                  <AvatarGroup
+                    v-if="task.assignees && task.assignees.length"
+                    :user-ids="task.assignees"
+                    :size="32"
+                    :max="5"
+                    :tooltips="true"
+                  />
+                  <span v-else>Chưa có</span>
+                </div>
+
                 <el-button
                   size="small"
                   type="success"
@@ -139,22 +145,24 @@
         </el-table>
 
         <el-button
-            style="margin-top: 16px"
-            plain
-            :icon="Upload"
-            @click="onUpload"
+          style="margin-top: 16px"
+          plain
+          :icon="Upload"
+          @click="onUpload"
         >
-        Đính Kèm File
+          Đính Kèm File
         </el-button>
       </el-splitter-panel>
 
       <el-splitter-panel :min="200"> temp </el-splitter-panel>
     </el-splitter>
   </el-dialog>
+
   <UploadForm 
     v-model="formRef"
     :project-id="props.projectId"
-    :task-id="props.task.id"/>
+    :task-id="props.task.id"
+  />
 </template>
 
 <script lang="ts" setup>
@@ -162,6 +170,7 @@ import { computed, ref } from "vue";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import UploadForm from "./Upload.vue";
+import AvatarGroup from "./AvatarGroup.vue";
 
 interface Task {
   id: number;
@@ -172,7 +181,7 @@ interface Task {
   start_date?: string;
   due_date?: string;
   latest_progress?: number;
-  assignees?: number[]; 
+  assignees?: number[];
 }
 
 const props = defineProps<{
@@ -232,6 +241,7 @@ const saveEdit = (key: string) => {
       return;
     }
   }
+
   if (updated.start_date) {
     updated.start_date = new Date(updated.start_date).toISOString().split("T")[0];
   }

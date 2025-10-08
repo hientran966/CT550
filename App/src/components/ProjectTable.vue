@@ -6,7 +6,6 @@
     ref="tableRef"
     @row-click="onRowClick"
   >
-    <!-- Tên dự án -->
     <el-table-column prop="name" label="Tên dự án">
       <template #default="{ row }">
         <template v-if="isEditing(row, 'name')">
@@ -25,7 +24,6 @@
       </template>
     </el-table-column>
 
-    <!-- Ngày bắt đầu -->
     <el-table-column prop="start_date" label="Ngày bắt đầu" sortable>
       <template #default="{ row }">
         <template v-if="isEditing(row, 'start_date')">
@@ -45,7 +43,6 @@
       </template>
     </el-table-column>
 
-    <!-- Ngày kết thúc -->
     <el-table-column prop="end_date" label="Ngày kết thúc" sortable>
       <template #default="{ row }">
         <template v-if="isEditing(row, 'end_date')">
@@ -65,7 +62,6 @@
       </template>
     </el-table-column>
 
-    <!-- Trạng thái -->
     <el-table-column
       prop="status"
       label="Trạng thái"
@@ -97,11 +93,20 @@
       </template>
     </el-table-column>
 
-    <!-- Quản lý -->
-    <el-table-column prop="created_by" label="Quản lý" width="250">
+    <el-table-column prop="created_by" label="Quản lý" width="220">
       <template #default="{ row }">
-        <el-avatar size="small">U</el-avatar>
-        <span style="margin-left: 8px">{{ row.created_by }}</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <el-avatar
+            :src="getManagerAvatar(row.created_by)"
+            size="small"
+          />
+        </div>
+      </template>
+    </el-table-column>
+
+    <el-table-column prop="members" label="Thành viên" width="180">
+      <template #default="{ row }">
+        <AvatarGroup :user-ids="row.members || []" :max="3" :size="28" />
       </template>
     </el-table-column>
   </el-table>
@@ -109,8 +114,11 @@
 
 <script lang="ts" setup>
 import type { TableInstance } from "element-plus";
-import { ref, reactive, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import AvatarGroup from "@/components/AvatarGroup.vue";
+import FileService from "@/services/File.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 
 const router = useRouter();
 
@@ -120,7 +128,8 @@ interface Project {
   start_date: string;
   end_date: string;
   status: string;
-  created_by?: string;
+  created_by?: number;
+  members?: number[];
 }
 
 const props = defineProps<{
@@ -132,11 +141,14 @@ const emit = defineEmits<{
 }>();
 
 const editableProjects = ref<Project[]>([]);
+const managerAvatars = ref<Record<number, string>>({});
+const managerNames = ref<Record<number, string>>({});
 
 watch(
   () => props.projects,
-  (newVal) => {
+  async (newVal) => {
     editableProjects.value = newVal.map((p) => ({ ...p }));
+    await loadManagerAvatars(newVal);
   },
   { immediate: true }
 );
@@ -180,20 +192,14 @@ const stopEditing = () => {
 
   emit("update-project", { id, [field]: value });
 
-  console.log("Cập nhật:", { id, [field]: value });
-
   editingRow.value = null;
   editingField.value = null;
 };
 
+const isEditing = (row: Project, field: string) =>
+  editingRow.value === row && editingField.value === field;
 
-const isEditing = (row: Project, field: string) => {
-  return editingRow.value === row && editingField.value === field;
-};
-
-const filterTag = (value: string, row: Project) => {
-  return row.status === value;
-};
+const filterTag = (value: string, row: Project) => row.status === value;
 
 const onRowClick = (row: Project) => {
   router.push({ name: "tasks", params: { id: row.id } });
@@ -204,4 +210,31 @@ const formatDate = (_: any, __: any, cellValue: string) => {
   const date = new Date(cellValue);
   return date.toLocaleDateString("vi-VN");
 };
+
+async function loadManagerAvatars(projects: Project[]) {
+  const uniqueIds = Array.from(new Set(projects.map((p) => p.created_by)));
+  const results: Record<number, string> = {};
+
+  await Promise.all(
+    uniqueIds.map(async (id) => {
+      if (!id) return;
+      try {
+        const res = await FileService.getAvatar(id);
+        results[id] = res?.file_url || defaultAvatar;
+      } catch {
+        results[id] = defaultAvatar;
+      }
+    })
+  );
+
+  managerAvatars.value = results;
+}
+
+function getManagerAvatar(id: number) {
+  return managerAvatars.value[id] || defaultAvatar;
+}
+
+function getManagerName(id: number) {
+  return `User ${id}`;
+}
 </script>
