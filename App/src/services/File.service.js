@@ -25,8 +25,8 @@ class FileService {
         return (await this.api.get(`/avatar/${userId}`)).data;
     }
 
-    async getAllFiles() {
-        return (await this.api.get("/")).data;
+    async getAllFiles(filters = {}) {
+        return (await this.api.get("/", { params: filters })).data;
     }
 
     async getFileById(id) {

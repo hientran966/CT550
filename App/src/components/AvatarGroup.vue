@@ -35,7 +35,6 @@ import { computed, ref, watch, onMounted } from "vue";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
 
-// ✅ Props
 const props = defineProps<{
   userIds: number[];
   size?: number | string;

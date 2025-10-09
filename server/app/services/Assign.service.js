@@ -23,17 +23,14 @@ class AssignmentService {
             );
 
             if (existing.length > 0) {
-                await connection.rollback();
-                throw new Error("Phân công này đã tồn tại");
+                await connection.commit();
+                return { id: existing[0].id, ...assignment, skipped: true };
             }
 
             const [result] = await connection.execute(
-                `INSERT INTO task_assignees (task_id,user_id)
+                `INSERT INTO task_assignees (task_id, user_id)
                 VALUES (?, ?)`,
-                [
-                    assignment.task_id,
-                    assignment.user_id,
-                ]
+                [assignment.task_id, assignment.user_id]
             );
 
             await connection.commit();

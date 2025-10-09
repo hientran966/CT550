@@ -214,7 +214,6 @@ async function submitForm() {
       created_by: user.id,
     };
 
-    console.log("Payload:", payload);
     const createdTask = await TaskService.createTask(payload);
     const taskId = createdTask.id;
 

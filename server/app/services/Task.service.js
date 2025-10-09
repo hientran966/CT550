@@ -164,6 +164,26 @@ class TaskService {
       connection.release();
     }
   }
+
+  async deleteAssign(taskId) {
+    const connection = await this.mysql.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [result] = await connection.execute(
+        `DELETE FROM task_assignees WHERE task_id = ?`,
+        [taskId]
+      );
+
+      await connection.commit();
+      return { affectedRows: result.affectedRows };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
 }
 
 module.exports = TaskService;

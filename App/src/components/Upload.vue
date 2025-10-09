@@ -44,7 +44,10 @@ const props = defineProps<{
   taskId?: number;
 }>();
 
-const emit = defineEmits<{ (e: "update:modelValue", value: boolean): void }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: boolean): void;
+  (e: "file-added"): void;
+}>();
 
 const visible = computed({
   get: () => props.modelValue,
@@ -86,6 +89,7 @@ async function submitFiles() {
     }
 
     ElMessage.success("Upload thành công!");
+    emit("file-added");
     handleClose();
   } catch (err) {
     console.error(err);

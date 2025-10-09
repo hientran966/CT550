@@ -66,7 +66,18 @@ const customMethods = {
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi log tiến độ công việc"));
         }
-    }
+    },
+
+    //Xóa phân công
+    deleteAssign: async (req, res, next) => {
+        try {
+            const service = new TaskService(MySQL.pool);
+            const document = await service.deleteAssign(req.params.id);
+            return res.send(document);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa phân công công việc"));
+        }
+    },
 
 };
 

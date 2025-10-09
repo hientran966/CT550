@@ -42,8 +42,8 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item>Settings</el-dropdown-item>
-              <el-dropdown-item>Logout</el-dropdown-item>
+              <el-dropdown-item>Thành viên</el-dropdown-item>
+              <el-dropdown-item>Cài đặt</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

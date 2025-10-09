@@ -33,6 +33,10 @@ class TaskService {
     async progressLog(id, data) {
         return (await this.api.post(`/${id}/progress`, data)).data;
     }
+
+    async deleteAssign (id) {
+        return (await this.api.delete(`/assign/${id}`)).data;
+    }
 }
 
 export default new TaskService();

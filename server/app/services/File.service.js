@@ -129,45 +129,89 @@ class FileService {
     }
 
     async getAvatar(userId) {
-    const [rows] = await this.mysql.execute(
-        `SELECT fv.file_url, fv.file_type, fv.created_at
-        FROM files f
-        JOIN file_versions fv ON fv.file_id = f.id
-        WHERE f.created_by = ? AND f.category = 'user_avatar' AND fv.deleted_at IS NULL
-        ORDER BY fv.version_number DESC
-        LIMIT 1`,
-        [userId]
-    );
+        const [rows] = await this.mysql.execute(
+            `SELECT fv.file_url, fv.file_type, fv.created_at
+            FROM files f
+            JOIN file_versions fv ON fv.file_id = f.id
+            WHERE f.created_by = ? AND f.category = 'user_avatar' AND fv.deleted_at IS NULL
+            ORDER BY fv.version_number DESC
+            LIMIT 1`,
+            [userId]
+        );
 
-    if (rows.length === 0) return null;
+        if (rows.length === 0) return null;
 
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-    const file = rows[0];
-    file.file_url = `${baseUrl}/${file.file_url.replace(/\\/g, '/')}`;
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        const file = rows[0];
+        file.file_url = `${baseUrl}/${file.file_url.replace(/\\/g, '/')}`;
 
-    return file;
+        return file;
     }
 
     async find(filter = {}) {
-        let sql = "SELECT * FROM files WHERE deleted_at IS NULL";
-        let params = [];
+        let sql = `
+            SELECT 
+                f.*,
+                (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'id', fv.id,
+                            'file_id', fv.file_id,
+                            'version_number', fv.version_number,
+                            'file_url', fv.file_url,
+                            'file_type', fv.file_type,
+                            'status', fv.status
+                        )
+                    )
+                    FROM file_versions fv
+                    WHERE fv.file_id = f.id
+                ) AS versions
+            FROM files f
+            WHERE f.deleted_at IS NULL
+        `;
+
+        const params = [];
+
         if (filter.file_name) {
-            sql += " AND file_name LIKE ?";
+            sql += " AND f.file_name LIKE ?";
             params.push(`%${filter.file_name}%`);
         }
+
         if (filter.project_id) {
-            sql += " AND project_id = ?";
+            sql += " AND f.project_id = ?";
             params.push(filter.project_id);
         }
+
         if (filter.task_id) {
-            sql += " AND task_id = ?";
+            sql += " AND f.task_id = ?";
             params.push(filter.task_id);
         }
+
         if (filter.created_by) {
-            sql += " AND created_by = ?";
+            sql += " AND f.created_by = ?";
             params.push(filter.created_by);
         }
         const [rows] = await this.mysql.execute(sql, params);
+        
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        for (const file of rows) {
+            if (typeof file.versions === 'string') {
+                try {
+                    file.versions = JSON.parse(file.versions);
+                } catch (err) {
+                    file.versions = [];
+                }
+            }
+
+            if (Array.isArray(file.versions)) {
+                file.versions = file.versions.map(v => ({
+                    ...v,
+                    file_url: v.file_url
+                        ? `${baseUrl}/${v.file_url.replace(/\\/g, '/')}`
+                        : null
+                }));
+            }
+        }
         return rows;
     }
 

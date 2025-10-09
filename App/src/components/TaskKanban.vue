@@ -62,7 +62,7 @@
               :percentage="task.latest_progress || 0"
               size="small"
               style="margin-top: 8px"
-              v-if="task.latest_progress !== undefined"
+              v-if="task.latest_progress !== undefined && task.latest_progress != 0"
             />
           </div>
 

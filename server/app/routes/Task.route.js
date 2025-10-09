@@ -21,4 +21,7 @@ router.route("/project/:id")
 router.route("/account/:id")
     .get(task.findByAccountId);
 
+router.route("/assign/:id")
+    .delete(task.deleteAssign);
+
 module.exports = router;

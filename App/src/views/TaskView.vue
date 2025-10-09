@@ -23,6 +23,7 @@ import TaskKanban from "@/components/TaskKanban.vue";
 import Header from "@/components/Header.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import TaskService from "@/services/Task.service";
+import AssignService from "@/services/Assign.service";
 import { ElMessage } from "element-plus";
 
 const route = useRoute();
@@ -61,6 +62,12 @@ const updateTask = async (updatedTask: any) => {
         progress: updatedTask.latest_progress,
         loggedBy: user.id,
       });
+    } else if (updatedTask.changedField === "assignee") {
+      await TaskService.deleteAssign(updatedTask.id);
+
+      for (const userId of updatedTask.assignees) {
+        await AssignService.createAssign({task_id: updatedTask.id, user_id: userId});
+      }
     } else {
       await TaskService.updateTask(updatedTask.id, updatedTask);
     }

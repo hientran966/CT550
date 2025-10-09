@@ -14,28 +14,39 @@
           {{ task.description }}
         </p>
 
-        <el-table :data="tableData" border style="width: 100%" :show-header="false">
+        <!-- Bảng thông tin -->
+        <el-table
+          :data="tableData"
+          border
+          style="width: 100%"
+          :show-header="false"
+        >
           <el-table-column prop="label" label="Thuộc tính" width="150" />
-
           <el-table-column label="Giá trị">
             <template #default="{ row }">
-              <!-- Hiển thị chế độ xem -->
+              <!-- Chế độ xem -->
               <template v-if="editRow !== row.key">
-                <span v-if="row.key === 'status'">
-                  {{ statusLabel(task.status) }}
-                </span>
-                <span v-else-if="row.key === 'priority'">
-                  {{ priorityLabel(task.priority) }}
+                <span v-if="row.key === 'priority'">
+                  <el-tag
+                    :type="
+                      task.priority === 'high'
+                        ? 'danger'
+                        : task.priority === 'medium'
+                        ? 'warning'
+                        : 'success'
+                    "
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ priorityLabel(task.priority) }}
+                  </el-tag>
                 </span>
                 <span v-else-if="row.key === 'date'">
-                  {{ formatDate(task.start_date) }} →
-                  {{ formatDate(task.due_date) }}
+                  {{ formatDate(task.start_date) }} → {{ formatDate(task.due_date) }}
                 </span>
                 <span v-else-if="row.key === 'progress'">
                   {{ task.latest_progress ?? 0 }}%
                 </span>
-
-                <!-- ✅ AvatarGroup hiển thị assignees -->
                 <div v-else-if="row.key === 'assignee'">
                   <AvatarGroup
                     v-if="task.assignees && task.assignees.length"
@@ -82,7 +93,7 @@
                   <el-option label="Cao" value="high" />
                 </el-select>
 
-                <!-- Ngày bắt đầu / kết thúc -->
+                <!-- Ngày -->
                 <template v-else-if="row.key === 'date'">
                   <el-date-picker
                     v-model="editCache.start_date"
@@ -115,15 +126,21 @@
                 </el-select>
 
                 <!-- Người được giao -->
-                <div v-else>
-                  <AvatarGroup
-                    v-if="task.assignees && task.assignees.length"
-                    :user-ids="task.assignees"
-                    :size="32"
-                    :max="5"
-                    :tooltips="true"
-                  />
-                  <span v-else>Chưa có</span>
+                <div v-else-if="row.key === 'assignee'">
+                  <el-select
+                    v-model="editCache.assignees"
+                    multiple
+                    placeholder="Chọn người được giao"
+                    style="width: 100%"
+                    size="small"
+                  >
+                    <el-option
+                      v-for="member in members"
+                      :key="member.id"
+                      :label="member.name"
+                      :value="member.id"
+                    />
+                  </el-select>
                 </div>
 
                 <el-button
@@ -144,6 +161,7 @@
           </el-table-column>
         </el-table>
 
+        <!-- Đính kèm file -->
         <el-button
           style="margin-top: 16px"
           plain
@@ -152,25 +170,48 @@
         >
           Đính Kèm File
         </el-button>
+
+        <!-- Danh sách file -->
+        <div
+          v-if="files.length"
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 6px;
+            margin-top: 12px;
+          "
+        >
+          <FileCard
+            v-for="f in files"
+            :key="f.id"
+            :file="f"
+            :size="'small'"
+          />
+        </div>
+        <div v-else style="margin-top: 12px; color: #888">Chưa có file đính kèm</div>
       </el-splitter-panel>
 
       <el-splitter-panel :min="200"> temp </el-splitter-panel>
     </el-splitter>
   </el-dialog>
 
-  <UploadForm 
+  <UploadForm
     v-model="formRef"
     :project-id="props.projectId"
     :task-id="props.task.id"
+    @file-added="loadFiles"
   />
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import UploadForm from "./Upload.vue";
 import AvatarGroup from "./AvatarGroup.vue";
+import FileCard from "./FileCard.vue";
+import ProjectService from "@/services/Project.service";
+import FileService from "@/services/File.service";
 
 interface Task {
   id: number;
@@ -196,27 +237,26 @@ const emit = defineEmits<{
 }>();
 
 const formRef = ref(false);
-
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
 });
-
 const task = computed({
   get: () => props.task,
   set: (val) => Object.assign(props.task, val),
 });
 
+const editRow = ref<string | null>(null);
+const editCache = ref<Partial<Task>>({});
+const members = ref<any[]>([]);
+const files = ref<any[]>([]);
+
 const tableData = computed(() => [
-  { key: "status", label: "Trạng thái" },
   { key: "priority", label: "Ưu tiên" },
   { key: "date", label: "Thời gian" },
   { key: "progress", label: "Tiến độ (%)" },
   { key: "assignee", label: "Người được giao" },
 ]);
-
-const editRow = ref<string | null>(null);
-const editCache = ref<Partial<Task>>({});
 
 const startEdit = (key: string) => {
   editRow.value = key;
@@ -242,29 +282,26 @@ const saveEdit = (key: string) => {
     }
   }
 
-  if (updated.start_date) {
-    updated.start_date = new Date(updated.start_date).toISOString().split("T")[0];
-  }
-  if (updated.due_date) {
+  if (updated.start_date)
+    updated.start_date = new Date(updated.start_date)
+      .toISOString()
+      .split("T")[0];
+  if (updated.due_date)
     updated.due_date = new Date(updated.due_date).toISOString().split("T")[0];
+
+  if (Array.isArray(updated.assignees)) {
+    updated.assignees = updated.assignees.map((id) => Number(id));
   }
 
-  const updatedTask = { ...updated, changedField: key } as Task & { changedField: string };
+  const updatedTask = { ...updated, changedField: key } as Task & {
+    changedField: string;
+  };
   emit("update:task", updatedTask);
   editRow.value = null;
   visible.value = false;
 };
 
-const onUpload = () => {
-  formRef.value = true;
-};
-
-const statusLabel = (val: string) =>
-  val === "todo"
-    ? "Đang chờ"
-    : val === "in_progress"
-    ? "Đang tiến hành"
-    : "Hoàn thành";
+const onUpload = () => (formRef.value = true);
 
 const priorityLabel = (val: string) =>
   val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
@@ -272,9 +309,37 @@ const priorityLabel = (val: string) =>
 const formatDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
-const handleClose = () => {
-  visible.value = false;
+const handleClose = () => (visible.value = false);
+
+const loadMembers = async () => {
+  try {
+    const res = await ProjectService.getMember(props.projectId);
+    members.value = res;
+  } catch (err) {
+    console.error(err);
+  }
 };
+
+const loadFiles = async () => {
+  try {
+    const res = await FileService.getAllFiles({ task_id: props.task.id });
+    files.value = res || [];
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+onMounted(() => {
+  loadMembers();
+});
+watch(
+  () => props.task.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      loadFiles();
+    }
+  }
+);
 </script>
 
 <style scoped>
