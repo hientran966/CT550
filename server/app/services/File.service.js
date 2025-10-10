@@ -172,6 +172,11 @@ class FileService {
 
         const params = [];
 
+        if (filter.id) {
+            sql += " AND f.id LIKE ?";
+            params.push(`%${filter.id}%`);
+        }
+
         if (filter.file_name) {
             sql += " AND f.file_name LIKE ?";
             params.push(`%${filter.file_name}%`);

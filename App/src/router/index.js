@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
-import ProjectsView from '../views/ProjectsView.vue'
-import TasksView from '../views/TaskView.vue'
+import Home from '@/views/Home.vue'
+import ProjectsView from '@/views/ProjectsView.vue'
+import TasksView from '@/views/TaskView.vue'
+import FileView from '@/views/FileView.vue'
 
 const routes = [
   { path: '/', component: Home },
   { path: '/projects', name: 'projects', component: ProjectsView },
   { path: '/projects/:id', name: 'tasks', component: TasksView},
+  { path: '/file', name: 'file', component: FileView},
 ]
 
 const router = createRouter({
