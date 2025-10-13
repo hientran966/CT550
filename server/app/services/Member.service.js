@@ -8,7 +8,7 @@ class MemberService {
             project_id: payload.project_id ?? null,
             user_id: payload.user_id ?? null,
             role: payload.role ?? "member",
-            joined_at: payload.joined_at ?? null,
+            invite_by: payload.invite_by ?? null,
         };
     }
 
@@ -19,12 +19,13 @@ class MemberService {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                "INSERT INTO project_members (project_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO project_members (project_id, user_id, role, status, invite_by) VALUES (?, ?, ?, ?, ?)",
                 [
                     member.project_id,
                     member.user_id,
                     member.role,
-                    member.joined_at
+                    'invited',
+                    member.invite_by
                 ]
             );
 
@@ -53,6 +54,10 @@ class MemberService {
         if (filter.user_id) {
             sql += " AND user_id = ?";
             params.push(filter.user_id);
+        }
+        if (filter.status) {
+            sql += " AND status = ?";
+            params.push(filter.status);
         }
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
@@ -102,6 +107,21 @@ class MemberService {
             [id]
         );
         return result.affectedRows > 0;
+    }
+
+    async getInviteList(userId) {
+        const sql = `
+            SELECT pm.*, u.name AS invited_by_name, p.name AS project_name
+            FROM project_members pm
+            JOIN users u ON pm.invited_by = u.id
+            JOIN projects p ON pm.project_id = p.id
+            WHERE 
+                pm.user_id = ?
+                AND pm.status = 'invited'
+                AND pm.deleted_at IS NULL
+        `;
+        const [rows] = await this.mysql.execute(sql, [userId]);
+        return rows;
     }
 }
 

@@ -12,4 +12,7 @@ router.route("/:id")
     .put(member.update)
     .delete(member.delete);
 
+router.route("/user/:id")
+    .get(member.getInviteList);
+
 module.exports = router;

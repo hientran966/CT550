@@ -118,19 +118,23 @@ class ProjectService {
   }
 
   async getByUser(userId) {
-    let sql = `
-            SELECT DISTINCT p.*, 
-            (
-                SELECT JSON_ARRAYAGG(pm.user_id)
-                FROM project_members pm
-                WHERE pm.project_id = p.id
-            ) AS members
-            FROM projects p
-            LEFT JOIN project_members pm ON p.id = pm.project_id
-            WHERE 
-                (p.created_by = ? OR pm.user_id = ?)
-                AND p.deleted_at IS NULL
-        `;
+    const sql = `
+      SELECT DISTINCT 
+        p.*, 
+        (
+          SELECT JSON_ARRAYAGG(pm2.user_id)
+          FROM project_members pm2
+          WHERE pm2.project_id = p.id
+        ) AS members
+      FROM projects p
+      LEFT JOIN project_members pm ON p.id = pm.project_id
+      WHERE 
+        (
+          p.created_by = ? 
+          OR (pm.user_id = ? AND pm.status = 'accepted')
+        )
+        AND p.deleted_at IS NULL
+    `;
     const [rows] = await this.mysql.execute(sql, [userId, userId]);
     return rows;
   }
@@ -141,8 +145,8 @@ class ProjectService {
       await connection.beginTransaction();
 
       const [result] = await connection.execute(
-        "INSERT INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)",
-        [projectId, payload.user_id, payload.role]
+        "INSERT INTO project_members (project_id, user_id, role, status) VALUES (?, ?, ?, ?)",
+        [projectId, payload.user_id, payload.role, 'invited']
       );
 
       await connection.commit();
@@ -162,6 +166,7 @@ class ProjectService {
             LEFT JOIN project_members pm ON u.id = pm.user_id
             WHERE 
                 project_id = ?
+                AND pm.status = 'accepted'
                 AND u.deleted_at IS NULL
         `;
     const [rows] = await this.mysql.execute(sql, [id]);

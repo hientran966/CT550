@@ -35,10 +35,14 @@ CREATE TABLE project_members (
     project_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     role ENUM('owner','manager','member','client','viewer') DEFAULT 'member',
+    status ENUM('invited', 'accepted', 'declined') DEFAULT 'invited',
+    invited_by BIGINT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (invited_by) REFERENCES users(id)
 );
 
 -- TASKS
