@@ -32,6 +32,13 @@ class ProjectService {
         ]
       );
 
+      const projectId = result.insertId;
+
+      const [memberResult] = await connection.execute(
+        "INSERT INTO project_members (project_id, user_id, role, status) VALUES (?, ?, ?, ?)",
+        [projectId, project.created_by, 'owner', 'accepted']
+      );
+
       await connection.commit();
 
       return { id: result.insertId };
@@ -161,7 +168,7 @@ class ProjectService {
 
   async getMember(id) {
     const sql = `
-            SELECT DISTINCT u.*
+            SELECT DISTINCT pm.*, u.name, u.id AS user_id
             FROM users u
             LEFT JOIN project_members pm ON u.id = pm.user_id
             WHERE 

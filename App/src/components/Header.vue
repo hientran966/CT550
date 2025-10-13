@@ -25,7 +25,6 @@
         />
         <el-button :icon="Filter" circle style="margin-right: 8px;" />
 
-        <!-- ✅ AvatarGroup hiển thị danh sách thành viên -->
         <template v-if="props.page === 'task' && memberIds.length">
           <AvatarGroup
             :user-ids="memberIds"
@@ -33,6 +32,7 @@
             :max="4"
             :tooltips="true"
             style="margin-right: 8px;"
+            @click="memberClick"
           />
         </template>
 
@@ -67,6 +67,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "add"): void;
+  (e: "member-click"): void;
 }>();
 
 const titleMap: Record<string, string> = {
@@ -88,6 +89,10 @@ async function loadMembers() {
   } catch (err) {
     console.error("Lỗi tải danh sách thành viên:", err);
   }
+}
+
+function memberClick() {
+  emit("member-click");
 }
 
 onMounted(loadMembers);

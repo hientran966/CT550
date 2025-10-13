@@ -199,7 +199,7 @@ async function acceptInvite(inviteId) {
 
 async function rejectInvite(inviteId) {
   try {
-    await MemberService.updateMember(inviteId, { status: "rejected" });
+    await MemberService.updateMember(inviteId, { status: "declined" });
     await loadInvites();
   } catch (err) {
     console.error("Lỗi khi từ chối lời mời:", err);

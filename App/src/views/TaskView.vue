@@ -2,7 +2,7 @@
   <div class="task-layout">
     <ProjectMenu class="menu" />
     <div class="main-content">
-      <Header class="task-header" :page="'task'" :project-id="projectId" @add="onAdd"/>
+      <Header class="task-header" :page="'task'" :project-id="projectId" @add="onAdd" @member-click="openMemberList"/>
       <TaskKanban
         class="kanban"
         :tasks="tasks"
@@ -13,24 +13,29 @@
     </div>
   </div>
   <TaskForm v-model="formRef" :project-id="projectId" @task-added="loadTasks" />
+  <MemberList v-model="memberRef" :project_id="projectId" @member-updated="loadTasks" />
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
+import { ElMessage } from "element-plus";
+
 import ProjectMenu from "@/components/ProjectMenu.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
 import Header from "@/components/Header.vue";
 import TaskForm from "@/components/TaskForm.vue";
+import MemberList from "@/components/MemberList.vue";
+
 import TaskService from "@/services/Task.service";
 import AssignService from "@/services/Assign.service";
-import { ElMessage } from "element-plus";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
 const user = JSON.parse(localStorage.getItem('user'));
 
 const formRef = ref(false);
+const memberRef = ref(false);
 const tasks = ref<any[]>([]);
 
 const loadTasks = async () => {
@@ -44,6 +49,10 @@ const loadTasks = async () => {
 
 const onAdd = () => {
   formRef.value = true;
+};
+
+const openMemberList = () => {
+  memberRef.value = true;
 };
 
 const updateTaskStatus = async (task: any) => {

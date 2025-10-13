@@ -8,24 +8,25 @@ class MemberService {
             project_id: payload.project_id ?? null,
             user_id: payload.user_id ?? null,
             role: payload.role ?? "member",
-            invite_by: payload.invite_by ?? null,
+            invited_by: payload.invited_by ?? null,
         };
     }
 
     async create(payload) {
         const member = await this.extractMemberData(payload);
+        console.log(member);
         const connection = await this.mysql.getConnection();
         try {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                "INSERT INTO project_members (project_id, user_id, role, status, invite_by) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO project_members (project_id, user_id, role, status, invited_by) VALUES (?, ?, ?, ?, ?)",
                 [
                     member.project_id,
                     member.user_id,
                     member.role,
                     'invited',
-                    member.invite_by
+                    member.invited_by
                 ]
             );
 
@@ -93,20 +94,11 @@ class MemberService {
     }
 
     async delete(id) {
-        const deletedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
         await this.mysql.execute(
-            "UPDATE project_members SET deleted_at = ? WHERE id = ?",
-            [deletedDate, id]
-        );
-        return id;
-    }
-
-    async restore(id) {
-        const [result] = await this.mysql.execute(
-            "UPDATE project_members SET deleted_at = NULL WHERE id = ?",
+            "DELETE FROM project_members WHERE id = ?",
             [id]
         );
-        return result.affectedRows > 0;
+        return id;
     }
 
     async getInviteList(userId) {
@@ -122,6 +114,19 @@ class MemberService {
         `;
         const [rows] = await this.mysql.execute(sql, [userId]);
         return rows;
+    }
+
+    async checkIfMemberExists(projectId, userId) {
+        const sql = `
+            SELECT COUNT(*) AS count
+            FROM project_members
+            WHERE 
+                project_id = ?
+                AND user_id = ?
+                AND deleted_at IS NULL
+        `;
+        const [rows] = await this.mysql.execute(sql, [projectId, userId]);
+        return rows[0].count > 0;
     }
 }
 

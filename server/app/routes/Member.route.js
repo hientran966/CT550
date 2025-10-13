@@ -15,4 +15,7 @@ router.route("/:id")
 router.route("/user/:id")
     .get(member.getInviteList);
 
+router.route("/check/:project_id/:user_id")
+    .get(member.checkIfMemberExists);
+
 module.exports = router;

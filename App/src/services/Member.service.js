@@ -28,6 +28,10 @@ class MemberService {
     async getInviteList(userId) {
         return (await this.api.get(`/user/${userId}`)).data;
     }
+
+    async checkIfMemberExists(projectId, userId) {
+        return (await this.api.get(`/check/${projectId}/${userId}`)).data.exists;
+    }
 }
 
 export default new MemberService();

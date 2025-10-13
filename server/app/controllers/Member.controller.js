@@ -23,6 +23,15 @@ const customMethods = {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách lời mời"));
         }
     },
+    checkIfMemberExists: async (req, res, next) => {
+        try {
+            const service = new MemberService(MySQL.connection);
+            const exists = await service.checkIfMemberExists(req.params.project_id, req.params.user_id);
+            return res.send({ exists });
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi kiểm tra thành viên"));
+        }
+    }
 };
 
 module.exports = {
