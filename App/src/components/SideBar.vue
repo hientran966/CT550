@@ -43,12 +43,17 @@
 
 <script lang="ts" setup>
 import { Document, Files, Location, SwitchButton } from "@element-plus/icons-vue";
+import { disconnectSocket } from "@/plugins/socket";
 
 const onLogout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+
+  disconnectSocket();
+
   window.dispatchEvent(new Event("auth-changed"));
 };
+
 </script>
 
 <style scoped>

@@ -4,11 +4,18 @@ import router from './router'
 
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import './assets/style.css'
 
-import './assets/style.css';
+import { initSocket } from './plugins/socket'
 
 const app = createApp(App)
+
 app.use(router)
 app.use(ElementPlus)
-app.mount('#app')
 
+const user = JSON.parse(localStorage.getItem("user"))
+if (user?.id) {
+  initSocket(user.id)
+}
+
+app.mount('#app')

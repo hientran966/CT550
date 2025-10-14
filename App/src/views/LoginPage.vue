@@ -19,6 +19,7 @@ import AuthService from "@/services/Account.service";
 import { ElMessage } from "element-plus";
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import { initSocket } from "@/plugins/socket";
 
 const router = useRouter();
 
@@ -34,6 +35,9 @@ const login = async (info: { email: string; password: string }) => {
     const response = await AuthService.login(info.email, info.password);
     localStorage.setItem("token", response.token);
     localStorage.setItem("user", JSON.stringify(response.user));
+
+    initSocket(response.user.id);
+
     ElMessage.success("Đăng nhập thành công");
     window.dispatchEvent(new Event("auth-changed"));
 

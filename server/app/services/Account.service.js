@@ -162,11 +162,15 @@ class AccountService {
             {expiresIn: process.env.JWT_EXPIRES_IN || "7d",}
         );
 
-        delete auth.password_hash;
-
         return {
-            user: auth,
+            message: "Đăng nhập thành công",
             token,
+            user: {
+                id: auth.id,
+                name: auth.name,
+                email: auth.email,
+                role: auth.role
+            }
         };
     }
 
@@ -187,7 +191,7 @@ class AccountService {
 
     async changePassword(id, oldPassword, newPassword) {
         const [rows] = await this.mysql.execute(
-            "SELECT Password FROM users WHERE id = ?",
+            "SELECT password_hash FROM users WHERE id = ?",
             [id]
         );
         if (rows.length === 0) {
@@ -196,7 +200,7 @@ class AccountService {
             throw error;
         }
 
-        const storedPassword = rows[0].Password;
+        const storedPassword = rows[0].password_hash;
         if (!(await this.comparePassword(oldPassword, storedPassword))) {
             const error = new Error("Mật khẩu cũ không đúng");
             error.statusCode = 400;
@@ -205,7 +209,7 @@ class AccountService {
 
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         await this.mysql.execute(
-            "UPDATE users SET Password = ?, updated_at = ? WHERE id = ?",
+            "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
             [hashedNewPassword, new Date(), id]
         );
 

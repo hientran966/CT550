@@ -1,6 +1,8 @@
+const http = require("http");
 const app = require("./app");
 const config = require("./app/config");
 const MySQL = require("./app/utils/mysql.util");
+const initSocket = require("./app/socket/index");
 
 async function startServer() {
     try {
@@ -14,8 +16,12 @@ async function startServer() {
         console.log("Connected to the database!");
 
         const PORT = config.app.port;
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
+        const server = http.createServer(app);
+
+        initSocket(server);
+
+        server.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
         });
     } catch (error) {
         console.error("Cannot connect to the database:", error.message);

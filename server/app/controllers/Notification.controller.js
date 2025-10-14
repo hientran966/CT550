@@ -2,19 +2,18 @@ const { createController } = require("./controllerFactory");
 const NotificationService = require("../services/Notification.service");
 const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
+const { sendToUser } = require("../socket/index");
 
-// CRUD mặc định từ factory
 const baseController = createController(NotificationService, {
     create: "Đã xảy ra lỗi khi tạo thông báo",
     findAll: "Đã xảy ra lỗi khi lấy danh sách thông báo",
     findOne: "Đã xảy ra lỗi khi lấy thông báo",
-    notFound: "thông báo không tồn tại",
+    notFound: "Thông báo không tồn tại",
     update: "Đã xảy ra lỗi khi cập nhật thông báo",
     delete: "Đã xảy ra lỗi khi xóa thông báo",
     restore: "Đã xảy ra lỗi khi khôi phục thông báo"
 });
 
-// Thêm method đặc thù
 const customMethods = {
     markAsRead: async (req, res, next) => {
         try {
@@ -32,6 +31,21 @@ const customMethods = {
             return res.send({ affectedRows });
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi đánh dấu tất cả thông báo đã đọc"));
+        }
+    },
+
+    create: async (req, res, next) => {
+        try {
+            const service = new NotificationService(MySQL.pool);
+            const document = await service.create(req.body);
+
+            if (document.recipient_id) {
+                sendToUser(document.recipient_id, "new_notification", document);
+            }
+
+            res.status(201).send(document);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo thông báo"));
         }
     }
 };

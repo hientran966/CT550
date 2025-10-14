@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
 // Import routes
 app.use("/api/auth", authRouter);
 
-// app.use(verifyToken);
+// app.use(verifyToken); //Tắt để test API
 app.use("/api/duan", projectRouter);
 app.use("/api/thanhvien", memberRouter);
 app.use("/api/congviec", taskRouter);
