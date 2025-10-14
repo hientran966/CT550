@@ -96,12 +96,16 @@ CREATE TABLE comments (
     project_id BIGINT NULL,
     task_id BIGINT NULL,
     user_id BIGINT NOT NULL,
+    file_id BIGINT NULL,
+    file_version_id BIGINT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (file_id) REFERENCES files(id),
+    FOREIGN KEY (file_version_id) REFERENCES file_versions(id)
 );
 
 -- FILES
