@@ -3,20 +3,65 @@ class NotificationService {
         this.mysql = mysql;
     }
 
+    async generateMessage(notification) {
+        const { actor_id, type, reference_type, reference_id } = notification;
+
+        const [actorRows] = await this.mysql.execute(
+            "SELECT name FROM users WHERE id = ?",
+            [actor_id]
+        );
+        const actorName = actorRows?.[0]?.name || "Người dùng";
+
+        switch (type) {
+            case "file_uploaded":
+                return `${actorName} đã tải lên một tệp mới.`;
+
+            case "file_approved":
+                return `${actorName} đã phê duyệt tệp.`;
+
+            case "comment_added":
+                switch (reference_type) {
+                    case "task":
+                        return `${actorName} đã thêm một bình luận vào công việc.`;
+                    case "file":
+                        return `${actorName} đã bình luận về tệp.`;
+                    case "project":
+                        return `${actorName} đã để lại bình luận trong dự án.`;
+                    default:
+                        return `${actorName} đã thêm một bình luận.`;
+                }
+
+            case "task_assigned":
+                return `${actorName} đã giao cho bạn công việc.`;
+
+            case "task_updated":
+                return `${actorName} đã cập nhật công việc.`;
+
+            case "project_invite":
+                return `${actorName} đã mời bạn tham gia dự án.`;
+
+            case "project_status_changed":
+                return `${actorName} đã thay đổi trạng thái của dự án.`;
+
+            default:
+                return `${actorName} đã thực hiện một hành động.`;
+        }
+    }
+
     async extractNotificationData(payload) {
-        return {
-            tieuDe: payload.tieuDe ?? null,
-            noiDung: payload.noiDung,
-            idNguoiDang: payload.idNguoiDang,
-            ngayDang: payload.ngayDang ?? new Date(),
-            deactive: payload.deactive ?? null,
-            idPhanCong: payload.idPhanCong ?? null,
-            idCongViec: payload.idCongViec ?? null,
-            idDuAn: payload.idDuAn ?? null,
-            idPhanHoi: payload.idPhanHoi ?? null,
-            idPhienBan: payload.idPhienBan ?? null,
-            idNguoiNhan: payload.idNguoiNhan ?? null,
+        const notification = {
+            recipient_id: payload.recipient_id ?? null,
+            actor_id: payload.actor_id ?? null,
+            type: payload.type ?? null,
+            reference_type: payload.reference_type ?? null,
+            reference_id: payload.reference_id ?? null,
+            is_read: payload.is_read ?? 0
         };
+
+        notification.message =
+            payload.message ?? (await this.generateMessage(notification));
+
+        return notification;
     }
 
     async create(payload) {
@@ -26,33 +71,24 @@ class NotificationService {
             await connection.beginTransaction();
 
             const [result] = await connection.execute(
-                `INSERT INTO ThongBao (tieuDe, noiDung, idNguoiDang, ngayDang, deactive, idPhanCong, idCongViec, idDuAn, idPhanHoi, idPhienBan, idNguoiNhan)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `
+                INSERT INTO notifications 
+                (recipient_id, actor_id, type, reference_type, reference_id, message, is_read)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                `,
                 [
-                    notification.tieuDe,
-                    notification.noiDung,
-                    notification.idNguoiDang,
-                    notification.ngayDang,
-                    notification.deactive,
-                    notification.idPhanCong,
-                    notification.idCongViec,
-                    notification.idDuAn,
-                    notification.idPhanHoi,
-                    notification.idPhienBan,
-                    notification.idNguoiNhan,
+                    notification.recipient_id,
+                    notification.actor_id,
+                    notification.type,
+                    notification.reference_type,
+                    notification.reference_id,
+                    notification.message,
+                    notification.is_read
                 ]
             );
 
-            const autoId = result.insertId;
-            const newId = "TB" + autoId.toString().padStart(6, "0");
-
-            await connection.execute(
-                "UPDATE ThongBao SET id = ? WHERE autoId = ?",
-                [newId, autoId]
-            );
-
             await connection.commit();
-            return { id: newId, ...notification };
+            return { id: result.insertId, ...notification };
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -62,75 +98,107 @@ class NotificationService {
     }
 
     async find(filter = {}) {
-        let sql = "SELECT * FROM ThongBao WHERE deactive IS NULL";
-        let params = [];
+        let sql = `
+            SELECT 
+                n.*, 
+                u.name AS actor_name
+            FROM notifications n
+            LEFT JOIN users u ON u.id = n.actor_id
+            WHERE n.deleted_at IS NULL
+        `;
+        const params = [];
 
-        if (filter.tieuDe) {
-            sql += " AND tieuDe LIKE ?";
-            params.push(`%${filter.tieuDe}%`);
+        if (filter.recipient_id) {
+            sql += " AND n.recipient_id = ?";
+            params.push(filter.recipient_id);
         }
-        if (filter.idNguoiDang) {
-            sql += " AND idNguoiDang = ?";
-            params.push(filter.idNguoiDang);
+        if (filter.type) {
+            sql += " AND n.type LIKE ?";
+            params.push(`%${filter.type}%`);
         }
-        if (filter.idNguoiNhan) {
-            sql += " AND idNguoiNhan = ?";
-            params.push(filter.idNguoiNhan);
+        if (filter.is_read !== undefined) {
+            sql += " AND n.is_read = ?";
+            params.push(filter.is_read);
         }
-        if (filter.idDuAn) {
-            sql += " AND idDuAn = ?";
-            params.push(filter.idDuAn);
-        }
+
+        sql += " ORDER BY n.created_at DESC";
+
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
     }
 
     async findById(id) {
         const [rows] = await this.mysql.execute(
-            "SELECT * FROM ThongBao WHERE autoId = ? AND deactive IS NULL",
+            `
+            SELECT n.*, u.name AS actor_name 
+            FROM notifications n
+            LEFT JOIN users u ON u.id = n.actor_id
+            WHERE n.id = ? AND n.deleted_at IS NULL
+            `,
             [id]
         );
         return rows[0] || null;
     }
 
     async update(id, payload) {
-        const notification = this.extractNotificationData(payload);
-        let sql = "UPDATE ThongBao SET ";
+        const allowedFields = ["type", "reference_type", "reference_id", "message", "is_read"];
         const fields = [];
         const params = [];
-        for (const key in notification) {
-            if (key === "id") continue;
-            fields.push(`${key} = ?`);
-            params.push(notification[key]);
+
+        for (const key of allowedFields) {
+            if (Object.hasOwn(payload, key)) {
+                fields.push(`${key} = ?`);
+                params.push(payload[key]);
+            }
         }
-        sql += fields.join(", ") + " WHERE autoId = ?";
+
+        if (!fields.length) return await this.findById(id);
+
+        const sql = `UPDATE notifications SET ${fields.join(", ")} WHERE id = ?`;
         params.push(id);
         await this.mysql.execute(sql, params);
-        return { ...notification, id };
+        return await this.findById(id);
+    }
+
+    async markAsRead(id) {
+        await this.mysql.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", [id]);
+        return await this.findById(id);
+    }
+
+    async markAllAsRead(recipient_id) {
+        const [result] = await this.mysql.execute(
+            "UPDATE notifications SET is_read = 1 WHERE recipient_id = ? AND deleted_at IS NULL",
+            [recipient_id]
+        );
+        return result.affectedRows;
     }
 
     async delete(id) {
-        const notification = await this.findById(id);
-        if (!notification) return null;
+        const noti = await this.findById(id);
+        if (!noti) return null;
+
         const deletedAt = new Date();
-        await this.mysql.execute("UPDATE ThongBao SET deactive = ? WHERE autoId = ?", [
+        await this.mysql.execute("UPDATE notifications SET deleted_at = ? WHERE id = ?", [
             deletedAt,
-            id,
+            id
         ]);
-        return { ...notification, deactive: deletedAt };
+        return { ...noti, deleted_at: deletedAt };
     }
 
     async restore(id) {
         const [result] = await this.mysql.execute(
-            "UPDATE ThongBao SET deactive = NULL WHERE autoId = ?",
+            "UPDATE notifications SET deleted_at = NULL WHERE id = ?",
             [id]
         );
         return result.affectedRows > 0;
     }
 
-    async deleteAll() {
+    async deleteAll(recipient_id) {
         const deletedAt = new Date();
-        await this.mysql.execute("UPDATE ThongBao SET deactive = ?", [deletedAt]);
+        await this.mysql.execute(
+            "UPDATE notifications SET deleted_at = ? WHERE recipient_id = ?",
+            [deletedAt, recipient_id]
+        );
         return true;
     }
 }

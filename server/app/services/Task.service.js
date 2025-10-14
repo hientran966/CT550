@@ -118,14 +118,14 @@ class TaskService {
   }
 
   async delete(id) {
-    const user = await this.findById(id);
-    if (!user) return null;
+    const task = await this.findById(id);
+    if (!task) return null;
     const deletedAt = new Date();
     await this.mysql.execute("UPDATE tasks SET deleted_at = ? WHERE id = ?", [
       deletedAt,
       id,
     ]);
-    return { ...user, deleted_at: deletedAt };
+    return { ...task, deleted_at: deletedAt };
   }
 
   async restore(id) {

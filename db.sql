@@ -93,15 +93,13 @@ CREATE TABLE progress_logs (
 DROP TABLE IF EXISTS comments;
 CREATE TABLE comments (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    project_id BIGINT NULL,
-    task_id BIGINT NULL,
     user_id BIGINT NOT NULL,
+	task_id BIGINT NULL,
     file_id BIGINT NULL,
     file_version_id BIGINT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (file_id) REFERENCES files(id),
@@ -153,4 +151,46 @@ CREATE TABLE time_logs (
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- VISUAL ANNOTATIONS (comment trực quan)
+DROP TABLE IF EXISTS visual_annotations;
+CREATE TABLE visual_annotations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    comment_id BIGINT NOT NULL,
+    file_version_id BIGINT NOT NULL,
+    shape_type ENUM('rectangle', 'circle', 'polygon', 'text', 'arrow') DEFAULT 'rectangle',
+    coordinates JSON NOT NULL, -- {x, y, width, height} hoặc danh sách điểm cho polygon
+    color VARCHAR(20) DEFAULT '#FF0000',
+    opacity DECIMAL(3,2) DEFAULT 0.5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (comment_id) REFERENCES comments(id),
+    FOREIGN KEY (file_version_id) REFERENCES file_versions(id)
+);
+
+-- NOTIFICATIONS
+DROP TABLE IF EXISTS notifications;
+CREATE TABLE notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    recipient_id BIGINT NOT NULL, -- người nhận
+    actor_id BIGINT NOT NULL,     -- người gây ra hành động (A comment, A upload)
+    type ENUM(
+        'file_uploaded',
+        'file_approved',
+        'comment_added',
+        'task_assigned',
+        'task_updated',
+        'project_invite',
+        'project_status_changed'
+    ) NOT NULL,
+    reference_type ENUM('project','task','file','file_version','comment') NOT NULL,
+    reference_id BIGINT NOT NULL, -- id thực thể liên quan
+    message TEXT, -- mô tả chi tiết (nếu muốn hiển thị nội dung)
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (recipient_id) REFERENCES users(id),
+    FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
 SET FOREIGN_KEY_CHECKS = 1;
