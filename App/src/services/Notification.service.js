@@ -25,6 +25,18 @@ class NotificationService {
         return (await this.api.get("/")).data;
     }
 
+    async markAsRead(id) {
+        return (await this.api.patch(`/${id}/read`)).data;
+    }
+
+    async markAllAsRead(recipient_id) {
+        return (await this.api.patch(`/recipient/${recipient_id}`)).data;
+    }
+
+    async getUnreadCount(recipient_id) {
+        return (await this.api.get(`/recipient/${recipient_id}`)).data.unreadCount;
+    }
+
 }
 
 export default new NotificationService();

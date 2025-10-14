@@ -40,12 +40,25 @@ const customMethods = {
             const document = await service.create(req.body);
 
             if (document.recipient_id) {
-                sendToUser(document.recipient_id, "new_notification", document);
+                sendToUser(document.recipient_id, "info", {
+                title: "Thông báo mới",
+                message: document.message || "Bạn có thông báo mới",
+                });
             }
 
             res.status(201).send(document);
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo thông báo"));
+        }
+    },
+
+    getUnreadCount: async (req, res, next) => {
+        try {
+            const service = new NotificationService(MySQL.pool);
+            const count = await service.getUnreadCount(req.params.recipient_id);
+            return res.send({ unreadCount: count });
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy số lượng thông báo chưa đọc"));
         }
     }
 };

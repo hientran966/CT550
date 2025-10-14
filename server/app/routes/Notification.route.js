@@ -13,6 +13,8 @@ router.route("/:id")
     .delete(notifications.delete);
 
 router.patch("/:id/read", notifications.markAsRead);
-router.patch("/recipient/:recipient_id/read-all", notifications.markAllAsRead);
+router.route("/recipient/:recipient_id")
+    .get(notifications.getUnreadCount)
+    .patch(notifications.markAllAsRead);
 
 module.exports = router;

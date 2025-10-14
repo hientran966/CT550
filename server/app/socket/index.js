@@ -23,8 +23,7 @@ function initSocket(server) {
             for (const [uid, sid] of onlineUsers.entries()) {
                 if (sid === socket.id) {
                     onlineUsers.delete(uid);
-                    console.log(`
-                        User ${uid} disconnected`);
+                    console.log(`User ${uid} disconnected`);
                     break;
                 }
             }

@@ -22,7 +22,7 @@ class NotificationService {
             case "comment_added":
                 switch (reference_type) {
                     case "task":
-                        return `${actorName} đã thêm một bình luận vào công việc.`;
+                        return `${actorName} đã bình luận về công việc.`;
                     case "file":
                         return `${actorName} đã bình luận về tệp.`;
                     case "project":
@@ -200,6 +200,14 @@ class NotificationService {
             [deletedAt, recipient_id]
         );
         return true;
+    }
+
+    async getUnreadCount(recipient_id) {
+        const [rows] = await this.mysql.execute(
+            "SELECT COUNT(*) AS count FROM notifications WHERE recipient_id = ? AND is_read = 0 AND deleted_at IS NULL",
+            [recipient_id]
+        );
+        return rows[0]?.count || 0;
     }
 }
 

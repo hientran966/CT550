@@ -9,7 +9,7 @@
     >
       <!-- Home -->
       <el-menu-item index="/">
-        <el-icon><Location color="white" /></el-icon>
+        <el-icon><House color="white" /></el-icon>
         <template #title>Home</template>
       </el-menu-item>
 
@@ -19,19 +19,24 @@
         <template #title>Dự án</template>
       </el-menu-item>
 
-      <!-- About -->
+      <!-- Thông báo -->
       <el-menu-item index="/about">
-        <el-icon><Document color="white" /></el-icon>
-        <template #title>About</template>
+        <el-icon>
+          <el-badge
+            :value="unreadCount"
+            :hidden="!unreadCount"
+            class="badge"
+            type="danger"
+          >
+            <Bell color="white" />
+          </el-badge>
+        </el-icon>
+        <template #title>Thông báo</template>
       </el-menu-item>
     </el-menu>
 
     <div class="logout-section">
-      <el-menu
-        :collapse="true"
-        background-color="#545c64"
-        class="logout-menu"
-      >
+      <el-menu :collapse="true" background-color="#545c64" class="logout-menu">
         <el-menu-item index="/" @click="onLogout">
           <el-icon><SwitchButton color="white" /></el-icon>
           <template #title>Đăng xuất</template>
@@ -42,18 +47,22 @@
 </template>
 
 <script lang="ts" setup>
-import { Document, Files, Location, SwitchButton } from "@element-plus/icons-vue";
+import { Bell, Files, House, SwitchButton } from "@element-plus/icons-vue";
 import { disconnectSocket } from "@/plugins/socket";
+
+defineProps({
+  unreadCount: {
+    type: Number,
+    default: 0,
+  },
+});
 
 const onLogout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
-
   disconnectSocket();
-
   window.dispatchEvent(new Event("auth-changed"));
 };
-
 </script>
 
 <style scoped>
@@ -75,5 +84,10 @@ const onLogout = () => {
 
 .logout-menu {
   border-right: none;
+}
+
+.badge {
+  position: relative;
+  top: 2px;
 }
 </style>
