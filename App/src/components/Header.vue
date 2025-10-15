@@ -1,41 +1,50 @@
 <template>
   <el-header class="task-header" height="100px">
+    <!-- Tiêu đề -->
     <div
       style="height: 40px; display: flex; flex-direction: column; width: 100%;"
     >
       <h3>{{ pageTitle }}</h3>
     </div>
+
     <el-divider />
+
+    <!-- Thanh công cụ -->
     <div
       style="width: 100%; display: flex; justify-content: space-between; align-items: center;"
     >
+      <!-- Bên trái -->
       <div class="left-section">
         <el-button type="primary" :icon="Plus" plain @click="emit('add')">
           <strong>Thêm mới</strong>
         </el-button>
       </div>
 
+      <!-- Bên phải -->
       <div class="right-section" style="display: flex; align-items: center;">
         <el-input
           v-model="search"
-          placeholder="Search..."
+          placeholder="Tìm kiếm..."
           size="small"
           :prefix-icon="Search"
           style="width: 180px; margin-right: 8px;"
         />
+
         <el-button :icon="Filter" circle style="margin-right: 8px;" />
 
-        <template v-if="props.page === 'task' && memberIds.length">
-          <AvatarGroup
-            :user-ids="memberIds"
-            :size="30"
-            :max="4"
-            :tooltips="true"
-            style="margin-right: 8px;"
-            @click="memberClick"
-          />
-        </template>
+        <!-- Nhóm avatar thành viên -->
+        <AvatarGroup
+          v-if="props.page === 'task' && memberIds.length"
+          :user-ids="memberIds"
+          :user-name-map="namesMap"
+          :size="30"
+          :max="4"
+          :tooltips="true"
+          style="margin-right: 8px; cursor: pointer;"
+          @click="memberClick"
+        />
 
+        <!-- Menu thêm -->
         <el-dropdown>
           <el-button circle>
             <el-icon><More /></el-icon>
@@ -55,13 +64,13 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { Plus, Search, Filter, More } from "@element-plus/icons-vue";
-import ProjectService from "@/services/Project.service";
+import MemberService from "@/services/Member.service";
 import AvatarGroup from "./AvatarGroup.vue";
 
 const search = ref("");
 
 const props = defineProps<{
-  page: string;
+  page: "project" | "task" | "member" | "user";
   projectId?: number;
 }>();
 
@@ -80,12 +89,21 @@ const titleMap: Record<string, string> = {
 const pageTitle = computed(() => titleMap[props.page] || "Danh sách");
 
 const memberIds = ref<number[]>([]);
+const namesMap = ref<Record<number, string>>({});
 
 async function loadMembers() {
   if (props.page !== "task" || !props.projectId) return;
+
   try {
-    const members = await ProjectService.getMember(props.projectId);
-    memberIds.value = members.map((m: any) => m.id);
+    const members = await MemberService.getByProjectId(props.projectId);
+
+    if (!Array.isArray(members)) return;
+
+    memberIds.value = members.map((m: any) => m.user_id);
+    namesMap.value = members.reduce((map: Record<number, string>, m: any) => {
+      if (m.user_id != null) map[m.user_id] = m.name || "Người dùng";
+      return map;
+    }, {});
   } catch (err) {
     console.error("Lỗi tải danh sách thành viên:", err);
   }

@@ -1,6 +1,9 @@
+const MemberService = require("./Member.service");
+
 class ProjectService {
   constructor(mysql) {
     this.mysql = mysql;
+    this.memberService = new MemberService(mysql);
   }
 
   async extractProjectData(payload) {
@@ -17,6 +20,7 @@ class ProjectService {
   async create(payload) {
     const project = await this.extractProjectData(payload);
     const connection = await this.mysql.getConnection();
+
     try {
       await connection.beginTransaction();
 
@@ -34,14 +38,33 @@ class ProjectService {
 
       const projectId = result.insertId;
 
-      const [memberResult] = await connection.execute(
-        "INSERT INTO project_members (project_id, user_id, role, status) VALUES (?, ?, ?, ?)",
-        [projectId, project.created_by, 'owner', 'accepted']
+      await this.memberService.create(
+        {
+          project_id: projectId,
+          user_id: project.created_by,
+          role: "owner",
+          status: "accepted",
+        },
+        connection
       );
 
-      await connection.commit();
+      if (Array.isArray(payload.members) && payload.members.length > 0) {
+        for (const m of payload.members) {
+          await this.memberService.create(
+            {
+              project_id: projectId,
+              user_id: m.user_id,
+              role: m.role ?? "member",
+              invited_by: project.created_by,
+              status: "invited",
+            },
+            connection
+          );
+        }
+      }
 
-      return { id: result.insertId };
+      await connection.commit();
+      return { id: projectId };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -52,7 +75,7 @@ class ProjectService {
 
   async find(filter = {}) {
     let sql = "SELECT * FROM projects WHERE deleted_at IS NULL";
-    let params = [];
+    const params = [];
 
     if (filter.name) {
       sql += " AND name LIKE ?";
@@ -74,6 +97,7 @@ class ProjectService {
       sql += " AND end_date <= ?";
       params.push(filter.end_date);
     }
+
     const [rows] = await this.mysql.execute(sql, params);
     return rows;
   }
@@ -116,14 +140,6 @@ class ProjectService {
     return id;
   }
 
-  async restore(id) {
-    const [result] = await this.mysql.execute(
-      "UPDATE projects SET deleted_at = NULL WHERE id = ?",
-      [id]
-    );
-    return result.affectedRows > 0;
-  }
-
   async getByUser(userId) {
     const sql = `
       SELECT DISTINCT 
@@ -131,7 +147,7 @@ class ProjectService {
         (
           SELECT JSON_ARRAYAGG(pm2.user_id)
           FROM project_members pm2
-          WHERE pm2.project_id = p.id
+          WHERE pm2.project_id = p.id AND pm2.status = 'accepted'
         ) AS members
       FROM projects p
       LEFT JOIN project_members pm ON p.id = pm.project_id
@@ -143,40 +159,6 @@ class ProjectService {
         AND p.deleted_at IS NULL
     `;
     const [rows] = await this.mysql.execute(sql, [userId, userId]);
-    return rows;
-  }
-
-  async addMember(projectId, payload) {
-    const connection = await this.mysql.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      const [result] = await connection.execute(
-        "INSERT INTO project_members (project_id, user_id, role, status) VALUES (?, ?, ?, ?)",
-        [projectId, payload.user_id, payload.role, 'invited']
-      );
-
-      await connection.commit();
-      return { result };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  }
-
-  async getMember(id) {
-    const sql = `
-            SELECT DISTINCT pm.*, u.name, u.id AS user_id
-            FROM users u
-            LEFT JOIN project_members pm ON u.id = pm.user_id
-            WHERE 
-                project_id = ?
-                AND pm.status = 'accepted'
-                AND u.deleted_at IS NULL
-        `;
-    const [rows] = await this.mysql.execute(sql, [id]);
     return rows;
   }
 }

@@ -210,8 +210,8 @@ import { ElMessage } from "element-plus";
 import UploadForm from "./Upload.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
-import ProjectService from "@/services/Project.service";
 import FileService from "@/services/File.service";
+import MemberService from "@/services/Member.service";
 
 interface Task {
   id: number;
@@ -313,7 +313,7 @@ const handleClose = () => (visible.value = false);
 
 const loadMembers = async () => {
   try {
-    const res = await ProjectService.getMember(props.projectId);
+    const res = await MemberService.getByProjectId(props.projectId);
     members.value = res;
   } catch (err) {
     console.error(err);

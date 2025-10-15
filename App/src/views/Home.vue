@@ -190,7 +190,7 @@ async function loadInvites() {
 
 async function acceptInvite(inviteId) {
   try {
-    await MemberService.updateMember(inviteId, { status: "accepted" });
+    await MemberService.acceptInvite(inviteId, user.value.id);
     await Promise.all([loadInvites(), loadProjects()]);
   } catch (err) {
     console.error("Lỗi khi chấp nhận lời mời:", err);
@@ -199,7 +199,7 @@ async function acceptInvite(inviteId) {
 
 async function rejectInvite(inviteId) {
   try {
-    await MemberService.updateMember(inviteId, { status: "declined" });
+    await MemberService.declineInvite(inviteId, user.value.id);
     await loadInvites();
   } catch (err) {
     console.error("Lỗi khi từ chối lời mời:", err);

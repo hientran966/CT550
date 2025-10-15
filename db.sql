@@ -181,6 +181,8 @@ CREATE TABLE notifications (
         'task_assigned',
         'task_updated',
         'project_invite',
+        'project_accepted',
+        'project_declined',
         'project_status_changed'
     ) NOT NULL,
     reference_type ENUM('project','task','file','file_version','comment') NOT NULL,

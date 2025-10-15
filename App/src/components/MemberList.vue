@@ -110,7 +110,7 @@ async function loadMembers() {
   if (!props.project_id) return;
   loading.value = true;
   try {
-    const data = await ProjectService.getMember(props.project_id);
+    const data = await MemberService.getByProjectId(props.project_id);
     form.members = data || [];
   } catch (err) {
     console.error("Lỗi khi lấy danh sách thành viên:", err);

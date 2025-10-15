@@ -12,10 +12,6 @@ router.route("/:id")
     .put(project.update)
     .delete(project.delete);
 
-router.route("/:id/member")
-    .get(project.getMember)
-    .post(project.addMember);
-
 router.route("/account/:id")
     .get(project.findByAccountId)
 

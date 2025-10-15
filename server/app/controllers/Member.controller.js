@@ -2,6 +2,7 @@ const { createController } = require("./controllerFactory");
 const MemberService = require("../services/Member.service");
 const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
+const { get } = require("../routes/Project.route");
 
 const baseController = createController(MemberService, {
     create: "Đã xảy ra lỗi khi thêm thành viên",
@@ -14,6 +15,16 @@ const baseController = createController(MemberService, {
 });
 
 const customMethods = {
+    getByProjectId: async (req, res, next) => {
+        try {
+            const service = new MemberService(MySQL.connection);
+            const documents = await service.getByProjectId(req.params.id);
+            return res.send(documents);
+        }
+        catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy thành viên theo dự án"));
+        }
+    },
     getInviteList: async (req, res, next) => {
         try {
             const service = new MemberService(MySQL.connection);
@@ -30,6 +41,34 @@ const customMethods = {
             return res.send({ exists });
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi kiểm tra thành viên"));
+        }
+    },
+    acceptInvite: async (req, res, next) => {
+        const id = req.params.id;
+        const userId = req.body.user_id;
+        if (!userId) {
+            return next(new ApiError(400, "Người dùng không được để trống"));
+        }
+        try {
+            const service = new MemberService(MySQL.pool);
+            const document = await service.acceptInvite(id, userId);
+            return res.send(document);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi chấp nhận lời mời"));
+        }
+    },
+    declineInvite: async (req, res, next) => {
+        const id = req.params.id;
+        const userId = req.body.user_id;
+        if (!userId) {
+            return next(new ApiError(400, "Người dùng không được để trống"));
+        }
+        try {
+            const service = new MemberService(MySQL.pool);
+            const document = await service.declineInvite(id, userId);
+            return res.send(document);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi từ chối lời mời"));
         }
     }
 };

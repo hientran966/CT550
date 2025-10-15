@@ -1,6 +1,9 @@
+const AssignmentService = require("./Assign.service");
+
 class TaskService {
   constructor(mysql) {
     this.mysql = mysql;
+    this.assignmentService = new AssignmentService(mysql);
   }
 
   async extractTaskData(payload) {
@@ -22,7 +25,7 @@ class TaskService {
 
       const [result] = await connection.execute(
         `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id)
-        VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -33,8 +36,24 @@ class TaskService {
         ]
       );
 
+      const taskId = result.insertId;
+      const newTask = { id: taskId, ...task };
+
+      if (Array.isArray(payload.members) && payload.members.length > 0) {
+        for (const userId of payload.members) {
+          await this.assignmentService.create(
+            {
+              task_id: taskId,
+              user_id: userId,
+              actor_id: payload.created_by,
+            },
+            connection
+          );
+        }
+      }
+
       await connection.commit();
-      return { id: result.insertId, ...task };
+      return newTask;
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -57,7 +76,7 @@ class TaskService {
         (
           SELECT JSON_ARRAYAGG(ta.user_id)
           FROM task_assignees ta
-          WHERE ta.task_id = t.id
+          WHERE ta.task_id = t.id AND ta.deleted_at IS NULL
         ) AS assignees
       FROM tasks t
       WHERE t.deleted_at IS NULL
@@ -114,7 +133,7 @@ class TaskService {
     const sql = `UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`;
     params.push(id);
     await this.mysql.execute(sql, params);
-    return { ...(await this.findById(id)) };
+    return await this.findById(id);
   }
 
   async delete(id) {
@@ -138,9 +157,10 @@ class TaskService {
 
   async findByAccountId(accountId) {
     const sql = `
-      SELECT DISTINCT cv.* FROM tasks cv
-      INNER JOIN PhanCong pc ON cv.id = pc.idtasks
-      WHERE pc.idNguoiNhan = ? AND cv.deleted_at IS NULL
+      SELECT DISTINCT t.* 
+      FROM tasks t
+      INNER JOIN task_assignees ta ON t.id = ta.task_id
+      WHERE ta.user_id = ? AND t.deleted_at IS NULL
     `;
     const [rows] = await this.mysql.execute(sql, [accountId]);
     return rows;
@@ -152,7 +172,7 @@ class TaskService {
       await connection.beginTransaction();
       const [result] = await connection.execute(
         `INSERT INTO progress_logs (task_id, progress, updated_by)
-        VALUES (?, ?, ?)`,
+         VALUES (?, ?, ?)`,
         [taskId, progress, loggedBy]
       );
       await connection.commit();
@@ -169,12 +189,10 @@ class TaskService {
     const connection = await this.mysql.getConnection();
     try {
       await connection.beginTransaction();
-
       const [result] = await connection.execute(
         `DELETE FROM task_assignees WHERE task_id = ?`,
         [taskId]
       );
-
       await connection.commit();
       return { affectedRows: result.affectedRows };
     } catch (error) {

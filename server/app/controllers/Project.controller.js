@@ -24,25 +24,7 @@ const customMethods = {
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy dự án theo tài khoản"));
         }
-    },
-    getMember: async (req, res, next) => {
-        try {
-            const service = new ProjectService(MySQL.connection);
-            const documents = await service.getMember(req.params.id);
-            return res.send(documents);
-        } catch (error) {
-            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy danh sách thành viên"));
-        }
-    },
-    addMember: async (req, res, next) => {
-        try {
-            const service = new ProjectService(MySQL.pool);
-            const documents = await service.addMember(req.params.id, req.body);
-            return res.send(documents);
-        } catch (error) {
-            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi thêm thành viên"));
-        }
-    },
+    }
 };
 
 module.exports = {

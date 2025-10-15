@@ -1,3 +1,5 @@
+const NotificationService = require("./Notification.service");
+
 class AssignmentService {
     constructor(mysql) {
         this.mysql = mysql;
@@ -10,42 +12,59 @@ class AssignmentService {
         };
     }
 
-    async create(payload) {
+    async create(payload, connection = null) {
         const assignment = await this.extractAssignmentData(payload);
-        const connection = await this.mysql.getConnection();
-        try {
-            await connection.beginTransaction();
+        const shouldRelease = !connection;
+        const conn = connection || (await this.mysql.getConnection());
+        const notificationService = new NotificationService(this.mysql);
 
-            const [existing] = await connection.execute(
+        try {
+            if (!connection) await conn.beginTransaction();
+
+            const [existing] = await conn.execute(
                 `SELECT id FROM task_assignees 
-                WHERE task_id = ? AND user_id = ? AND deleted_at IS NULL`,
+                 WHERE task_id = ? AND user_id = ? AND deleted_at IS NULL`,
                 [assignment.task_id, assignment.user_id]
             );
 
             if (existing.length > 0) {
-                await connection.commit();
+                if (!connection) await conn.commit();
                 return { id: existing[0].id, ...assignment, skipped: true };
             }
 
-            const [result] = await connection.execute(
+            const [result] = await conn.execute(
                 `INSERT INTO task_assignees (task_id, user_id)
-                VALUES (?, ?)`,
+                 VALUES (?, ?)`,
                 [assignment.task_id, assignment.user_id]
             );
 
-            await connection.commit();
-            return { id: result.insertId, ...assignment };
+            const newAssignment = { id: result.insertId, ...assignment };
+
+            await notificationService.create(
+                {
+                    actor_id: payload.actor_id,
+                    recipient_id: assignment.user_id,
+                    type: "task_assigned",
+                    reference_type: "task",
+                    reference_id: assignment.task_id,
+                },
+                conn
+            );
+
+            if (!connection) await conn.commit();
+            return newAssignment;
         } catch (error) {
-            await connection.rollback();
+            if (!connection) await conn.rollback();
             throw error;
         } finally {
-            connection.release();
+            if (shouldRelease) conn.release();
         }
     }
 
     async find(filter = {}) {
         let sql = "SELECT * FROM task_assignees WHERE deleted_at IS NULL";
-        let params = [];
+        const params = [];
+
         if (filter.user_id) {
             sql += " AND user_id = ?";
             params.push(filter.user_id);
@@ -54,6 +73,7 @@ class AssignmentService {
             sql += " AND task_id = ?";
             params.push(filter.task_id);
         }
+
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
     }
@@ -68,16 +88,20 @@ class AssignmentService {
 
     async update(id, payload) {
         const assignment = await this.extractAssignmentData(payload);
-        let sql = "UPDATE task_assignees SET ";
         const fields = [];
         const params = [];
+
         for (const key in assignment) {
             if (key === "id") continue;
             fields.push(`${key} = ?`);
             params.push(assignment[key]);
         }
-        sql += fields.join(", ") + " WHERE id = ?";
+
+        if (fields.length === 0) return await this.findById(id);
+
+        const sql = `UPDATE task_assignees SET ${fields.join(", ")} WHERE id = ?`;
         params.push(id);
+
         await this.mysql.execute(sql, params);
         return { ...assignment, id };
     }
@@ -85,11 +109,13 @@ class AssignmentService {
     async delete(id) {
         const assignment = await this.findById(id);
         if (!assignment) return null;
+
         const deletedAt = new Date();
         await this.mysql.execute(
             "UPDATE task_assignees SET deleted_at = ? WHERE id = ?",
             [deletedAt, id]
         );
+
         return { ...assignment, deleted_at: deletedAt, id };
     }
 
@@ -100,7 +126,6 @@ class AssignmentService {
         );
         return result.affectedRows > 0;
     }
-
 }
 
 module.exports = AssignmentService;

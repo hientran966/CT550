@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const NotificationService = require("./Notification.service");
 
 class FileService {
     constructor(mysql) {
@@ -8,7 +9,6 @@ class FileService {
 
     async saveFileFromPayload(payload) {
         const uploadDir = path.join(__dirname, "../../uploads");
-
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -26,7 +26,6 @@ class FileService {
         const baseName = path.basename(payload.file_name, ext);
         const uniqueName = `${baseName}_${Date.now()}${ext}`;
         const destPath = path.join(uploadDir, uniqueName);
-
         fs.copyFileSync(sourcePath, destPath);
 
         return path.join("uploads", uniqueName);
@@ -38,8 +37,28 @@ class FileService {
         }
 
         const connection = await this.mysql.getConnection();
+        const notificationService = new NotificationService(this.mysql);
+
         try {
             await connection.beginTransaction();
+
+            let ownerId = null;
+
+            if (payload.project_id) {
+                const [projRows] = await connection.execute(
+                    "SELECT created_by FROM projects WHERE id = ? AND deleted_at IS NULL",
+                    [payload.project_id]
+                );
+                if (projRows.length > 0) ownerId = projRows[0].created_by;
+            }
+
+            if (!ownerId && payload.task_id) {
+                const [taskRows] = await connection.execute(
+                    "SELECT created_by FROM tasks WHERE id = ? AND deleted_at IS NULL",
+                    [payload.task_id]
+                );
+                if (taskRows.length > 0) ownerId = taskRows[0].created_by;
+            }
 
             let file_url = null;
             if (payload.file) {
@@ -53,7 +72,12 @@ class FileService {
             const [fileResult] = await connection.execute(
                 `INSERT INTO files (file_name, project_id, task_id, created_by)
                  VALUES (?, ?, ?, ?)`,
-                [payload.file_name, payload.project_id ?? null, payload.task_id ?? null, payload.created_by ?? null]
+                [
+                    payload.file_name,
+                    payload.project_id ?? null,
+                    payload.task_id ?? null,
+                    payload.created_by ?? null,
+                ]
             );
             const fileId = fileResult.insertId;
 
@@ -63,7 +87,22 @@ class FileService {
                 [fileId, file_url, fileType]
             );
 
+
+            if (ownerId && Number(ownerId) !== Number(payload.created_by)) {
+                await notificationService.create(
+                    {
+                        actor_id: payload.created_by,
+                        recipient_id: ownerId,
+                        type: "file_uploaded",
+                        reference_type: payload.task_id ? "task" : "project",
+                        reference_id: payload.task_id ?? payload.project_id,
+                    },
+                    connection
+                );
+            }
+
             await connection.commit();
+
             return { file_id: fileId, version_id: verResult.insertId, file_url };
         } catch (error) {
             await connection.rollback();

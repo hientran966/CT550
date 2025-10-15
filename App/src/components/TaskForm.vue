@@ -84,8 +84,8 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import TaskService from "@/services/Task.service";
-import ProjectService from "@/services/Project.service";
-import AssignService from "@/services/Assign.service";
+import MemberService from "@/services/Member.service";
+import AccountService from "@/services/Account.service";
 
 interface User {
   id: number;
@@ -157,8 +157,12 @@ async function fetchMembers() {
   try {
     if (!props.projectId) return;
 
-    const response = await ProjectService.getMember(props.projectId);
-    users.value = response || [];
+    const response = await MemberService.getByProjectId(props.projectId);
+    users.value = (response || []).map((m) => ({
+      id: m.user_id,
+      name: m.name,
+    }));
+
   } catch (error) {
     console.error("Lỗi khi lấy danh sách thành viên:", error);
     ElMessage.error("Không thể tải danh sách thành viên");
@@ -212,17 +216,10 @@ async function submitForm() {
       due_date: toSQLDate(form.due_date),
       priority: form.priority,
       created_by: user.id,
+      members: form.assignees,
     };
 
-    const createdTask = await TaskService.createTask(payload);
-    const taskId = createdTask.id;
-
-    for (const userId of form.assignees) {
-      await AssignService.createAssign({
-        task_id: taskId,
-        user_id: userId,
-      });
-    }
+    await TaskService.createTask(payload);
 
     ElMessage.success("Tạo công việc thành công");
     visible.value = false;
@@ -233,4 +230,5 @@ async function submitForm() {
     ElMessage.error("Lỗi tạo công việc");
   }
 }
+
 </script>

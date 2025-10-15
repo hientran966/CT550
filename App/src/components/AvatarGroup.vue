@@ -37,22 +37,25 @@ import defaultAvatar from "@/assets/default-avatar.png";
 
 const props = defineProps<{
   userIds: number[];
+  userNameMap?: Record<number, string>;
   size?: number | string;
   max?: number;
   tooltips?: boolean;
 }>();
 
-const size = props.size || 28;
-const maxVisible = props.max || 3;
-const tooltips = props.tooltips ?? true;
+const size = computed(() => props.size ?? 28);
+const maxVisible = computed(() => props.max ?? 3);
+const tooltips = computed(() => props.tooltips ?? true);
 
 const avatarsMap = ref<Record<number, string>>({});
-const namesMap = ref<Record<number, string>>({});
+const namesMap = ref<Record<number, string>>(props.userNameMap || {});
 
 async function loadAvatars() {
-  const uniqueIds = Array.from(new Set(props.userIds));
+  if (!props.userIds?.length) return;
 
+  const uniqueIds = Array.from(new Set(props.userIds));
   const results: Record<number, string> = {};
+
   await Promise.all(
     uniqueIds.map(async (id) => {
       try {
@@ -71,7 +74,7 @@ function getAvatar(id: number) {
 }
 
 function getUserName(id: number) {
-  return `User ${id}`;
+  return namesMap.value[id] || "Người dùng";
 }
 
 watch(
@@ -80,8 +83,18 @@ watch(
   { deep: true, immediate: true }
 );
 
-const visibleIds = computed(() => props.userIds.slice(0, maxVisible));
-const extraCount = computed(() => props.userIds.length - visibleIds.value.length);
+watch(
+  () => props.userNameMap,
+  (newVal) => {
+    namesMap.value = newVal || {};
+  },
+  { deep: true }
+);
+
+const visibleIds = computed(() => props.userIds.slice(0, maxVisible.value));
+const extraCount = computed(
+  () => Math.max(0, props.userIds.length - visibleIds.value.length)
+);
 </script>
 
 <style scoped>

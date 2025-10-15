@@ -1,3 +1,5 @@
+const { sendToUser } = require("../socket/index");
+
 class NotificationService {
     constructor(mysql) {
         this.mysql = mysql;
@@ -14,10 +16,17 @@ class NotificationService {
 
         switch (type) {
             case "file_uploaded":
-                return `${actorName} đã tải lên một tệp mới.`;
+                switch (reference_type) {
+                    case "task":
+                        return `${actorName} đã thêm một file vào công việc.`;
+                    case "project":
+                        return `${actorName} đã thêm một file vào dự án.`;
+                    default:
+                        return `${actorName} đã tải lên một file mới.`;
+            }
 
             case "file_approved":
-                return `${actorName} đã phê duyệt tệp.`;
+                return `${actorName} đã phê duyệt file.`;
 
             case "comment_added":
                 switch (reference_type) {
@@ -39,6 +48,12 @@ class NotificationService {
 
             case "project_invite":
                 return `${actorName} đã mời bạn tham gia dự án.`;
+
+            case "project_accepted":
+                return `${actorName} đã chấp nhận lời mời tham gia dự án.`;
+
+            case "project_declined":
+                return `${actorName} đã từ chối lời mời tham gia dự án.`;
 
             case "project_status_changed":
                 return `${actorName} đã thay đổi trạng thái của dự án.`;
@@ -64,13 +79,15 @@ class NotificationService {
         return notification;
     }
 
-    async create(payload) {
+    async create(payload, connection = null) {
         const notification = await this.extractNotificationData(payload);
-        const connection = await this.mysql.getConnection();
-        try {
-            await connection.beginTransaction();
+        const conn = connection || (await this.mysql.getConnection());
+        let result;
 
-            const [result] = await connection.execute(
+        try {
+            if (!connection) await conn.beginTransaction();
+
+            [result] = await conn.execute(
                 `
                 INSERT INTO notifications 
                 (recipient_id, actor_id, type, reference_type, reference_id, message, is_read)
@@ -87,13 +104,22 @@ class NotificationService {
                 ]
             );
 
-            await connection.commit();
-            return { id: result.insertId, ...notification };
+            const newNotification = { id: result.insertId, ...notification };
+
+            if (!connection) await conn.commit();
+            if (newNotification.recipient_id) {
+                sendToUser(newNotification.recipient_id, "info", {
+                    title: "Thông báo mới",
+                    message: newNotification.message || "Bạn có thông báo mới",
+                });
+            }
+
+            return newNotification;
         } catch (error) {
-            await connection.rollback();
+            if (!connection) await conn.rollback();
             throw error;
         } finally {
-            connection.release();
+            if (!connection) conn.release();
         }
     }
 

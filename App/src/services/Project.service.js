@@ -29,14 +29,6 @@ class ProjectService {
         return (await this.api.get(`/account/${accountId}`)).data;
     }
 
-    async getMember(id) {
-        return (await this.api.get(`/${id}/member`)).data;
-    }
-
-    async addMember(id, data) {
-        return (await this.api.post(`/${id}/member`,data)).data;
-    }
-
 }
 
 export default new ProjectService();

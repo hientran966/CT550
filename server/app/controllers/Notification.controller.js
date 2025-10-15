@@ -2,7 +2,6 @@ const { createController } = require("./controllerFactory");
 const NotificationService = require("../services/Notification.service");
 const ApiError = require("../api-error");
 const MySQL = require("../utils/mysql.util");
-const { sendToUser } = require("../socket/index");
 
 const baseController = createController(NotificationService, {
     create: "Đã xảy ra lỗi khi tạo thông báo",
@@ -38,13 +37,6 @@ const customMethods = {
         try {
             const service = new NotificationService(MySQL.pool);
             const document = await service.create(req.body);
-
-            if (document.recipient_id) {
-                sendToUser(document.recipient_id, "info", {
-                title: "Thông báo mới",
-                message: document.message || "Bạn có thông báo mới",
-                });
-            }
 
             res.status(201).send(document);
         } catch (error) {

@@ -108,9 +108,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import { ElMessage } from "element-plus";
+import { Delete } from "@element-plus/icons-vue";
+
 import ProjectService from "@/services/Project.service";
 import AccountService from "@/services/Account.service";
-import { Delete } from "@element-plus/icons-vue";
+import MemberService from "@/services/Member.service";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -188,6 +190,12 @@ async function addMember() {
   try {
     const users = await AccountService.findByEmail(newMember.email);
     const user = Array.isArray(users) ? users[0] : users;
+    const currentUser = await AccountService.getCurrentUser();
+    if (user?.id === currentUser.id) {
+      ElMessage.warning("Bạn không thể thêm chính mình");
+      return;
+    }
+
     if (!user) {
       ElMessage.error("Email không tồn tại trong hệ thống");
       return;
@@ -237,17 +245,13 @@ async function submitForm() {
       end_date: toSQLDate(form.end_date),
       status: form.status,
       created_by: user.id,
+      members: form.members.map((m) => ({
+        user_id: m.user_id,
+        role: m.role,
+      })),
     };
 
-    const createdProject = await ProjectService.createProject(payload);
-    const projectId = createdProject.id;
-
-    for (const member of form.members) {
-      await ProjectService.addMember(projectId, {
-        user_id: member.user_id,
-        role: member.role,
-      });
-    }
+    await ProjectService.createProject(payload);
 
     ElMessage.success("Tạo dự án thành công");
     visible.value = false;

@@ -25,12 +25,23 @@ class MemberService {
         return (await this.api.get("/")).data;
     }
 
+    async getByProjectId(projectId) {
+        return (await this.api.get(`/project/${projectId}`)).data;
+    }
+
     async getInviteList(userId) {
         return (await this.api.get(`/user/${userId}`)).data;
     }
 
     async checkIfMemberExists(projectId, userId) {
         return (await this.api.get(`/check/${projectId}/${userId}`)).data.exists;
+    }
+
+    async acceptInvite(id, userId) {
+        return (await this.api.post(`/${id}/accept`, { user_id: userId })).data;
+    }
+    async declineInvite(id, userId) {
+        return (await this.api.post(`/${id}/decline`, { user_id: userId })).data;
     }
 }
 
