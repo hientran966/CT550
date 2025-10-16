@@ -86,7 +86,7 @@
             :key="comment.id"
             style="margin-bottom: 12px"
           >
-            <div style="font-weight: 500">{{ comment.user }}</div>
+            <div style="font-weight: 500">{{ comment.user.name }}</div>
             <div style="font-size: 13px; color: #555">
               {{ comment.content }}
             </div>
@@ -117,6 +117,8 @@
 </template>
 
 <script setup>
+import CommentService from "@/services/Comment.service";
+import { dayjs } from "element-plus";
 import { ref, computed, watch, onMounted } from "vue";
 
 const props = defineProps({
@@ -164,20 +166,7 @@ const isPreviewable = computed(() =>
   ["txt", "html", "svg"].includes(fileType.value)
 );
 
-const comments = ref([
-  {
-    id: 1,
-    user: "Nguyễn Văn A",
-    content: "Báo cáo rõ ràng, dễ hiểu!",
-    created_at: "2025-10-09 10:00",
-  },
-  {
-    id: 2,
-    user: "Trần Thị B",
-    content: "Phiên bản này nên bổ sung phần kết luận.",
-    created_at: "2025-10-09 11:15",
-  },
-]);
+const comments = ref();
 
 const newComment = ref("");
 
@@ -190,6 +179,27 @@ const addComment = () => {
   });
   newComment.value = "";
 };
+const loadComments = async () => {
+  try {
+    const res = await CommentService.getAllComments({
+      file_version_id: selectedVersionId.value,
+    });
+    console.log(selectedVersionId.value);
+
+    comments.value = (res || []).map((c) => ({
+      ...c,
+      created_at: dayjs(c.created_at).format("DD/MM/YYYY HH:mm"),
+    }));
+  } catch (err) {
+    console.error("Lỗi khi load bình luận:", err);
+  }
+};
+
+watch(selectedVersionId, (newVal) => {
+  if (newVal) loadComments();
+});
+
+onMounted(loadComments);
 </script>
 
 <style scoped>

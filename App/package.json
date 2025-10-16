@@ -12,10 +12,12 @@
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.9.0",
     "element-plus": "^2.11.3",
+    "konva": "^10.0.2",
     "socket.io-client": "^4.8.1",
     "vue": "^3.5.21",
     "vue-draggable-next": "^2.3.0",
     "vue-kanban": "^1.8.0",
+    "vue-konva": "^3.2.6",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {

@@ -21,8 +21,8 @@ class CommentService {
         return (await this.api.delete(`/${id}`)).data;
     }
 
-    async getAllComments() {
-        return (await this.api.get("/")).data;
+    async getAllComments(params = {}) {
+    return (await this.api.get("/", { params })).data;
     }
 
 }
