@@ -1,28 +1,40 @@
 <template>
   <div class="task-layout">
     <div class="main-content">
-      <FileDetail :file="file" style="height: 100%;"/>
+      <FileDetail v-if="file" :file="file" style="height: 100%;" />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import FileDetail from "@/components/FileDetail.vue";
+import { ref, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import FileService from "@/services/File.service";
-import { ref } from "vue";
+import FileDetail from "@/components/FileDetail.vue";
 
-const file = ref<any[]>([]);
+const route = useRoute();
+const file = ref<any | null>(null);
 
-const loadFiles = async () => {
+const loadFile = async (id: number) => {
   try {
-    file.value = (await FileService.getAllFiles({ id: 1 }))[0];
-
-    console.log(file.value)
+    const res = await FileService.getAllFiles({ id });
+    file.value = res[0] || null;
+    console.log("File loaded:", file.value);
   } catch (error) {
     console.error("Lỗi khi load file:", error);
   }
 };
-loadFiles();
+
+onMounted(() => {
+  if (route.params.id) loadFile(Number(route.params.id));
+});
+
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) loadFile(Number(newId));
+  }
+);
 </script>
 
 <style scoped>
@@ -30,21 +42,10 @@ loadFiles();
   display: flex;
   height: 100vh;
 }
-.menu {
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
-  height: 100vh;
-}
-.main-content{
+.main-content {
   display: flex;
   flex-direction: column;
   flex: 1;
   height: 100vh;
-}
-.kanban {
-  flex: 1;
-  overflow-x: auto;
-  margin: 16px;
 }
 </style>

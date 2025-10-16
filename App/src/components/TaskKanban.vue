@@ -4,10 +4,11 @@
       v-for="column in columns"
       :key="column.name"
       class="kanban-column"
+      :class="columnClass(column.name)"
       @dragover.prevent
       @drop="onDrop($event, column.name)"
     >
-      <div class="kanban-header">
+      <div class="kanban-header" :class="headerClass(column.name)">
         <strong class="column-name">{{ column.name }}</strong>
         <el-tag
           class="task-count"
@@ -16,11 +17,10 @@
               ? 'warning'
               : column.name === 'Đang Tiến Hành'
               ? 'primary'
-              : column.name === 'Đã Xong'
-              ? 'success'
-              : 'default'
+              : 'success'
           "
           round
+          effect="plain"
         >
           {{ column.tasks.length }}
         </el-tag>
@@ -177,6 +177,32 @@ function onDrop(event: DragEvent, toColumnName: string) {
   dragging.value = false;
 }
 
+function headerClass(name: string) {
+  switch (name) {
+    case "Đang Chờ":
+      return "header-warning";
+    case "Đang Tiến Hành":
+      return "header-primary";
+    case "Đã Xong":
+      return "header-success";
+    default:
+      return "";
+  }
+}
+
+function columnClass(name: string) {
+  switch (name) {
+    case "Đang Chờ":
+      return "column-warning";
+    case "Đang Tiến Hành":
+      return "column-primary";
+    case "Đã Xong":
+      return "column-success";
+    default:
+      return "";
+  }
+}
+
 async function loadAvatars() {
   const allUserIds = Array.from(
     new Set(props.tasks.flatMap((t) => t.assignees || []))
@@ -215,23 +241,71 @@ watch(
 </script>
 
 <style scoped>
+.kanban-container {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.header-warning {
+  background-color: #fff8e1;
+  color: #b88200;
+  border: 1px solid #ffecb3;
+}
+
+.header-primary {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+.header-success {
+  background-color: #e8f5e9;
+  color: #388e3c;
+  border: 1px solid #c8e6c9;
+}
+
+.column-warning {
+  background-color: #fffdf6;
+  border: 2px solid #ffecb3;
+}
+
+.column-primary {
+  background-color: #f7fbff;
+  border: 2px solid #bbdefb;
+}
+
+.column-success {
+  background-color: #f9fef9;
+  border: 2px solid #c8e6c9;
+}
+
+.kanban-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .kanban-task {
-  margin-bottom: 12px;
   cursor: grab;
 }
+
 .kanban-task:active {
   cursor: grabbing;
 }
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #409eff;
-  color: white;
-  font-size: 12px;
-  margin-right: 4px;
+
+.done-task {
+  text-decoration: line-through;
+  opacity: 0.7;
 }
 </style>

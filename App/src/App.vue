@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
 
 <style>
 .main-content {
-  background-color: #ffe3e3;
+
   min-height: 100vh;
 }
 

@@ -174,17 +174,7 @@ CREATE TABLE notifications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     recipient_id BIGINT NOT NULL, -- người nhận
     actor_id BIGINT NOT NULL,     -- người gây ra hành động (A comment, A upload)
-    type ENUM(
-        'file_uploaded',
-        'file_approved',
-        'comment_added',
-        'task_assigned',
-        'task_updated',
-        'project_invite',
-        'project_accepted',
-        'project_declined',
-        'project_status_changed'
-    ) NOT NULL,
+    type VARCHAR(255) NOT NULL,
     reference_type ENUM('project','task','file','file_version','comment') NOT NULL,
     reference_id BIGINT NOT NULL, -- id thực thể liên quan
     message TEXT, -- mô tả chi tiết (nếu muốn hiển thị nội dung)

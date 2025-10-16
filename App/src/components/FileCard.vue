@@ -1,5 +1,10 @@
 <template>
-  <el-card :style="cardStyle">
+  <el-card
+    :style="cardStyle"
+    class="file-card"
+    shadow="hover"
+    @click="goToDetail"
+  >
     <img
       v-if="isImage && latestVersion"
       :src="latestVersion.file_url"
@@ -47,6 +52,7 @@
 
 <script setup>
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 
 import excelIcon from "@/assets/icons/excel-icon.png";
 import wordIcon from "@/assets/icons/word-icon.png";
@@ -63,6 +69,8 @@ const props = defineProps({
     default: "large",
   },
 });
+
+const router = useRouter();
 
 const latestVersion = computed(() => {
   const versions = props.file?.versions;
@@ -126,11 +134,11 @@ const iconSize = computed(() => {
 const cardStyle = computed(() => {
   switch (props.size) {
     case "small":
-      return "max-width: 200px; text-align: center";
+      return "max-width: 200px; text-align: center; cursor: pointer;";
     case "medium":
-      return "max-width: 320px; text-align: center";
+      return "max-width: 320px; text-align: center; cursor: pointer;";
     default:
-      return "max-width: 480px; text-align: center";
+      return "max-width: 480px; text-align: center; cursor: pointer;";
   }
 });
 
@@ -140,6 +148,11 @@ const imageStyle = computed(() => ({
   objectFit: "cover",
   borderRadius: "8px",
 }));
+
+const goToDetail = () => {
+  if (!props.file?.id) return;
+  router.push({ name: "file", params: { id: props.file.id } });
+};
 </script>
 
 <style scoped>
@@ -147,4 +160,11 @@ const imageStyle = computed(() => ({
   padding: 0 !important;
 }
 
+.file-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.file-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
 </style>

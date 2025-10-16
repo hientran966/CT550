@@ -331,11 +331,12 @@ const loadFiles = async () => {
 
 onMounted(() => {
   loadMembers();
+  if (props.task?.id) loadFiles();
 });
 watch(
-  () => props.task.id,
-  (newId, oldId) => {
-    if (newId && newId !== oldId) {
+  () => visible.value,
+  (val) => {
+    if (val && props.task?.id) {
       loadFiles();
     }
   }
