@@ -137,3 +137,5 @@ dist
 
 # Thư mục lưu file upload
 uploads/
+
+app/temp/

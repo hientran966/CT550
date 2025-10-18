@@ -1,94 +1,47 @@
 <template>
   <div class="task-layout">
-    <ProjectMenu class="menu" />
+    <ProjectMenu />
     <div class="main-content">
-      <Header class="task-header" :page="'task'" :project-id="projectId" @add="onAdd" @member-click="openMemberList"/>
+      <Header :page="'task'" :project-id="projectId" @add="onAdd" @member-click="openMemberList" />
       <TaskKanban
-        class="kanban"
-        :tasks="tasks"
+        :tasks="tasksByProject[projectId] || []"
         :project-id="projectId"
-        @update-task-status="updateTaskStatus"
-        @update-task="updateTask"
+        @update-task-status="t => taskStore.updateStatus(projectId, t)"
+        @update-task="t => taskStore.updateTask(projectId, t)"
       />
     </div>
   </div>
-  <TaskForm v-model="formRef" :project-id="projectId" @task-added="loadTasks" />
-  <MemberList v-model="memberRef" :project_id="projectId" @member-updated="loadTasks" />
+
+  <TaskForm v-model="formRef" :project-id="projectId" @task-added="() => taskStore.loadTasks(projectId)" />
+  <MemberList v-model="memberRef" :project_id="projectId" @member-updated="() => taskStore.loadTasks(projectId)" />
 </template>
 
-<script lang="ts" setup>
-import { ref, onMounted } from "vue";
+<script setup>
+import { storeToRefs } from "pinia";
+import { useTaskStore } from "@/stores/taskStore";
 import { useRoute } from "vue-router";
-import { ElMessage } from "element-plus";
+import { onMounted, ref } from "vue";
 
-import ProjectMenu from "@/components/ProjectMenu.vue";
-import TaskKanban from "@/components/TaskKanban.vue";
 import Header from "@/components/Header.vue";
+import TaskKanban from "@/components/TaskKanban.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import MemberList from "@/components/MemberList.vue";
-
-import TaskService from "@/services/Task.service";
-import AssignService from "@/services/Assign.service";
+import ProjectMenu from "@/components/ProjectMenu.vue";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
-const user = JSON.parse(localStorage.getItem('user'));
+
+const taskStore = useTaskStore();
+const { tasksByProject } = storeToRefs(taskStore);
 
 const formRef = ref(false);
 const memberRef = ref(false);
-const tasks = ref<any[]>([]);
 
-const loadTasks = async () => {
-  if (!projectId) return;
-  try {
-    tasks.value = await TaskService.getByProject(projectId);
-  } catch (error) {
-    console.error("Lỗi khi load tasks:", error);
-  }
-};
-
-const onAdd = () => {
-  formRef.value = true;
-};
-
-const openMemberList = () => {
-  memberRef.value = true;
-};
-
-const updateTaskStatus = async (task: any) => {
-  try {
-    await TaskService.updateTask(task.id, { status: task.status });
-    await loadTasks();
-  } catch (err) {
-    console.error("Lỗi cập nhật status:", err);
-  }
-};
-
-const updateTask = async (updatedTask: any) => {
-  try {
-    if (updatedTask.changedField === "progress") {
-      await TaskService.progressLog(updatedTask.id, {
-        progress: updatedTask.latest_progress,
-        loggedBy: user.id,
-      });
-    } else if (updatedTask.changedField === "assignee") {
-      await TaskService.deleteAssign(updatedTask.id);
-
-      for (const userId of updatedTask.assignees) {
-        await AssignService.createAssign({task_id: updatedTask.id, user_id: userId});
-      }
-    } else {
-      await TaskService.updateTask(updatedTask.id, updatedTask);
-    }
-    ElMessage.success("Cập nhật task thành công");
-    await loadTasks();
-  } catch (err) {
-    console.error("Lỗi cập nhật task:", err);
-  }
-};
+const onAdd = () => (formRef.value = true);
+const openMemberList = () => (memberRef.value = true);
 
 onMounted(() => {
-  loadTasks();
+  taskStore.loadTasks(projectId);
 });
 </script>
 

@@ -1,42 +1,24 @@
 <template>
-    <Header class="task-header" :page="'project'" @add="onAdd"/>
-    <ProjectTable :projects="projects" @update-project="updateProject"/>
-    <ProjectForm v-model="formRef" @project-added="fetchProjects" />
+  <Header :page="'project'" @add="onAdd" />
+  <ProjectTable :projects="projects" @update-project="projectStore.updateProject" />
+  <ProjectForm v-model="formRef" @project-added="projectStore.fetchProjects" />
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue';
-import ProjectTable from '@/components/ProjectTable.vue';
-import ProjectService from '@/services/Project.service';
-import Header from '@/components/Header.vue';
-import ProjectForm from '@/components/ProjectForm.vue';
-import { ElMessage } from 'element-plus';
+<script setup>
+import { onMounted, ref } from "vue";
+import { storeToRefs } from "pinia";
+import { useProjectStore } from "@/stores/projectStore";
+import Header from "@/components/Header.vue";
+import ProjectTable from "@/components/ProjectTable.vue";
+import ProjectForm from "@/components/ProjectForm.vue";
 
-const projects = ref<any[]>([]);
-const formRef = ref();
+const projectStore = useProjectStore();
+const { projects } = storeToRefs(projectStore);
 
-const fetchProjects = async () => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'));
-    const response = await ProjectService.getProjectsByAccountId(user.id);
-    projects.value = response;
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-  }
-};
+const formRef = ref(false);
+const onAdd = () => (formRef.value = true);
 
-function onAdd() {
-  formRef.value = true;
-}
-
-const updateProject = async (updatedProject: any) => {
-  try {
-    await ProjectService.updateProject(updatedProject.id, updatedProject);
-    ElMessage.success("Cập nhật project thành công");
-    await fetchProjects();
-  } catch (err) {
-    console.error("Lỗi cập nhật task:", err);
-  }
-};
-fetchProjects();
+onMounted(() => {
+  projectStore.fetchProjects();
+});
 </script>

@@ -59,6 +59,14 @@ watch(isAuthenticated, async (loggedIn) => {
         });
 
         await loadUnreadCount();
+
+        if (type === "task_assigned" || type === "task_updated") {
+          taskStore.loadTasks(payload.project_id);
+        }
+
+        if (type === "project_updated") {
+          projectStore.fetchProjects();
+        }
       });
     }
   } else {

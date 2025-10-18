@@ -27,8 +27,60 @@
               <el-table-column prop="label" label="Thuộc tính" width="150" />
               <el-table-column label="Giá trị">
                 <template #default="{ row }">
-                  <!-- Giữ nguyên phần logic hiển thị & chỉnh sửa -->
-                  <!-- ... -->
+                  <!-- Chế độ xem --> 
+                  <template v-if="editRow !== row.key"> 
+                    <span v-if="row.key === 'priority'"> 
+                      <el-tag :type=" task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'success' " size="small" effect="plain" > 
+                        {{ priorityLabel(task.priority) }} 
+                      </el-tag>
+                    </span> 
+                    <span v-else-if="row.key === 'date'"> 
+                      {{ formatDate(task.start_date) }} → {{ formatDate(task.due_date) }} 
+                    </span> 
+                    <span v-else-if="row.key === 'progress'"> 
+                      {{ task.latest_progress ?? 0 }}% 
+                    </span> 
+                    <div v-else-if="row.key === 'assignee'"> 
+                      <AvatarGroup v-if="task.assignees && task.assignees.length" :user-ids="task.assignees" :size="32" :max="5" :tooltips="true" /> 
+                      <span v-else>Chưa có</span> 
+                    </div> 
+                    <el-button size="small" type="info" @click="startEdit(row.key)" link :icon="EditPen" /> 
+                  </template> 
+                  <!-- Chế độ chỉnh sửa --> 
+                  <template v-else> 
+                    <!-- Trạng thái --> 
+                    <el-select v-if="row.key === 'status'" v-model="editCache.status" placeholder="Chọn trạng thái" size="small" > 
+                      <el-option label="Đang chờ" value="todo" />
+                      <el-option label="Đang tiến hành" value="in_progress" />
+                      <el-option label="Hoàn thành" value="done" />
+                    </el-select>
+
+                    <!-- Ưu tiên -->
+                    <el-select v-else-if="row.key === 'priority'" v-model="editCache.priority" placeholder="Chọn ưu tiên" size="small" >
+                      <el-option label="Thấp" value="low" />
+                      <el-option label="Trung Bình" value="medium" />
+                      <el-option label="Cao" value="high" />
+                    </el-select>
+
+                    <!-- Ngày -->
+                    <template v-else-if="row.key === 'date'">
+                      <el-date-picker v-model="editCache.start_date" type="date" placeholder="Bắt đầu" size="small" />
+                      → <el-date-picker v-model="editCache.due_date" type="date" placeholder="Kết thúc" size="small" />
+                    </template>
+
+                    <!-- Tiến độ -->
+                    <el-select v-else-if="row.key === 'progress'" v-model="editCache.latest_progress" placeholder="Tiến độ" size="small" >
+                      <el-option v-for="n in [0,10,20,30,40,50,60,70,80,90,100]" :key="n" :label="`${n}%`" :value="n" />
+                    </el-select>
+                    <!-- Người được giao -->
+                    <div v-else-if="row.key === 'assignee'">
+                      <el-select v-model="editCache.assignees" multiple placeholder="Chọn người được giao" style="width: 100%" size="small" >
+                        <el-option v-for="member in members" :key="member.id" :label="member.name" :value="member.user_id" />
+                      </el-select>
+                    </div>
+                    <el-button size="small" type="success" @click="saveEdit(row.key)" link :icon="Check" />
+                    <el-button size="small" @click="cancelEdit" link :icon="Close" />
+                  </template>
                 </template>
               </el-table-column>
             </el-table>
@@ -104,63 +156,58 @@
     <UploadForm
       v-model="formRef"
       :project-id="props.projectId"
-      :task-id="props.task.id"
-      @file-added="loadFiles"
+      :task-id="task.id"
+      @file-added="loadData"
     />
   </el-dialog>
 </template>
 
 
-<script lang="ts" setup>
+<script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { dayjs, ElMessage } from "element-plus";
+
 import UploadForm from "./Upload.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
-import FileService from "@/services/File.service";
+
+import { useTaskStore } from "@/stores/taskStore";
+import { useFileStore } from "@/stores/fileStore";
+import { useCommentStore } from "@/stores/commentStore";
 import MemberService from "@/services/Member.service";
-import CommentService from "@/services/Comment.service";
 
-interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: "low" | "medium" | "high";
-  start_date?: string;
-  due_date?: string;
-  latest_progress?: number;
-  assignees?: number[];
-}
+const props = defineProps({
+  modelValue: Boolean,
+  projectId: { type: Number, required: true },
+  taskId: { type: Number, required: true },
+});
 
-const props = defineProps<{
-  modelValue: boolean;
-  task: Task;
-  projectId: number;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", value: boolean): void;
-  (e: "update:task", value: Task): void;
-}>();
+const emit = defineEmits(["update:modelValue"]);
 
 const formRef = ref(false);
-const editRow = ref<string | null>(null);
-const editCache = ref<Partial<Task>>({});
-const members = ref<any[]>([]);
-const files = ref<any[]>([]);
-const comments = ref([]);
+const editRow = ref(null);
+const editCache = ref();
+const members = ref([])
 const newComment = ref("");
+
+const taskStore = useTaskStore();
+const fileStore = useFileStore();
+const commentStore = useCommentStore();
+
+const { getTasksByProject } = storeToRefs(taskStore);
+const { getFilesByTask } = storeToRefs(fileStore);
+const { getCommentsByTask } = storeToRefs(commentStore);
 
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
 });
-const task = computed({
-  get: () => props.task,
-  set: (val) => Object.assign(props.task, val),
-});
+
+const task = computed(() => getTasksByProject.value(props.projectId).find(t => t.id === props.taskId) || {});
+const files = computed(() => getFilesByTask.value(task.value.id) || []);
+const comments = computed(() => getCommentsByTask.value(task.value.id) || []);
 
 const tableData = computed(() => [
   { key: "priority", label: "Ưu tiên" },
@@ -169,7 +216,7 @@ const tableData = computed(() => [
   { key: "assignee", label: "Người được giao" },
 ]);
 
-const startEdit = (key: string) => {
+const startEdit = (key) => {
   editRow.value = key;
   editCache.value = { ...task.value };
 };
@@ -179,7 +226,7 @@ const cancelEdit = () => {
   editCache.value = {};
 };
 
-const saveEdit = (key: string) => {
+const saveEdit = (key) => {
   const updated = { ...task.value, ...editCache.value };
 
   if (key === "date") {
@@ -204,9 +251,7 @@ const saveEdit = (key: string) => {
     updated.assignees = updated.assignees.map((id) => Number(id));
   }
 
-  const updatedTask = { ...updated, changedField: key } as Task & {
-    changedField: string;
-  };
+  const updatedTask = { ...updated, changedField: key };
   emit("update:task", updatedTask);
   editRow.value = null;
   visible.value = false;
@@ -214,10 +259,10 @@ const saveEdit = (key: string) => {
 
 const onUpload = () => (formRef.value = true);
 
-const priorityLabel = (val: string) =>
+const priorityLabel = (val) =>
   val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
 
-const formatDate = (d?: string) =>
+const formatDate = (d) =>
   d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
 const handleClose = () => (visible.value = false);
@@ -231,60 +276,44 @@ const loadMembers = async () => {
   }
 };
 
-const loadFiles = async () => {
-  try {
-    const res = await FileService.getAllFiles({ task_id: props.task.id });
-    files.value = res || [];
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const loadComments = async () => {
-  try {
-    const res = await CommentService.getAllComments({
-      task_id: props.task.id,
-    });
-    comments.value = (res || []).map((c) => ({
-      ...c,
-      created_at: dayjs(c.created_at).format("DD/MM/YYYY HH:mm"),
-    }));
-  } catch (err) {
-    console.error("Lỗi khi load bình luận:", err);
+const loadData = async () => {
+  if (props.projectId) {
+    await taskStore.loadTasks(props.projectId);
+    if (task.value?.id) {
+      await Promise.all([
+        fileStore.loadFiles(task.value.id),
+        commentStore.loadComments(task.value.id),
+      ]);
+    }
   }
 };
 
 const addComment = async () => {
+  if (!newComment.value.trim()) return;
   try {
-    const payload = {
-      user_id: JSON.parse(localStorage.getItem("user") || "{}")?.id,
-      task_id: props.task.id,
-      content: newComment.value,
-    };
-
-    const res = await CommentService.createComment(payload);
-    comments.value.unshift({
-      ...res,
-      created_at: dayjs(res.created_at).format("DD/MM/YYYY HH:mm"),
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    await commentStore.addComment(task.id, {
+      user_id: user.id,
+      task_id: task.id,
+      content: newComment.value.trim(),
     });
-
     newComment.value = "";
-    loadComments();
+    ElMessage.success("Đã thêm bình luận");
   } catch (err) {
-    console.error("Lỗi khi gửi bình luận:", err);
+    console.error("Lỗi khi thêm bình luận:", err);
   }
 };
 
 onMounted(() => {
+  loadData();
   loadMembers();
-  loadComments();
-  if (props.task?.id) loadFiles();
 });
+
 watch(
   () => visible.value,
   (val) => {
-    if (val && props.task?.id) {
-      loadFiles();
+    if (val && task?.id) {
+      loadData();
     }
   }
 );

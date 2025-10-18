@@ -62,50 +62,73 @@
               :percentage="task.latest_progress || 0"
               size="small"
               style="margin-top: 8px"
-              v-if="task.latest_progress !== undefined && task.latest_progress != 0"
+              v-if="task.latest_progress"
             />
           </div>
 
           <div class="task-footer">
-            <div class="task-footer">
-              <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
-            </div>
+            <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
           </div>
         </el-card>
       </div>
     </div>
-    
+
     <TaskDetail
       v-if="selectedTask"
       v-model="detailVisible"
-      :task="selectedTask"
+      :task-id="selectedTask.id"
       :project-id="projectId"
-      @update:task="updateTask($event)"
+      @update:task="updateTask"
     />
   </div>
-
 </template>
 
-<script lang="ts" setup>
-import { computed, ref, watch } from "vue";
+<script setup>
+import { ref, computed, watch, onMounted } from "vue";
+import { useTaskStore } from "@/stores/taskStore";
+import { storeToRefs } from "pinia";
 import TaskDetail from "./TaskDetail.vue";
 import AvatarGroup from "./AvatarGroup.vue";
-import defaultAvatar from "@/assets/default-avatar.png";
 import FileService from "@/services/File.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 
-interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  status: string;
-  priority: "low" | "medium" | "high";
-  start_date?: string;
-  due_date?: string;
-  latest_progress?: number;
-  assignees?: number[]; 
-}
+const props = defineProps({
+  projectId: Number,
+});
 
-function formatDate(date?: string) {
+const taskStore = useTaskStore();
+const { getTasksByProject } = storeToRefs(taskStore);
+const tasks = computed(() => getTasksByProject.value(props.projectId) || []);
+
+const detailVisible = ref(false);
+const selectedTask = ref(null);
+const avatarsMap = ref({});
+
+const statusMap = {
+  todo: "Đang Chờ",
+  in_progress: "Đang Tiến Hành",
+  done: "Đã Xong",
+};
+
+const reverseStatusMap = {
+  "Đang Chờ": "todo",
+  "Đang Tiến Hành": "in_progress",
+  "Đã Xong": "done",
+};
+
+const columns = computed(() => [
+  { name: "Đang Chờ", tasks: tasks.value.filter((t) => t.status === "todo") },
+  { name: "Đang Tiến Hành", tasks: tasks.value.filter((t) => t.status === "in_progress") },
+  { name: "Đã Xong", tasks: tasks.value.filter((t) => t.status === "done") },
+]);
+
+onMounted(async () => {
+  if (props.projectId) {
+    await taskStore.loadTasks(props.projectId);
+  }
+});
+
+function formatDate(date) {
   if (!date) return "-";
   return new Date(date).toLocaleString("vi-VN", {
     year: "numeric",
@@ -114,62 +137,25 @@ function formatDate(date?: string) {
   });
 }
 
-const props = defineProps<{
-  tasks: Task[];
-  projectId:number;
-}>();
-
-const emit = defineEmits<{
-  (e: "update-task-status", task: Task): void;
-  (e: "update-task", task: Task): void;
-}>();
-
-const detailVisible = ref(false);
-const selectedTask = ref<Task | null>(null);
-
-function openTaskDetail(task: Task) {
-  if (dragging.value) return;
-  selectedTask.value = task;
-  detailVisible.value = true;
-}
-
-const statusMap: Record<string, string> = {
-  todo: "Đang Chờ",
-  in_progress: "Đang Tiến Hành",
-  done: "Đã Xong",
-};
-
-const reverseStatusMap: Record<string, string> = {
-  "Đang Chờ": "todo",
-  "Đang Tiến Hành": "in_progress",
-  "Đã Xong": "done",
-};
-
-const avatarsMap = ref<Record<number, string>>({});
-
-const columns = computed(() => [
-  { name: "Đang Chờ", tasks: props.tasks.filter((t) => t.status === "todo") },
-  { name: "Đang Tiến Hành", tasks: props.tasks.filter((t) => t.status === "in_progress") },
-  { name: "Đã Xong", tasks: props.tasks.filter((t) => t.status === "done") },
-]);
-
-let draggedTask = ref<Task | null>(null);
-let fromColumn = ref<string | null>(null);
 const dragging = ref(false);
+const draggedTask = ref(null);
+const fromColumn = ref(null);
 
-function onDragStart(event: DragEvent, task: Task, columnName: string) {
+function onDragStart(event, task, columnName) {
   draggedTask.value = task;
   fromColumn.value = columnName;
   dragging.value = true;
   event.dataTransfer?.setData("text/plain", task.id.toString());
 }
 
-function onDrop(event: DragEvent, toColumnName: string) {
+async function onDrop(event, toColumnName) {
   if (draggedTask.value) {
     const newStatus = reverseStatusMap[toColumnName];
     if (draggedTask.value.status !== newStatus) {
-      draggedTask.value.status = newStatus;
-      emit("update-task-status", draggedTask.value);
+      await taskStore.updateStatus(props.projectId, {
+        ...draggedTask.value,
+        status: newStatus,
+      });
     }
   }
   draggedTask.value = null;
@@ -177,38 +163,16 @@ function onDrop(event: DragEvent, toColumnName: string) {
   dragging.value = false;
 }
 
-function headerClass(name: string) {
-  switch (name) {
-    case "Đang Chờ":
-      return "header-warning";
-    case "Đang Tiến Hành":
-      return "header-primary";
-    case "Đã Xong":
-      return "header-success";
-    default:
-      return "";
-  }
-}
-
-function columnClass(name: string) {
-  switch (name) {
-    case "Đang Chờ":
-      return "column-warning";
-    case "Đang Tiến Hành":
-      return "column-primary";
-    case "Đã Xong":
-      return "column-success";
-    default:
-      return "";
-  }
+function openTaskDetail(task) {
+  if (dragging.value) return;
+  selectedTask.value = task;
+  detailVisible.value = true;
 }
 
 async function loadAvatars() {
-  const allUserIds = Array.from(
-    new Set(props.tasks.flatMap((t) => t.assignees || []))
-  );
-
-  const results: Record<number, string> = {};
+  const list = Array.isArray(tasks.value) ? tasks.value : [];
+  const allUserIds = Array.from(new Set(list.flatMap((t) => t.assignees || [])));
+  const results = {};
 
   await Promise.all(
     allUserIds.map(async (id) => {
@@ -224,20 +188,41 @@ async function loadAvatars() {
   avatarsMap.value = results;
 }
 
-function getAvatar(id: number) {
-  return avatarsMap.value[id] || defaultAvatar;
-}
-
-function updateTask(updatedTask: Task) {
-  emit("update-task", updatedTask);
+function updateTask(updatedTask) {
+  taskStore.updateTask(updatedTask.id, updatedTask);
 }
 
 watch(
-  () => props.tasks,
+  () => tasks.value,
   () => loadAvatars(),
   { deep: true, immediate: true }
 );
 
+function headerClass(name) {
+  switch (name) {
+    case "Đang Chờ":
+      return "header-warning";
+    case "Đang Tiến Hành":
+      return "header-primary";
+    case "Đã Xong":
+      return "header-success";
+    default:
+      return "";
+  }
+}
+
+function columnClass(name) {
+  switch (name) {
+    case "Đang Chờ":
+      return "column-warning";
+    case "Đang Tiến Hành":
+      return "column-primary";
+    case "Đã Xong":
+      return "column-success";
+    default:
+      return "";
+  }
+}
 </script>
 
 <style scoped>
