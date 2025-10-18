@@ -93,6 +93,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.el-overlay-dialog {
+  height: 100vh !important;
+}
 .task-layout {
   display: flex;
   height: 100vh;
@@ -112,6 +115,6 @@ onMounted(() => {
 .kanban {
   flex: 1;
   overflow-x: auto;
-  margin: 16px;
+  margin: 0;
 }
 </style>
