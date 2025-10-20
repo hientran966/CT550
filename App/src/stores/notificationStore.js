@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import NotificationService from "@/services/Notification.service";
+import { useProjectStore } from "@/stores/projectStore";
+import { useTaskStore } from "@/stores/taskStore";
 
 export const useNotificationStore = defineStore("noti", {
   state: () => ({
@@ -14,9 +16,26 @@ export const useNotificationStore = defineStore("noti", {
         this.loading = true;
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user?.id) return;
-        this.notifications = await NotificationService.getAllNotifications({
+
+        const data = await NotificationService.getAllNotifications({
           recipient_id: user.id,
         });
+
+        const projectStore = useProjectStore();
+        const taskStore = useTaskStore();
+
+        this.notifications = await Promise.all(data.map(async (noti) => {
+          let title = "Thông báo";
+
+          if (noti.reference_type === "project") {
+            title = await projectStore.getNameById(noti.reference_id);
+          } else if (noti.reference_type === "task") {
+            title = await taskStore.getNameById(noti.reference_id);
+          }
+
+          return { ...noti, title };
+        }));
+
         await this.fetchNewCount();
       } catch (err) {
         console.error("Lỗi load Notification:", err);
@@ -30,8 +49,6 @@ export const useNotificationStore = defineStore("noti", {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user?.id) return;
         this.newCount = await NotificationService.getNewCount(user.id);
-        console.log("New notification count:", this.newCount);
-        
         return this.newCount;
       } catch (err) {
         console.error("Lỗi lấy số thông báo:", err);
@@ -39,8 +56,52 @@ export const useNotificationStore = defineStore("noti", {
     },
 
     async addNotification(payload) {
-      this.notifications.unshift(payload);
+      const projectStore = useProjectStore();
+      const taskStore = useTaskStore();
+
+      let title = "Thông báo";
+      if (payload.reference_type === "project") {
+        title = projectStore.getProjectNameById(payload.reference_id);
+      } else if (payload.reference_type === "task") {
+        title = taskStore.getTaskNameById(payload.reference_id);
+      }
+
+      this.notifications.unshift({ ...payload, title });
       await this.fetchNewCount();
     },
+
+    async markAllAsUnread(recipient_id) {
+      try {
+        await NotificationService.markAllAsUnread(recipient_id);
+      } catch (err) {
+        console.error("Lỗi markAllAsUnread:", err);
+      }
+    },
+
+    async getReferenceByNoti(noti) {
+      try {
+        if (!noti?.reference_type || !noti?.reference_id) return null;
+
+        if (noti.reference_type === "project") {
+          const projectStore = useProjectStore();
+          if (!projectStore.projects?.length) await projectStore.fetchProjects();
+          return projectStore.projects.find(p => p.id === noti.reference_id);
+        }
+
+        if (noti.reference_type === "task") {
+          const taskStore = useTaskStore();
+          let task = taskStore.taskCache?.[noti.reference_id];
+          if (!task) {
+            task = await taskStore.loadTaskById(noti.reference_id);
+          }
+          return task;
+        }
+        return null;
+      } catch (err) {
+        console.error("Lỗi lấy reference:", err);
+        return null;
+      }
+    }
   },
+
 });

@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, computed } from "vue";
 import { ElNotification } from "element-plus";
 import { initSocket, disconnectSocket } from "@/plugins/socket";
 
@@ -32,21 +32,11 @@ const taskStore = useTaskStore();
 const projectStore = useProjectStore();
 
 const isAuthenticated = ref(false);
-const newCount = ref(0);
+const newCount = computed(() => notiStore.newCount);
 let socket = null;
 
 const checkAuth = () => {
   isAuthenticated.value = !!localStorage.getItem("token");
-};
-
-const loadNewCount = async () => {
-  try {
-      const count = await notiStore.fetchNewCount();
-      newCount.value = count || 0;
-      console.log("Số thông báo mới:", newCount.value);
-  } catch (err) {
-    console.error("Lỗi khi lấy số thông báo:", err);
-  }
 };
 
 watch(isAuthenticated, async (loggedIn) => {
@@ -55,7 +45,6 @@ watch(isAuthenticated, async (loggedIn) => {
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     if (user?.id) {
-      await loadNewCount();
 
       socket = initSocket(user.id);
       socket.on("notification", async ({ type, payload }) => {

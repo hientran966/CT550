@@ -6,6 +6,7 @@
       :default-active="$route.path"
       :collapse="true"
       background-color="#545c64"
+      @select="handleMenuSelect"
     >
       <!-- Home -->
       <el-menu-item index="/">
@@ -46,8 +47,10 @@
   </div>
 </template>
 
-<script lang="ts" setup>
+<script setup>
 import { Bell, Files, House, SwitchButton } from "@element-plus/icons-vue";
+import { useRouter } from "vue-router";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { disconnectSocket } from "@/plugins/socket";
 
 defineProps({
@@ -56,6 +59,25 @@ defineProps({
     default: 0,
   },
 });
+
+const router = useRouter();
+const notiStore = useNotificationStore();
+
+const handleMenuSelect = async (index) => {
+  if (index === "/notifications") {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user?.id) {
+        await notiStore.markAllAsUnread(user.id);
+        await notiStore.fetchNewCount();
+      }
+    } catch (err) {
+      console.error("Lỗi khi markAsUnread:", err);
+    }
+  }
+
+  router.push(index);
+};
 
 const onLogout = () => {
   localStorage.removeItem("token");

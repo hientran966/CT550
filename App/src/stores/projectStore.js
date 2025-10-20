@@ -29,5 +29,12 @@ export const useProjectStore = defineStore("project", {
     addProject(newProject) {
       this.projects.push(newProject);
     },
+
+    async getNameById(id) {
+      await this.fetchProjects();
+      const project = this.projects.find(p => p.id === id);
+
+      return project ? "Project#"+ project.id + " - " + project.name : "Dự án không xác định";
+    }
   },
 });

@@ -3,6 +3,7 @@
     <div class="dashboard-container">
       <el-row :gutter="16">
         <el-col :span="24">
+          <!-- Header -->
           <div class="me-header-overlay">
             <ElAvatar :src="avatar" :size="64" class="me-avatar" />
             <h2>Xin chào, {{ user.name }}!</h2>
@@ -13,25 +14,18 @@
             <el-col :xs="24" :md="24" :lg="16">
               <ElCard shadow="hover" style="height: 100%">
                 <template #header>
-                  <strong>Dự án</strong>
+                  <strong>Projects</strong>
                 </template>
 
                 <ElTable
-                  :data="project"
+                  v-loading="projectStore.loading"
+                  :data="paginatedProjects"
                   border
                   style="width: 100%"
                   @row-click="handleRowClick"
+                  :height="'341px'"
                 >
-                  <ElTableColumn
-                    prop="name"
-                    label="Tên dự án"
-                    min-width="200"
-                  />
-                  <ElTableColumn
-                    prop="description"
-                    label="Mô tả"
-                    min-width="250"
-                  />
+                  <ElTableColumn prop="name" label="Tên dự án" min-width="200" />
                   <ElTableColumn
                     prop="start_date"
                     label="Bắt đầu"
@@ -46,15 +40,22 @@
                   />
                   <ElTableColumn prop="status" label="Trạng thái" width="150">
                     <template #default="{ row }">
-                      <el-tag
-                        :type="statusType(row.status)"
-                        disable-transitions
-                      >
+                      <el-tag :type="statusType(row.status)" disable-transitions>
                         {{ row.status }}
                       </el-tag>
                     </template>
                   </ElTableColumn>
                 </ElTable>
+
+                <div style="margin-top: 10px; text-align: right">
+                  <el-pagination
+                    background
+                    layout="prev, pager, next"
+                    :total="projectStore.projects.length"
+                    :page-size="pageSize"
+                    v-model:current-page="currentPage"
+                  />
+                </div>
               </ElCard>
             </el-col>
 
@@ -77,31 +78,36 @@
                       :key="item.id"
                       class="invite-item"
                     >
-                      <ElAvatar :src="item.invite_avatar" :size="32" />
-                      <div class="invite-info">
-                        <div>
-                          <strong>{{ item.invited_by_name }}</strong>
-                          mời bạn tham gia dự án
-                          <strong>{{ item.project_name }}</strong>
-                        </div>
-                        <div class="invite-date">
-                          {{ formatDate(item.created_at) }}
+                      <div class="invite-header">
+                        <ElAvatar :src="item.inviterAvatar" :size="32" />
+                        <div class="invite-info">
+                          <div>
+                            <strong>{{ item.invited_by_name }}</strong>
+                            mời bạn tham gia dự án
+                            <strong>{{ item.project_name }}</strong>
+                          </div>
+                          <div class="invite-date">
+                            {{ formatDate(item.created_at) }}
+                          </div>
                         </div>
                       </div>
+
                       <div class="invite-actions">
                         <el-button
                           size="small"
                           type="primary"
                           @click="acceptInvite(item.id)"
-                          >Chấp nhận</el-button
                         >
+                          Chấp nhận
+                        </el-button>
                         <el-button
                           size="small"
                           type="danger"
                           plain
                           @click="rejectInvite(item.id)"
-                          >Từ chối</el-button
                         >
+                          Từ chối
+                        </el-button>
                       </div>
                       <el-divider />
                     </div>
@@ -117,21 +123,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import dayjs from "dayjs";
 
+import { useProjectStore } from "@/stores/projectStore";
+import { useInviteStore } from "@/stores/inviteStore";
+
 import AccountService from "@/services/Account.service";
-import ProjectService from "@/services/Project.service";
-import MemberService from "@/services/Member.service";
 import FileService from "@/services/File.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 
 const router = useRouter();
+const projectStore = useProjectStore();
+const inviteStore = useInviteStore();
 
-const project = ref([]);
-const invited = ref([]);
 const user = ref({ id: "", name: "" });
 const avatar = ref("");
+const currentPage = ref(1);
+const pageSize = ref(7);
+
+const inviterAvatars = ref({});
+
+const invited = computed(() =>
+  inviteStore.invites.map((item) => ({
+    ...item,
+    inviterAvatar: inviterAvatars.value[item.invited_by] || "",
+  }))
+);
+
+const paginatedProjects = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return projectStore.projects.slice(start, end);
+});
 
 function formatDate(dateString) {
   return dateString ? dayjs(dateString).format("DD/MM/YYYY") : "";
@@ -151,59 +176,36 @@ function statusType(status) {
 }
 
 function handleRowClick(row) {
-  router.push({
-    name: "tasks",
-    params: { id: row.id },
-  });
+  router.push({ name: "tasks", params: { id: row.id } });
 }
 
-async function loadProjects() {
-  try {
-    project.value = await ProjectService.getProjectsByAccountId(user.value.id);
-  } catch (err) {
-    console.error("Không thể lấy danh sách project:", err);
-  }
-}
+async function loadInviterAvatars(invites) {
+  const uniqueIds = [...new Set(invites.map((i) => i.invited_by))];
 
-async function loadInvites() {
-  try {
-    const invites = await MemberService.getInviteList(user.value.id);
-    invited.value = await Promise.all(
-      invites.map(async (item) => {
-        let inviteAvatar = "";
+  await Promise.all(
+    uniqueIds.map(async (id) => {
+      if (!inviterAvatars.value[id]) {
         try {
-          const res = await FileService.getAvatar(item.invited_by);
-          inviteAvatar = res?.file_url || "";
+          const res = await FileService.getAvatar(id);
+          inviterAvatars.value[id] = res?.file_url || defaultAvatar;
         } catch {
-          inviteAvatar = "";
+          inviterAvatars.value[id] = defaultAvatar;
         }
-        return {
-          ...item,
-          invite_avatar: inviteAvatar,
-        };
-      })
-    );
-  } catch (err) {
-    console.error("Không thể lấy danh sách lời mời:", err);
-  }
+      }
+    })
+  );
 }
 
-async function acceptInvite(inviteId) {
-  try {
-    await MemberService.acceptInvite(inviteId, user.value.id);
-    await Promise.all([loadInvites(), loadProjects()]);
-  } catch (err) {
-    console.error("Lỗi khi chấp nhận lời mời:", err);
-  }
+async function acceptInvite(id) {
+  await inviteStore.acceptInvite(id);
+  await inviteStore.fetchInvites();
+  await loadInviterAvatars(inviteStore.invites);
 }
 
-async function rejectInvite(inviteId) {
-  try {
-    await MemberService.declineInvite(inviteId, user.value.id);
-    await loadInvites();
-  } catch (err) {
-    console.error("Lỗi khi từ chối lời mời:", err);
-  }
+async function rejectInvite(id) {
+  await inviteStore.rejectInvite(id);
+  await inviteStore.fetchInvites();
+  await loadInviterAvatars(inviteStore.invites);
 }
 
 onMounted(async () => {
@@ -219,7 +221,12 @@ onMounted(async () => {
         avatar.value = "";
       }
 
-      await Promise.all([loadProjects(), loadInvites()]);
+      await Promise.all([
+        projectStore.fetchProjects(),
+        inviteStore.fetchInvites(),
+      ]);
+
+      await loadInviterAvatars(inviteStore.invites);
     }
   } catch (err) {
     console.error("Không lấy được thông tin người dùng:", err);
@@ -264,11 +271,17 @@ onMounted(async () => {
 }
 
 .invite-item {
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 5px;
   padding: 10px 0;
+}
+
+.invite-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.invite-info {
+  flex: 1;
 }
 
 .invite-date {
@@ -280,7 +293,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: row;
   gap: 6px;
-  align-items: flex-end;
+  margin-top: 6px;
 }
 
 @media (max-width: 768px) {

@@ -80,8 +80,8 @@ const emit = defineEmits<{
 }>();
 
 const titleMap: Record<string, string> = {
-  project: "Danh sách dự án",
-  task: "Danh sách công việc",
+  project: "Danh sách Project",
+  task: "Danh sách Task",
   member: "Danh sách thành viên",
   user: "Danh sách người dùng",
 };

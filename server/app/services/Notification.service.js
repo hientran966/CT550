@@ -201,7 +201,7 @@ class NotificationService {
 
     async markAllAsUnread(recipient_id) {
         const [result] = await this.mysql.execute(
-            "UPDATE notifications SET status = 'unread' WHERE recipient_id = ? AND deleted_at IS NULL",
+            "UPDATE notifications SET status = 'unread' WHERE recipient_id = ? AND status LIKE 'new' AND deleted_at IS NULL",
             [recipient_id]
         );
         return result.affectedRows;

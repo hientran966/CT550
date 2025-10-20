@@ -252,7 +252,7 @@ const saveEdit = (key) => {
   }
 
   const updatedTask = { ...updated, changedField: key };
-  emit("update:task", updatedTask);
+  taskStore.updateTask(updatedTask.id, updatedTask);
   editRow.value = null;
   visible.value = false;
 };

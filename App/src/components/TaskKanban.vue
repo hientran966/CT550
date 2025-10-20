@@ -72,14 +72,6 @@
         </el-card>
       </div>
     </div>
-
-    <TaskDetail
-      v-if="selectedTask"
-      v-model="detailVisible"
-      :task-id="selectedTask.id"
-      :project-id="projectId"
-      @update:task="updateTask"
-    />
   </div>
 </template>
 
@@ -87,7 +79,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useTaskStore } from "@/stores/taskStore";
 import { storeToRefs } from "pinia";
-import TaskDetail from "./TaskDetail.vue";
+
 import AvatarGroup from "./AvatarGroup.vue";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
@@ -95,13 +87,12 @@ import defaultAvatar from "@/assets/default-avatar.png";
 const props = defineProps({
   projectId: Number,
 });
+const emit = defineEmits(["open-detail"]);
 
 const taskStore = useTaskStore();
 const { getTasksByProject } = storeToRefs(taskStore);
 const tasks = computed(() => getTasksByProject.value(props.projectId) || []);
 
-const detailVisible = ref(false);
-const selectedTask = ref(null);
 const avatarsMap = ref({});
 
 const statusMap = {
@@ -164,9 +155,7 @@ async function onDrop(event, toColumnName) {
 }
 
 function openTaskDetail(task) {
-  if (dragging.value) return;
-  selectedTask.value = task;
-  detailVisible.value = true;
+  if (!dragging.value) emit("open-detail", task);
 }
 
 async function loadAvatars() {
@@ -186,10 +175,6 @@ async function loadAvatars() {
   );
 
   avatarsMap.value = results;
-}
-
-function updateTask(updatedTask) {
-  taskStore.updateTask(updatedTask.id, updatedTask);
 }
 
 watch(
