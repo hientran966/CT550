@@ -21,8 +21,8 @@ class NotificationService {
         return (await this.api.delete(`/${id}`)).data;
     }
 
-    async getAllNotifications() {
-        return (await this.api.get("/")).data;
+    async getAllNotifications(filter = {}) {
+    return (await this.api.get("/", { params: filter })).data;
     }
 
     async markAsRead(id) {
@@ -33,8 +33,12 @@ class NotificationService {
         return (await this.api.patch(`/recipient/${recipient_id}`)).data;
     }
 
-    async getUnreadCount(recipient_id) {
-        return (await this.api.get(`/recipient/${recipient_id}`)).data.unreadCount;
+    async markAllAsUnread(recipient_id) {
+        return (await this.api.patch(`/recipient/${recipient_id}/unread`)).data;
+    }
+
+    async getNewCount(recipient_id) {
+        return (await this.api.get(`/recipient/${recipient_id}`)).data.newCount;
     }
 
 }

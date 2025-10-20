@@ -70,7 +70,7 @@ class NotificationService {
             type: payload.type ?? null,
             reference_type: payload.reference_type ?? null,
             reference_id: payload.reference_id ?? null,
-            is_read: payload.is_read ?? 0
+            status: payload.status ?? "new"
         };
 
         notification.message =
@@ -90,7 +90,7 @@ class NotificationService {
             [result] = await conn.execute(
                 `
                 INSERT INTO notifications 
-                (recipient_id, actor_id, type, reference_type, reference_id, message, is_read)
+                (recipient_id, actor_id, type, reference_type, reference_id, message, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 `,
                 [
@@ -100,7 +100,7 @@ class NotificationService {
                     notification.reference_type,
                     notification.reference_id,
                     notification.message,
-                    notification.is_read
+                    notification.status
                 ]
             );
 
@@ -142,9 +142,9 @@ class NotificationService {
             sql += " AND n.type LIKE ?";
             params.push(`%${filter.type}%`);
         }
-        if (filter.is_read !== undefined) {
-            sql += " AND n.is_read = ?";
-            params.push(filter.is_read);
+        if (filter.status !== undefined) {
+            sql += " AND n.status = ?";
+            params.push(filter.status);
         }
 
         sql += " ORDER BY n.created_at DESC";
@@ -167,7 +167,7 @@ class NotificationService {
     }
 
     async update(id, payload) {
-        const allowedFields = ["type", "reference_type", "reference_id", "message", "is_read"];
+        const allowedFields = ["type", "reference_type", "reference_id", "message", "status"];
         const fields = [];
         const params = [];
 
@@ -187,13 +187,21 @@ class NotificationService {
     }
 
     async markAsRead(id) {
-        await this.mysql.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", [id]);
+        await this.mysql.execute("UPDATE notifications SET status = 'read' WHERE id = ?", [id]);
         return await this.findById(id);
     }
 
     async markAllAsRead(recipient_id) {
         const [result] = await this.mysql.execute(
-            "UPDATE notifications SET is_read = 1 WHERE recipient_id = ? AND deleted_at IS NULL",
+            "UPDATE notifications SET status = 'read' WHERE recipient_id = ? AND deleted_at IS NULL",
+            [recipient_id]
+        );
+        return result.affectedRows;
+    }
+
+    async markAllAsUnread(recipient_id) {
+        const [result] = await this.mysql.execute(
+            "UPDATE notifications SET status = 'unread' WHERE recipient_id = ? AND deleted_at IS NULL",
             [recipient_id]
         );
         return result.affectedRows;
@@ -228,9 +236,9 @@ class NotificationService {
         return true;
     }
 
-    async getUnreadCount(recipient_id) {
+    async getNewCount(recipient_id) {
         const [rows] = await this.mysql.execute(
-            "SELECT COUNT(*) AS count FROM notifications WHERE recipient_id = ? AND is_read = 0 AND deleted_at IS NULL",
+            "SELECT COUNT(*) AS count FROM notifications WHERE recipient_id = ? AND status = 'new' AND deleted_at IS NULL",
             [recipient_id]
         );
         return rows[0]?.count || 0;

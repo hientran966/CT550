@@ -32,6 +32,15 @@ const customMethods = {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi đánh dấu tất cả thông báo đã đọc"));
         }
     },
+    markAllAsUnread: async (req, res, next) => {
+        try {
+            const service = new NotificationService(MySQL.pool);
+            const affectedRows = await service.markAllAsUnread(req.params.recipient_id);
+            return res.send({ affectedRows });
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi đánh dấu tất cả thông báo chưa đọc"));
+        }
+    },
 
     create: async (req, res, next) => {
         try {
@@ -44,11 +53,11 @@ const customMethods = {
         }
     },
 
-    getUnreadCount: async (req, res, next) => {
+    getNewCount: async (req, res, next) => {
         try {
             const service = new NotificationService(MySQL.pool);
-            const count = await service.getUnreadCount(req.params.recipient_id);
-            return res.send({ unreadCount: count });
+            const count = await service.getNewCount(req.params.recipient_id);
+            return res.send({ newCount: count });
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy số lượng thông báo chưa đọc"));
         }

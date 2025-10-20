@@ -14,7 +14,8 @@ router.route("/:id")
 
 router.patch("/:id/read", notifications.markAsRead);
 router.route("/recipient/:recipient_id")
-    .get(notifications.getUnreadCount)
+    .get(notifications.getNewCount)
     .patch(notifications.markAllAsRead);
+router.patch("/recipient/:recipient_id/unread", notifications.markAllAsUnread);
 
 module.exports = router;

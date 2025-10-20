@@ -4,7 +4,7 @@
 
     <el-container v-else>
       <el-aside class="sidebar" width="64px">
-        <SideBar :unread-count="unreadCount" />
+        <SideBar :unread-count="newCount" />
       </el-aside>
 
       <el-main class="main-content">
@@ -17,26 +17,33 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { ElNotification } from "element-plus";
+import { initSocket, disconnectSocket } from "@/plugins/socket";
+
 import SideBar from "./components/SideBar.vue";
 import LoginPage from "@/views/LoginPage.vue";
-import { initSocket, disconnectSocket } from "@/plugins/socket";
-import NotificationService from "@/services/Notification.service";
+
+
+import { useNotificationStore } from "@/stores/notificationStore";
+import { useTaskStore } from "@/stores/taskStore";
+import { useProjectStore } from "@/stores/projectStore";
+
+const notiStore = useNotificationStore();
+const taskStore = useTaskStore();
+const projectStore = useProjectStore();
 
 const isAuthenticated = ref(false);
-const unreadCount = ref(0);
+const newCount = ref(0);
 let socket = null;
 
 const checkAuth = () => {
   isAuthenticated.value = !!localStorage.getItem("token");
 };
 
-const loadUnreadCount = async () => {
+const loadNewCount = async () => {
   try {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user?.id) {
-      const count = await NotificationService.getUnreadCount(user.id);
-      unreadCount.value = count || 0;
-    }
+      const count = await notiStore.fetchNewCount();
+      newCount.value = count || 0;
+      console.log("Số thông báo mới:", newCount.value);
   } catch (err) {
     console.error("Lỗi khi lấy số thông báo:", err);
   }
@@ -44,9 +51,11 @@ const loadUnreadCount = async () => {
 
 watch(isAuthenticated, async (loggedIn) => {
   if (loggedIn) {
+    await notiStore.fetchNotifications();
+
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     if (user?.id) {
-      await loadUnreadCount();
+      await loadNewCount();
 
       socket = initSocket(user.id);
       socket.on("notification", async ({ type, payload }) => {
@@ -58,12 +67,11 @@ watch(isAuthenticated, async (loggedIn) => {
           duration: 4000,
         });
 
-        await loadUnreadCount();
+        await notiStore.addNotification(payload);
 
         if (type === "task_assigned" || type === "task_updated") {
           taskStore.loadTasks(payload.project_id);
         }
-
         if (type === "project_updated") {
           projectStore.fetchProjects();
         }
@@ -71,7 +79,7 @@ watch(isAuthenticated, async (loggedIn) => {
     }
   } else {
     disconnectSocket();
-    unreadCount.value = 0;
+    notiStore.$reset();
   }
 });
 
@@ -88,7 +96,8 @@ onBeforeUnmount(() => {
 
 <style>
 .main-content {
-
+  background-image: url("@/assets/background.jpg");
+  background-size: cover;
   min-height: 100vh;
 }
 

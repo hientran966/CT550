@@ -1,6 +1,6 @@
 <template>
   <Header :page="'project'" @add="onAdd" />
-  <ProjectTable :projects="projects" @update-project="projectStore.updateProject" />
+  <ProjectTable class="project-table" :projects="projects" @update-project="projectStore.updateProject" />
   <ProjectForm v-model="formRef" @project-added="projectStore.fetchProjects" />
 </template>
 
@@ -22,3 +22,9 @@ onMounted(() => {
   projectStore.fetchProjects();
 });
 </script>
+
+<style scoped>
+.project-table {
+  height: calc(100vh - 100px);
+}
+</style>

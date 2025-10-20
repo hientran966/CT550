@@ -20,7 +20,7 @@
       </el-menu-item>
 
       <!-- Thông báo -->
-      <el-menu-item index="/about">
+      <el-menu-item index="/notifications">
         <el-icon>
           <el-badge
             :value="unreadCount"
