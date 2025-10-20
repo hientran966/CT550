@@ -12,6 +12,9 @@ router.route("/:id")
     .put(project.update)
     .delete(project.delete);
 
+router.route("/:id/report")
+    .get(project.report);
+
 router.route("/account/:id")
     .get(project.findByAccountId)
 

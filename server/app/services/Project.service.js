@@ -161,6 +161,153 @@ class ProjectService {
     const [rows] = await this.mysql.execute(sql, [userId, userId]);
     return rows;
   }
+
+  async report(projectId) {
+    const [projectRows] = await this.mysql.execute(
+      `SELECT id, name, start_date, end_date 
+      FROM projects 
+      WHERE id = ? AND deleted_at IS NULL`,
+      [projectId]
+    );
+    if (projectRows.length === 0) throw new Error("Không tìm thấy dự án");
+    const project = projectRows[0];
+
+    const [[taskStats]] = await this.mysql.execute(
+      `SELECT 
+        COUNT(*) AS total_tasks,
+        SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done_tasks
+      FROM tasks 
+      WHERE project_id = ? AND deleted_at IS NULL`,
+      [projectId]
+    );
+
+    const completionRate =
+      taskStats.total_tasks > 0
+        ? Math.round((taskStats.done_tasks / taskStats.total_tasks) * 100)
+        : 0;
+
+    const [[memberCount]] = await this.mysql.execute(
+      `SELECT COUNT(DISTINCT user_id) AS count
+      FROM project_members 
+      WHERE project_id = ? AND deleted_at IS NULL AND status = 'accepted'`,
+      [projectId]
+    );
+
+    const [[timeSum]] = await this.mysql.execute(
+      `SELECT IFNULL(SUM(hours),0) AS total_hours
+      FROM time_logs 
+      WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL`,
+      [projectId]
+    );
+
+    const [taskStatusRows] = await this.mysql.execute(
+      `SELECT status, COUNT(*) AS count 
+      FROM tasks 
+      WHERE project_id = ? AND deleted_at IS NULL 
+      GROUP BY status`,
+      [projectId]
+    );
+    const statusMap = { todo: "Đang chờ", in_progress: "Đang tiến hành", done: "Đã xong" };
+    const taskStatus = taskStatusRows.map(r => ({ status: statusMap[r.status] || r.status, count: r.count }));
+
+    const [priorityRows] = await this.mysql.execute(
+      `SELECT priority, COUNT(*) AS count 
+      FROM tasks 
+      WHERE project_id = ? AND deleted_at IS NULL 
+      GROUP BY priority`,
+      [projectId]
+    );
+
+    const [members] = await this.mysql.execute(
+      `SELECT u.id, u.name 
+      FROM project_members pm 
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.project_id = ? AND pm.deleted_at IS NULL AND pm.status = 'accepted'`,
+      [projectId]
+    );
+
+    const [timeLogs] = await this.mysql.execute(
+      `SELECT user_id, SUM(hours) AS total_hours 
+      FROM time_logs 
+      WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL
+      GROUP BY user_id`,
+      [projectId]
+    );
+
+    const hoursByUser = members.map(m => {
+      const log = timeLogs.find(t => t.user_id === m.id);
+      return { name: m.name, total_hours: log ? parseFloat(log.total_hours) : 0 };
+    });
+
+    const [tasks] = await this.mysql.execute(
+      `SELECT id FROM tasks WHERE project_id = ? AND deleted_at IS NULL`,
+      [projectId]
+    );
+    const taskIds = tasks.map(t => t.id);
+
+    const startDate = project.start_date ? new Date(project.start_date) : new Date();
+    const endDate = new Date();
+    const dayDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    const dates = Array.from({ length: dayDiff + 1 }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+
+    let progress_trend = [];
+    if (taskIds.length > 0) {
+      const [progressRows] = await this.mysql.execute(
+        `SELECT task_id, DATE(created_at) AS date, ROUND(AVG(progress),1) AS avg_progress
+        FROM progress_logs
+        WHERE task_id IN (${taskIds.map(() => "?").join(",")}) AND deleted_at IS NULL
+        GROUP BY task_id, DATE(created_at)
+        ORDER BY DATE(created_at) ASC`,
+        taskIds
+      );
+
+      for (const p of progressRows) {
+        const d = new Date(p.date);
+        d.setDate(d.getDate() + 1);
+        p.date = d;
+      }
+
+      const taskLogsMap = {};
+      taskIds.forEach(id => (taskLogsMap[id] = []));
+      progressRows.forEach(p => {
+        const day = p.date instanceof Date ? p.date.toISOString().slice(0, 10) : new Date(p.date).toISOString().slice(0, 10);
+        taskLogsMap[p.task_id].push({ date: day, progress: parseFloat(p.avg_progress) });
+      });
+
+      const taskProgressState = {};
+      taskIds.forEach(id => (taskProgressState[id] = 0));
+
+      progress_trend = dates.map(d => {
+        let sum = 0;
+        taskIds.forEach(taskId => {
+          const logs = taskLogsMap[taskId];
+          const log = logs.filter(l => l.date === d).pop();
+          if (log) taskProgressState[taskId] = log.progress;
+          sum += taskProgressState[taskId];
+        });
+        const normalized = taskIds.length > 0 ? parseFloat((sum / taskIds.length).toFixed(1)) : 0;
+        return { date: d, avg_progress: normalized };
+      });
+    }
+
+    return {
+      project,
+      members,
+      total_tasks: taskStats.total_tasks,
+      completion_rate: completionRate,
+      member_count: memberCount.count,
+      total_hours: parseFloat(timeSum.total_hours),
+      task_status: taskStatus,
+      priority: priorityRows.map(p => ({ priority: p.priority, count: p.count })),
+      hours_by_user: hoursByUser,
+      progress_trend,
+    };
+  }
+
 }
 
 module.exports = ProjectService;

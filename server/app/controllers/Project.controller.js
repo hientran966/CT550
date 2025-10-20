@@ -24,7 +24,16 @@ const customMethods = {
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy dự án theo tài khoản"));
         }
-    }
+    },
+    report: async (req, res, next) => {
+        try {
+            const service = new ProjectService(MySQL.connection);
+            const reportData = await service.report(req.params.id);
+            return res.send(reportData);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo báo cáo dự án"));
+        }
+    },
 };
 
 module.exports = {
