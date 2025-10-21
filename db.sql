@@ -52,7 +52,7 @@ CREATE TABLE tasks (
     project_id BIGINT NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('todo','in_progress','done') DEFAULT 'todo',
+    status ENUM('todo', 'in_progress', 'review', 'done') DEFAULT 'todo',
     priority ENUM('low','medium','high') DEFAULT 'medium',
     start_date DATE,
     due_date DATE,
@@ -178,7 +178,7 @@ CREATE TABLE notifications (
     reference_type ENUM('project','task','file','file_version','comment') NOT NULL,
     reference_id BIGINT NOT NULL, -- id thực thể liên quan
     message TEXT, -- mô tả chi tiết (nếu muốn hiển thị nội dung)
-    is_read BOOLEAN DEFAULT FALSE,
+    status ENUM('new','unread','read') DEFAULT 'new',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
     FOREIGN KEY (recipient_id) REFERENCES users(id),

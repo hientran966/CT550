@@ -51,7 +51,7 @@
               size="small"
               effect="plain"
             >
-              {{ task.priority }}
+              {{priorityLabel( task.priority )}}
             </el-tag>
           </div>
 
@@ -98,18 +98,24 @@ const avatarsMap = ref({});
 const statusMap = {
   todo: "Đang Chờ",
   in_progress: "Đang Tiến Hành",
+  review: "Review",
   done: "Đã Xong",
 };
 
 const reverseStatusMap = {
   "Đang Chờ": "todo",
   "Đang Tiến Hành": "in_progress",
+  "Review": "review",
   "Đã Xong": "done",
 };
+
+const priorityLabel = (val) =>
+  val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
 
 const columns = computed(() => [
   { name: "Đang Chờ", tasks: tasks.value.filter((t) => t.status === "todo") },
   { name: "Đang Tiến Hành", tasks: tasks.value.filter((t) => t.status === "in_progress") },
+  { name: "Review", tasks: tasks.value.filter((t) => t.status === "review") },
   { name: "Đã Xong", tasks: tasks.value.filter((t) => t.status === "done") },
 ]);
 
@@ -189,6 +195,8 @@ function headerClass(name) {
       return "header-warning";
     case "Đang Tiến Hành":
       return "header-primary";
+    case "Review":
+      return "header-info"
     case "Đã Xong":
       return "header-success";
     default:
@@ -202,8 +210,10 @@ function columnClass(name) {
       return "column-warning";
     case "Đang Tiến Hành":
       return "column-primary";
+    case "Review":
+      return "column-info";
     case "Đã Xong":
-      return "column-success";
+      return "header-success";
     default:
       return "";
   }
@@ -244,6 +254,12 @@ function columnClass(name) {
   border: 1px solid #c8e6c9;
 }
 
+.header-info {
+  background-color: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
+}
+
 .column-warning {
   background-color: #fffdf6;
   border: 2px solid #ffecb3;
@@ -257,6 +273,11 @@ function columnClass(name) {
 .column-success {
   background-color: #f9fef9;
   border: 2px solid #c8e6c9;
+}
+
+.column-info {
+  background-color: #fcfcfc;
+  border: 2px solid #e0e0e0;
 }
 
 .kanban-list {

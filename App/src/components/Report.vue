@@ -1,7 +1,5 @@
 <template>
   <div class="dashboard-container">
-    <h2 class="dashboard-title">{{ project?.name }}</h2>
-
     <el-row :gutter="16" class="kpi-row">
       <el-col :span="6" v-for="item in kpi" :key="item.label">
         <el-card class="kpi-card">
@@ -67,7 +65,6 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { use } from "echarts/core";
 import VChart from "vue-echarts";
@@ -92,6 +89,10 @@ use([
   GridComponent,
 ]);
 
+const props = defineProps({
+  projectId: Number
+});
+
 const project = ref(null);
 const members = ref([]);
 const kpi = ref([
@@ -106,19 +107,19 @@ const progressTrendOption = ref({});
 const hoursByUserOption = ref({});
 const priorityOption = ref({});
 
-const route = useRoute();
-
 onMounted(async () => {
-  const projectId = route.params.id;
-  await loadDashboardData(projectId);
+  await loadDashboardData(props.projectId);
 });
 
 async function loadDashboardData(projectId) {
   try {
     const data = await ProjectService.getReportData(projectId);
+    console.log(data)
 
     project.value = data.project;
     members.value = data.hours_by_user;
+
+    const kanbanColors = ["#ffb300", "#1976d2", "#9e9e9e", "#388e3c"];
 
     kpi.value = [
       { label: "Tổng số Task", value: data.total_tasks },
@@ -128,8 +129,9 @@ async function loadDashboardData(projectId) {
     ];
 
     taskStatusOption.value = {
+      color: kanbanColors,
       title: {
-        text: "Trạng thái Task",
+        text: "Trạng thái",
         left: "center",
         textStyle: { fontFamily: '"Noto Sans", Arial, sans-serif' },
       },
@@ -157,6 +159,7 @@ async function loadDashboardData(projectId) {
     };
 
     priorityOption.value = {
+      color: [ "#43a047", "#fb8c00","#e53935"],
       title: {
         text: "Độ ưu tiên",
         left: "center",
@@ -183,8 +186,9 @@ async function loadDashboardData(projectId) {
     };
 
     hoursByUserOption.value = {
+      color: ["#1976d2"],
       title: {
-        text: "Giờ làm theo thành viên",
+        text: "Giờ làm",
         left: "center",
         textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
       },
@@ -208,6 +212,7 @@ async function loadDashboardData(projectId) {
     };
 
     progressTrendOption.value = {
+      color: ["#388e3c"],
       title: {
         text: "Tiến độ",
         left: "center",
@@ -239,7 +244,7 @@ async function loadDashboardData(projectId) {
             },
             lineStyle: {
               type: "dashed",
-              color: "red",
+              color: "#e53935",
               width: 2,
             },
             data: [{ xAxis: data.project.end_date.split("T")[0] }],

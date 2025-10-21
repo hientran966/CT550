@@ -1,20 +1,48 @@
 <template>
   <div class="task-layout">
-    <ProjectMenu />
+    <ProjectMenu :active-view="activeView" @update:view="activeView = $event" />
+
     <div class="main-content">
-      <Header :page="'task'" :project-id="projectId" @add="onAdd" @member-click="openMemberList" />
-      <TaskKanban
-        :tasks="tasksByProject[projectId] || []"
+      <Header
+        :page="'task'"
         :project-id="projectId"
-        @open-detail="openTaskDetail"
-        @update-task-status="t => taskStore.updateStatus(projectId, t)"
-        @update-task="t => taskStore.updateTask(projectId, t)"
+        @add="onAdd"
+        @member-click="openMemberList"
       />
+
+      <div class="content-body">
+        <TaskKanban
+          v-if="activeView === 'kanban'"
+          :tasks="tasksByProject[projectId] || []"
+          :project-id="projectId"
+          @open-detail="openTaskDetail"
+          @update-task-status="t => taskStore.updateStatus(projectId, t)"
+          @update-task="t => taskStore.updateTask(projectId, t)"
+        />
+
+        <Timeline
+          v-else-if="activeView === 'timeline'"
+          :project-id="projectId"
+        />
+
+        <Report
+          v-else-if="activeView === 'report'"
+          :project-id="projectId"
+        />
+      </div>
     </div>
   </div>
 
-  <TaskForm v-model="formRef" :project-id="projectId" @task-added="() => taskStore.loadTasks(projectId)" />
-  <MemberList v-model="memberRef" :project_id="projectId" @member-updated="() => taskStore.loadTasks(projectId)" />
+  <TaskForm
+    v-model="formRef"
+    :project-id="projectId"
+    @task-added="() => taskStore.loadTasks(projectId)"
+  />
+  <MemberList
+    v-model="memberRef"
+    :project_id="projectId"
+    @member-updated="() => taskStore.loadTasks(projectId)"
+  />
   <TaskDetail
     v-if="selectedTask"
     v-model="detailVisible"
@@ -31,6 +59,8 @@ import { onMounted, ref, watch } from "vue";
 
 import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
+import Timeline from "@/components/Timeline.vue";
+import Report from "@/components/Report.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import ProjectMenu from "@/components/ProjectMenu.vue";
@@ -38,6 +68,7 @@ import TaskDetail from "@/components/TaskDetail.vue";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
+const activeView = ref("kanban"); // <-- mặc định là Kanban
 
 const taskStore = useTaskStore();
 const { tasksByProject } = storeToRefs(taskStore);
@@ -57,7 +88,6 @@ function openTaskDetailById(taskId) {
     selectedTask.value = task;
   }
 }
-
 function openTaskDetail(task) {
   selectedTask.value = task;
   detailVisible.value = true;
@@ -65,41 +95,27 @@ function openTaskDetail(task) {
 
 onMounted(() => {
   taskStore.loadTasks(projectId);
-  if (route.query.task) {
-    openTaskDetailById(Number(route.query.task));
-  }
+  if (route.query.task) openTaskDetailById(Number(route.query.task));
 });
 watch(
   () => route.query.task,
-  (newVal) => {
-    if (newVal) openTaskDetailById(Number(newVal));
-  }
+  (newVal) => newVal && openTaskDetailById(Number(newVal))
 );
 </script>
 
 <style scoped>
-.el-overlay-dialog {
-  height: 100vh !important;
-}
 .task-layout {
   display: flex;
   height: 100vh;
 }
-.menu {
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
-  height: 100vh;
-}
-.main-content{
+.main-content {
   display: flex;
   flex-direction: column;
   flex: 1;
   height: 100vh;
 }
-.kanban {
+.content-body {
   flex: 1;
-  overflow-x: auto;
-  margin: 0;
+  overflow: auto;
 }
 </style>

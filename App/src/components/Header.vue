@@ -64,6 +64,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { Plus, Search, Filter, More } from "@element-plus/icons-vue";
+import { useProjectStore } from "@/stores/projectStore";
 import MemberService from "@/services/Member.service";
 import AvatarGroup from "./AvatarGroup.vue";
 
@@ -79,6 +80,13 @@ const emit = defineEmits<{
   (e: "member-click"): void;
 }>();
 
+const projectStore = useProjectStore();
+const projectName = computed(() => {
+  if (props.page !== "task" || !props.projectId) return "";
+  const project = projectStore.projects?.find((p: any) => p.id === props.projectId);
+  return project ? project.name : "";
+});
+
 const titleMap: Record<string, string> = {
   project: "Danh sách Project",
   task: "Danh sách Task",
@@ -86,7 +94,11 @@ const titleMap: Record<string, string> = {
   user: "Danh sách người dùng",
 };
 
-const pageTitle = computed(() => titleMap[props.page] || "Danh sách");
+const pageTitle = computed(() =>
+  props.page === "task" && projectName.value
+    ? projectName.value
+    : titleMap[props.page] || "Danh sách"
+);
 
 const memberIds = ref<number[]>([]);
 const namesMap = ref<Record<number, string>>({});
@@ -96,7 +108,6 @@ async function loadMembers() {
 
   try {
     const members = await MemberService.getByProjectId(props.projectId);
-
     if (!Array.isArray(members)) return;
 
     memberIds.value = members.map((m: any) => m.user_id);
@@ -113,7 +124,13 @@ function memberClick() {
   emit("member-click");
 }
 
-onMounted(loadMembers);
+onMounted(() => {
+  loadMembers();
+
+  if (!projectStore.projects?.length && props.projectId) {
+    projectStore.fetchProjects?.();
+  }
+});
 watch(() => props.projectId, loadMembers);
 </script>
 

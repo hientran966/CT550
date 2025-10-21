@@ -207,7 +207,7 @@ class ProjectService {
       GROUP BY status`,
       [projectId]
     );
-    const statusMap = { todo: "Đang chờ", in_progress: "Đang tiến hành", done: "Đã xong" };
+    const statusMap = { todo: "Đang chờ", in_progress: "Đang tiến hành", review: "Review", done: "Đã xong" };
     const taskStatus = taskStatusRows.map(r => ({ status: statusMap[r.status] || r.status, count: r.count }));
 
     const [priorityRows] = await this.mysql.execute(
@@ -217,6 +217,8 @@ class ProjectService {
       GROUP BY priority`,
       [projectId]
     );
+    const priorityMap = { low: "Thấp", medium: "Trung bình", high: "Cao" };
+    const priority = priorityRows.map(r => ({ priority: priorityMap[r.priority] || r.priority, count: r.count }));
 
     const [members] = await this.mysql.execute(
       `SELECT u.id, u.name 
@@ -302,7 +304,7 @@ class ProjectService {
       member_count: memberCount.count,
       total_hours: parseFloat(timeSum.total_hours),
       task_status: taskStatus,
-      priority: priorityRows.map(p => ({ priority: p.priority, count: p.count })),
+      priority: priority,
       hours_by_user: hoursByUser,
       progress_trend,
     };

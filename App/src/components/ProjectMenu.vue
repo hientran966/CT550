@@ -1,38 +1,44 @@
 <template>
   <el-menu
-    default-active="2"
+    :default-active="activeView"
     class="el-menu-vertical-demo"
-    @open="handleOpen"
-    @close="handleClose"
+    @select="handleSelect"
   >
-    <el-menu-item index="0">
-      <el-icon><icon-menu /></el-icon>
-      <template #title>Danh sách Task</template>
+    <el-menu-item index="kanban">
+      <el-icon><Menu /></el-icon>
+      <span>Danh sách Task</span>
+    </el-menu-item>
+
+    <el-menu-item index="timeline">
+      <el-icon><Guide /></el-icon>
+      <span>Timeline</span>
+    </el-menu-item>
+
+    <el-menu-item index="report">
+      <el-icon><PieChart /></el-icon>
+      <span>Báo cáo</span>
     </el-menu-item>
   </el-menu>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
-import {
-  Document,
-  Menu as IconMenu,
-  Location,
-  Setting,
-} from '@element-plus/icons-vue'
+import { defineEmits, defineProps } from 'vue'
+import { Document, Guide, Menu , PieChart, Setting } from '@element-plus/icons-vue'
 
-const handleOpen = (key: string, keyPath: string[]) => {
+const props = defineProps({
+  activeView: { type: String, required: true }
+})
+const emit = defineEmits(['update:view'])
 
-}
-const handleClose = (key: string, keyPath: string[]) => {
-
+function handleSelect(key: string) {
+  emit('update:view', key)
 }
 </script>
 
 <style>
 .el-menu-vertical-demo:not(.el-menu--collapse) {
   width: 200px;
-  min-height: 400px;
   height: 100vh;
+  border-right: 1px solid #e0e0e0;
 }
 </style>
