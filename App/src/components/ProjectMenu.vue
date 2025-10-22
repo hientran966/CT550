@@ -18,12 +18,21 @@
       <el-icon><PieChart /></el-icon>
       <span>Báo cáo</span>
     </el-menu-item>
+    
+    <el-sub-menu index="file">
+      <template #title>
+        <el-icon><Files /></el-icon>
+        <span>Files</span>
+      </template>
+        <el-menu-item index="file-all">Tất cả File</el-menu-item>
+        <el-menu-item index="file-user">File của bạn</el-menu-item>
+    </el-sub-menu>
   </el-menu>
 </template>
 
 <script lang="ts" setup>
 import { defineEmits, defineProps } from 'vue'
-import { Document, Guide, Menu , PieChart, Setting } from '@element-plus/icons-vue'
+import { Files, Guide, Menu , PieChart } from '@element-plus/icons-vue'
 
 const props = defineProps({
   activeView: { type: String, required: true }

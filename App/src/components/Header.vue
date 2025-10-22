@@ -2,9 +2,13 @@
   <el-header class="task-header" height="100px">
     <!-- Tiêu đề -->
     <div
-      style="height: 40px; display: flex; flex-direction: column; width: 100%;"
+      style="height: 40px; display: flex; flex-direction: row; width: 100%;"
     >
-      <h3>{{ pageTitle }}</h3>
+      <el-button text style="margin-top: 10px;">
+        <el-icon size="large"><Fold /></el-icon>
+      </el-button>
+      <el-divider direction="vertical" />
+      <h3 class="page-title">{{ pageTitle }}</h3>
     </div>
 
     <el-divider />
@@ -63,7 +67,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, More } from "@element-plus/icons-vue";
+import { Plus, Search, Filter, More, Fold } from "@element-plus/icons-vue";
 import { useProjectStore } from "@/stores/projectStore";
 import MemberService from "@/services/Member.service";
 import AvatarGroup from "./AvatarGroup.vue";
@@ -137,5 +141,8 @@ watch(() => props.projectId, loadMembers);
 <style scoped>
 .el-divider {
   margin: 0 !important;
+}
+.page-title {
+  margin-left: 20px;
 }
 </style>

@@ -29,6 +29,17 @@
           v-else-if="activeView === 'report'"
           :project-id="projectId"
         />
+
+        <FileList
+          v-else-if="activeView === 'file-all'"
+          :project-id="projectId"
+        />
+
+        <FileList
+          v-else-if="activeView === 'file-user'"
+          :project-id="projectId"
+          :user-id="userId"
+        />
       </div>
     </div>
   </div>
@@ -61,6 +72,7 @@ import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
 import Timeline from "@/components/Timeline.vue";
 import Report from "@/components/Report.vue";
+import FileList from "@/components/FileList.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import ProjectMenu from "@/components/ProjectMenu.vue";
@@ -68,7 +80,9 @@ import TaskDetail from "@/components/TaskDetail.vue";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
-const activeView = ref("kanban"); // <-- mặc định là Kanban
+const user = JSON.parse(localStorage.getItem("user") || "{}");
+const userId = user?.id || null;
+const activeView = ref("kanban");
 
 const taskStore = useTaskStore();
 const { tasksByProject } = storeToRefs(taskStore);
