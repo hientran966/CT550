@@ -175,7 +175,7 @@ CREATE TABLE notifications (
     recipient_id BIGINT NOT NULL, -- người nhận
     actor_id BIGINT NOT NULL,     -- người gây ra hành động (A comment, A upload)
     type VARCHAR(255) NOT NULL,
-    reference_type ENUM('project','task','file','file_version','comment') NOT NULL,
+    reference_type ENUM('project','task','file','file_version','comment','chat_message','chat_channel') NOT NULL,
     reference_id BIGINT NOT NULL, -- id thực thể liên quan
     message TEXT, -- mô tả chi tiết (nếu muốn hiển thị nội dung)
     status ENUM('new','unread','read') DEFAULT 'new',
@@ -183,6 +183,65 @@ CREATE TABLE notifications (
     deleted_at TIMESTAMP NULL,
     FOREIGN KEY (recipient_id) REFERENCES users(id),
     FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+-- CHAT CHANNELS
+DROP TABLE IF EXISTS chat_channels;
+CREATE TABLE chat_channels (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    type ENUM('general', 'topic', 'private') DEFAULT 'general',
+    created_by BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+DROP TABLE IF EXISTS chat_channel_members;
+CREATE TABLE chat_channel_members (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    channel_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+DROP TABLE IF EXISTS chat_messages;
+CREATE TABLE chat_messages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    channel_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    parent_id BIGINT NULL, -- để tạo thread trả lời tin khác
+    content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (parent_id) REFERENCES chat_messages(id)
+);
+
+DROP TABLE IF EXISTS chat_message_files;
+CREATE TABLE chat_message_files (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    message_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    FOREIGN KEY (message_id) REFERENCES chat_messages(id),
+    FOREIGN KEY (file_id) REFERENCES files(id)
+);
+
+DROP TABLE IF EXISTS chat_mentions;
+CREATE TABLE chat_mentions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    message_id BIGINT NOT NULL,
+    mentioned_user_id BIGINT NOT NULL,
+    FOREIGN KEY (message_id) REFERENCES chat_messages(id),
+    FOREIGN KEY (mentioned_user_id) REFERENCES users(id)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

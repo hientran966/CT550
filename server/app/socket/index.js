@@ -16,7 +16,27 @@ function initSocket(server) {
 
         socket.on("register", (userId) => {
             onlineUsers.set(userId, socket.id);
+            socket.userId = userId;
             console.log(`User ${userId} online`);
+        });
+
+        socket.on("join_channel", (channelId) => {
+            socket.join(`channel_${channelId}`);
+            console.log(`User ${socket.userId} joined channel ${channelId}`);
+        });
+
+        socket.on("leave_channel", (channelId) => {
+            socket.leave(`channel_${channelId}`);
+            console.log(`User ${socket.userId} left channel ${channelId}`);
+        });
+
+        socket.on("chat_message", (data) => {
+            const { channel_id, message } = data;
+            io.to(`channel_${channel_id}`).emit("chat_message", {
+                sender_id: socket.userId,
+                channel_id,
+                message,
+            });
         });
 
         socket.on("disconnect", () => {
@@ -43,6 +63,11 @@ function broadcast(type, payload) {
     if (io) io.emit("notification", { type, payload });
 }
 
+function sendMessageToChannel(channelId, message) {
+  if (io) io.to(`channel_${channelId}`).emit("chat_message", message);
+}
+
 module.exports = initSocket;
 module.exports.sendToUser = sendToUser;
 module.exports.broadcast = broadcast;
+module.exports.sendMessageToChannel = sendMessageToChannel;
