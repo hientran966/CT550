@@ -31,12 +31,15 @@ function initSocket(server) {
         });
 
         socket.on("chat_message", (data) => {
-            const { channel_id, message } = data;
-            io.to(`channel_${channel_id}`).emit("chat_message", {
-                sender_id: socket.userId,
-                channel_id,
-                message,
-            });
+            if (!data) return;
+            const { channel_id } = data;
+
+            if (!channel_id) {
+                console.error("Missing channel_id in chat_message payload:", data);
+                return;
+            }
+
+            io.to(`channel_${channel_id}`).emit("chat_message", data);
         });
 
         socket.on("disconnect", () => {

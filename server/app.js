@@ -12,6 +12,7 @@ const assignmentRouter = require("./app/routes/Assign.route");
 const commentRouter = require("./app/routes/Comment.route");
 const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
+const chatRouter = require("./app/routes/Chat.route")
 const chatbotRouter = require("./app/routes/Chatbot.route");
 
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/phancong", assignmentRouter);
 app.use("/api/binhluan", commentRouter);
 app.use("/api/thongbao", notificationRouter);
 app.use("/api/file", fileRouter);
+app.use("/api/chat", chatRouter)
 app.use("/api/ask", chatbotRouter);
 
 //handle 404

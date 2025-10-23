@@ -1,4 +1,5 @@
 const NotificationService = require("./Notification.service");
+const { sendMessageToChannel } = require("../socket/index");
 
 class ChatService {
   constructor(mysql) {
@@ -152,13 +153,22 @@ class ChatService {
     );
 
     const messageId = result.insertId;
-    const [message] = await this.mysql.execute(
-      "SELECT * FROM chat_messages WHERE id = ?",
+
+    const [messageRows] = await this.mysql.execute(
+      `SELECT m.*, u.name AS sender_name, u.id as user_id
+       FROM chat_messages m
+       JOIN users u ON u.id = m.sender_id
+       WHERE m.id = ?`,
       [messageId]
     );
 
+    const message = messageRows[0];
+
+    sendMessageToChannel(channel_id, message);
+
     const [members] = await this.mysql.execute(
-      `SELECT user_id FROM chat_channel_members WHERE channel_id = ? AND deleted_at IS NULL`,
+      `SELECT user_id FROM chat_channel_members 
+       WHERE channel_id = ? AND deleted_at IS NULL`,
       [channel_id]
     );
 
@@ -174,19 +184,23 @@ class ChatService {
       });
     }
 
-    return message[0];
+    return message;
   }
 
   async getMessages(channel_id, { limit = 50, offset = 0 } = {}) {
-    const [rows] = await this.mysql.execute(
-      `SELECT m.*, u.name AS sender_name
-       FROM chat_messages m
-       JOIN users u ON u.id = m.sender_id
-       WHERE m.channel_id = ? AND m.deleted_at IS NULL
-       ORDER BY m.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [channel_id, limit, offset]
-    );
+    limit = Number(limit) || 50;
+    offset = Number(offset) || 0;
+
+    const sql = `
+            SELECT m.*, u.name AS sender_name
+            FROM chat_messages m
+            JOIN users u ON u.id = m.sender_id
+            WHERE m.channel_id = ? AND m.deleted_at IS NULL
+            ORDER BY m.created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+        `;
+
+    const [rows] = await this.mysql.execute(sql, [channel_id]);
     return rows;
   }
 
@@ -203,7 +217,7 @@ class ChatService {
   }
 
   //mentions
-  async addMentions(message_id, mentioned_user_ids = []) {
+  async addMentions(message_id, mentioned_user_ids = [], actor_id) {
     if (!mentioned_user_ids.length) return;
     const values = mentioned_user_ids.map((uid) => [message_id, uid]);
     await this.mysql.query(
@@ -215,7 +229,7 @@ class ChatService {
     for (const uid of mentioned_user_ids) {
       await this.notificationService.create({
         recipient_id: uid,
-        actor_id: null,
+        actor_id: actor_id,
         type: "mention",
         reference_type: "chat_message",
         reference_id: message_id,

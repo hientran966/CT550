@@ -24,27 +24,59 @@
         <el-icon><Files /></el-icon>
         <span>Files</span>
       </template>
-        <el-menu-item index="file-all">Tất cả File</el-menu-item>
-        <el-menu-item index="file-user">File của bạn</el-menu-item>
+      <el-menu-item index="file-all">Tất cả File</el-menu-item>
+      <el-menu-item index="file-user">File của bạn</el-menu-item>
+    </el-sub-menu>
+
+    <el-sub-menu index="chat">
+      <template #title>
+        <el-icon><ChatSquare /></el-icon>
+        <span>Chat</span>
+      </template>
+      <el-menu-item
+        v-for="ch in channels"
+        :key="ch.id"
+        :index="`chat-${ch.id}`"
+      >
+        {{ ch.name }}
+      </el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
 
-<script lang="ts" setup>
-import { defineEmits, defineProps } from 'vue'
-import { Files, Guide, Menu , PieChart } from '@element-plus/icons-vue'
+<script setup>
+import { ref, onMounted } from "vue";
+import { Files, Guide, Menu, PieChart, ChatSquare } from "@element-plus/icons-vue";
+import ChatService from "@/services/Chat.service";
 
 const props = defineProps({
-  activeView: { type: String, required: true }
-})
-const emit = defineEmits(['update:view'])
+  activeView: { type: String, required: true },
+  projectId: { type: Number, required: true },
+});
+const emit = defineEmits(["update:view", "select-channel"]);
 
-function handleSelect(key: string) {
-  emit('update:view', key)
+const channels = ref([]);
+
+function handleSelect(key) {
+  if (key.startsWith("chat-")) {
+    const id = Number(key.replace("chat-", ""));
+    emit("update:view", "chat");
+    emit("select-channel", id);
+  } else {
+    emit("update:view", key);
+  }
 }
+
+onMounted(async () => {
+  try {
+    channels.value = await ChatService.getChannelsByProject(props.projectId);
+  } catch {
+    console.error("Không thể tải danh sách kênh chat");
+  }
+});
 </script>
 
-<style>
+<style scoped>
 .el-menu-vertical-demo:not(.el-menu--collapse) {
   width: 200px;
   height: 100vh;
