@@ -22,12 +22,10 @@ function initSocket(server) {
 
         socket.on("join_channel", (channelId) => {
             socket.join(`channel_${channelId}`);
-            console.log(`User ${socket.userId} joined channel ${channelId}`);
         });
 
         socket.on("leave_channel", (channelId) => {
             socket.leave(`channel_${channelId}`);
-            console.log(`User ${socket.userId} left channel ${channelId}`);
         });
 
         socket.on("chat_message", (data) => {

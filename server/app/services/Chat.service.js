@@ -196,7 +196,7 @@ class ChatService {
             FROM chat_messages m
             JOIN users u ON u.id = m.sender_id
             WHERE m.channel_id = ? AND m.deleted_at IS NULL
-            ORDER BY m.created_at DESC
+            ORDER BY m.created_at ASC
             LIMIT ${limit} OFFSET ${offset}
         `;
 
