@@ -76,6 +76,34 @@ const customMethods = {
     }
   },
 
+  addMessageWithFiles: async (req, res, next) => {
+    try {
+      const service = new ChatService(MySQL.pool);
+
+      const { channel_id, sender_id, parent_id, content, project_id, task_id } = req.body;
+
+      const files = (req.files || []).map((f) => ({
+        file_name: f.originalname,
+        file: f,
+        project_id: project_id || null,
+        task_id: task_id || null,
+      }));
+
+      const message = await service.addMessageWithFiles({
+        channel_id,
+        sender_id,
+        parent_id,
+        content,
+        files,
+      });
+
+      res.status(201).json({ message: "Gửi tin nhắn kèm file thành công", result: message });
+    } catch (error) {
+      console.error("addMessageWithFiles error:", error);
+      next(new ApiError(500, error.message || "Đã xảy ra lỗi khi gửi tin nhắn kèm file"));
+    }
+  },
+
   getMessages: async (req, res, next) => {
     try {
       const service = new ChatService(MySQL.pool);

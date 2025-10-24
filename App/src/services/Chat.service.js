@@ -5,7 +5,7 @@ class ChatService {
         this.api = createApiClient(baseUrl);
     }
 
-    // Channel methods
+    // --- Channel ---
     async createChannel(data) {
         return (await this.api.post("/", data)).data;
     }
@@ -26,7 +26,7 @@ class ChatService {
         return (await this.api.patch(`/restore/${id}`)).data;
     }
 
-    // Member methods
+    // --- Members ---
     async getChannelMembers(channelId) {
         return (await this.api.get(`/${channelId}/members`)).data;
     }
@@ -39,7 +39,7 @@ class ChatService {
         return (await this.api.delete("/member", { data })).data;
     }
 
-    // Message methods
+    // --- Messages ---
     async sendMessage(data) {
         return (await this.api.post("/message", data)).data;
     }
@@ -52,7 +52,28 @@ class ChatService {
         return (await this.api.get(`/thread/${parentId}`)).data;
     }
 
-    // Mention methods
+    async sendMessageWithFiles({ channel_id, sender_id, content, files = [], parent_id, project_id, task_id }) {
+        const formData = new FormData();
+
+        formData.append("channel_id", channel_id);
+        formData.append("sender_id", sender_id);
+        if (content) formData.append("content", content);
+        if (parent_id) formData.append("parent_id", parent_id);
+        if (project_id) formData.append("project_id", project_id);
+        if (task_id) formData.append("task_id", task_id);
+
+        files.forEach(file => {
+            formData.append("files", file);
+        });
+
+        return (
+            await this.api.post("/message/files", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
+        ).data;
+    }
+
+    // --- Mentions ---
     async addMentions(data) {
         return (await this.api.post("/mentions", data)).data;
     }

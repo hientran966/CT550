@@ -218,6 +218,7 @@ CREATE TABLE chat_messages (
     sender_id BIGINT NOT NULL,
     parent_id BIGINT NULL, -- để tạo thread trả lời tin khác
     content TEXT,
+    have_file BOOLEAN NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,

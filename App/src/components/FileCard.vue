@@ -5,6 +5,7 @@
     shadow="hover"
     @click="goToDetail"
   >
+    <!-- Hiển thị ảnh nếu là hình -->
     <img
       v-if="isImage && latestVersion"
       :src="latestVersion.file_url"
@@ -12,6 +13,7 @@
       :style="imageStyle"
     />
 
+    <!-- Nếu không phải hình -->
     <div
       v-else
       :style="{
@@ -34,8 +36,9 @@
       />
     </div>
 
+    <!-- Footer -->
     <template #footer>
-      <div style="display: flex; align-items: center; justify-content: center; gap: 6px">
+      <div class="footer-wrapper">
         <el-tag
           v-if="versionCount > 1"
           type="primary"
@@ -44,7 +47,10 @@
         >
           V{{ versionCount }}
         </el-tag>
-        <span style="font-weight: 500">{{ file.file_name }}</span>
+
+        <div class="file-name" :title="file.file_name">
+          {{ file.file_name }}
+        </div>
       </div>
     </template>
   </el-card>
@@ -60,21 +66,15 @@ import pdfIcon from "@/assets/icons/pdf-icon.png";
 import fileIconDefault from "@/assets/icons/file-icon.png";
 
 const props = defineProps({
-  file: {
-    type: Object,
-    required: true,
-  },
-  size: {
-    type: String,
-    default: "large",
-  },
+  file: { type: Object, required: true },
+  size: { type: String, default: "large" },
 });
 
 const router = useRouter();
 
 const latestVersion = computed(() => {
   const versions = props.file?.versions;
-  if (!versions || !versions.length) return null;
+  if (!versions?.length) return null;
   return versions.reduce((a, b) =>
     a.version_number > b.version_number ? a : b
   );
@@ -166,5 +166,23 @@ const goToDetail = () => {
 .file-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.footer-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  padding: 6px;
+}
+
+.file-name {
+  font-weight: 500;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 </style>

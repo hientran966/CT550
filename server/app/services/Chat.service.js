@@ -1,10 +1,12 @@
 const NotificationService = require("./Notification.service");
+const FileService = require("./File.service");
 const { sendMessageToChannel } = require("../socket/index");
 
 class ChatService {
   constructor(mysql) {
     this.mysql = mysql;
     this.notificationService = new NotificationService(mysql);
+    this.fileService = new FileService(mysql);
   }
 
   async extractChatData(payload) {
@@ -191,16 +193,76 @@ class ChatService {
     limit = Number(limit) || 50;
     offset = Number(offset) || 0;
 
-    const sql = `
-            SELECT m.*, u.name AS sender_name
-            FROM chat_messages m
-            JOIN users u ON u.id = m.sender_id
-            WHERE m.channel_id = ? AND m.deleted_at IS NULL
-            ORDER BY m.created_at ASC
-            LIMIT ${limit} OFFSET ${offset}
-        `;
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 
-    const [rows] = await this.mysql.execute(sql, [channel_id]);
+    const [rows] = await this.mysql.execute(
+      `SELECT 
+        m.*, 
+        u.name AS sender_name
+     FROM chat_messages m
+     JOIN users u ON u.id = m.sender_id
+     WHERE m.channel_id = ? AND m.deleted_at IS NULL
+     ORDER BY m.created_at ASC
+     LIMIT ${limit} OFFSET ${offset}`,
+      [channel_id]
+    );
+
+    for (const msg of rows) {
+      if (msg.have_file) {
+        const [files] = await this.mysql.execute(
+          `SELECT
+            f.*,
+            (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', fv.id,
+                        'file_id', fv.file_id,
+                        'version_number', fv.version_number,
+                        'file_url', fv.file_url,
+                        'file_type', fv.file_type,
+                        'status', fv.status
+                    )
+                )
+                FROM file_versions fv
+                WHERE fv.file_id = f.id
+            ) AS versions
+         FROM chat_message_files cmf
+         JOIN files f ON cmf.file_id = f.id
+         WHERE cmf.message_id = ? AND f.deleted_at IS NULL`,
+          [msg.id]
+        );
+
+        for (const file of files) {
+          if (file.file_url && !file.file_url.startsWith("http")) {
+            file.file_url = `${baseUrl}/${file.file_url.replace(/\\/g, "/")}`;
+          }
+
+          if (typeof file.versions === "string") {
+            try {
+              file.versions = JSON.parse(file.versions);
+            } catch (err) {
+              file.versions = [];
+            }
+          }
+
+          if (Array.isArray(file.versions)) {
+            file.versions = file.versions.map((v) => ({
+              ...v,
+              file_url: v.file_url
+                ? `${baseUrl}/${v.file_url.replace(/\\/g, "/")}`
+                : null,
+            }));
+          } else {
+            file.versions = [];
+          }
+        }
+
+        msg.files = files;
+      } else {
+        msg.files = [];
+      }
+    }
+
     return rows;
   }
 
@@ -235,6 +297,88 @@ class ChatService {
         reference_id: message_id,
         message: "Bạn được nhắc đến trong cuộc trò chuyện",
       });
+    }
+  }
+
+  //file
+  async addMessageWithFiles(payload) {
+    const { channel_id, sender_id, parent_id, content, files = [] } = payload;
+
+    const connection = await this.mysql.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [msgResult] = await connection.execute(
+        `INSERT INTO chat_messages (channel_id, sender_id, parent_id, content, have_file)
+        VALUES (?, ?, ?, ?, true)`,
+        [channel_id, sender_id, parent_id ?? null, content ?? null]
+      );
+      const messageId = msgResult.insertId;
+
+      let attachedFiles = [];
+      if (files.length > 0) {
+        attachedFiles = await Promise.all(
+          files.map(async (file) => {
+            const filePayload = {
+              ...file,
+              created_by: sender_id,
+              project_id: file.project_id ?? null,
+              task_id: file.task_id ?? null,
+            };
+
+            const saved = await this.fileService.create(filePayload);
+
+            await connection.execute(
+              `INSERT INTO chat_message_files (message_id, file_id)
+              VALUES (?, ?)`,
+              [messageId, saved.file_id]
+            );
+
+            return saved;
+          })
+        );
+      }
+
+      const [msgRows] = await connection.execute(
+        `SELECT m.*, u.name AS sender_name 
+        FROM chat_messages m 
+        JOIN users u ON u.id = m.sender_id
+        WHERE m.id = ?`,
+        [messageId]
+      );
+      const message = msgRows[0];
+      message.files = attachedFiles;
+
+      sendMessageToChannel(channel_id, message);
+
+      const [members] = await connection.execute(
+        `SELECT user_id FROM chat_channel_members 
+        WHERE channel_id = ? AND deleted_at IS NULL`,
+        [channel_id]
+      );
+
+      const notifications = members
+        .filter((m) => m.user_id !== sender_id)
+        .map((m) =>
+          this.notificationService.create({
+            recipient_id: m.user_id,
+            actor_id: sender_id,
+            type: "chat_message",
+            reference_type: "chat_message",
+            reference_id: messageId,
+            message: `Tin nhắn mới trong kênh`,
+          })
+        );
+
+      await Promise.all(notifications);
+
+      await connection.commit();
+      return message;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
   }
 }

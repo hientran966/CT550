@@ -10,35 +10,48 @@
             </el-avatar>
           </el-col>
 
-          <el-col :span="23" class="content-col" style="padding-left: 10px;">
+          <el-col :span="23" class="content-col">
             <div class="message-header">
               <span class="sender-name">{{ msg.sender_name }}</span>
               <span class="time">{{ formatTime(msg.created_at) }}</span>
             </div>
+
             <div class="message-body" v-html="parseMentions(msg.content)"></div>
 
-            <div v-if="msg.files?.length" class="attachments">
-              <el-link
-                v-for="file in msg.files"
-                :key="file.id"
-                :href="file.url"
-                target="_blank"
-                :underline="false"
-              >
-                📎 {{ file.file_name }}
-              </el-link>
+            <div v-if="msg.have_file && msg.files?.length" class="attachments">
+              <div class="file-grid">
+                <FileCard
+                  v-for="file in msg.files"
+                  :key="file.id"
+                  :file="file"
+                  :size="'small'"
+                />
+              </div>
             </div>
           </el-col>
         </el-row>
       </div>
     </el-scrollbar>
 
-    <!-- Ô nhập -->
+    <!-- Danh sách file đang chọn để gửi -->
+    <div v-if="uploadedFiles.length" class="file-preview-list">
+      <div
+        v-for="(file, index) in uploadedFiles"
+        :key="index"
+        class="file-preview-item"
+      >
+        <span>{{ file.name }}</span>
+        <el-icon @click="removeFile(index)" class="remove-icon">✕</el-icon>
+      </div>
+    </div>
+
+    <!-- Ô nhập tin nhắn -->
     <div class="chat-input">
       <el-upload
         class="upload-btn"
-        action="/api/upload"
-        :on-success="handleUploadSuccess"
+        :auto-upload="false"
+        multiple
+        :on-change="handleFileSelect"
         :show-file-list="false"
       >
         <el-button :icon="Paperclip" circle />
@@ -65,6 +78,7 @@ import { ElMessage } from "element-plus";
 import { useChatStore } from "@/stores/chatStore";
 import { getSocket } from "@/plugins/socket";
 import MentionInput from "@/components/MentionInput.vue";
+import FileCard from "@/components/FileCard.vue";
 import ChatService from "@/services/Chat.service";
 import { Paperclip } from "@element-plus/icons-vue";
 
@@ -85,11 +99,15 @@ let socket;
 onMounted(async () => {
   socket = getSocket();
   if (!socket) return;
+
   await chatStore.loadChats(props.channelId);
   await loadMembers();
+
   socket.emit("join_channel", props.channelId);
   scrollToBottom();
+
   socket.on("chat_message", handleIncomingMessage);
+  console.log(messages)
 });
 
 onBeforeUnmount(() => {
@@ -99,7 +117,6 @@ onBeforeUnmount(() => {
 function handleIncomingMessage(msg) {
   if (msg.channel_id === props.channelId) {
     if (msg.sender_id === props.currentUserId) return;
-
     chatStore.chatByChannel[props.channelId].push(msg);
     scrollToBottom();
   }
@@ -113,37 +130,39 @@ async function loadMembers() {
   }
 }
 
-function handleUploadSuccess(res) {
-  if (res && res.file) uploadedFiles.value.push(res.file);
+function handleFileSelect(uploadFile) {
+  if (uploadFile?.raw) {
+    uploadedFiles.value.push(uploadFile.raw);
+  }
+}
+
+function removeFile(index) {
+  uploadedFiles.value.splice(index, 1);
 }
 
 async function sendMessage() {
   if (!message.value.trim() && uploadedFiles.value.length === 0) return;
   sending.value = true;
   try {
-    const payload = {
+    const saved = await ChatService.sendMessageWithFiles({
       channel_id: props.channelId,
       sender_id: props.currentUserId,
       content: message.value,
-      files: uploadedFiles.value.map((f) => f.id),
-    };
+      files: uploadedFiles.value,
+    });
 
-    const saved = await chatStore.addChat(props.channelId, payload);
     chatStore.chatByChannel[props.channelId].push(saved);
     socket.emit("chat_message", saved);
 
     message.value = "";
     uploadedFiles.value = [];
     scrollToBottom();
-  } catch {
+  } catch (err) {
+    console.error(err);
     ElMessage.error("Không thể gửi tin nhắn");
   } finally {
     sending.value = false;
   }
-}
-
-function handleMention(user) {
-  console.log("Mentioned user:", user);
 }
 
 function parseMentions(text) {
@@ -240,8 +259,15 @@ function formatTime(dateStr) {
   max-width: 100%;
 }
 
+/* ✅ Hiển thị file trong message */
 .attachments {
-  margin-top: 6px;
+  margin-top: 10px;
+}
+
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
 }
 
 .chat-input {
@@ -263,6 +289,34 @@ function formatTime(dateStr) {
 }
 
 .content-col {
-    padding-left: 10px;
+  padding-left: 10px;
+}
+
+.file-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.file-preview-item {
+  background: #eef3ff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.remove-icon {
+  cursor: pointer;
+  color: #999;
+}
+
+.remove-icon:hover {
+  color: #f56c6c;
 }
 </style>
