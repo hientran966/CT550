@@ -97,7 +97,7 @@ const customMethods = {
         files,
       });
 
-      res.status(201).json({ message: "Gửi tin nhắn kèm file thành công", result: message });
+      res.status(201).send(message);
     } catch (error) {
       console.error("addMessageWithFiles error:", error);
       next(new ApiError(500, error.message || "Đã xảy ra lỗi khi gửi tin nhắn kèm file"));

@@ -1,9 +1,9 @@
 const express = require("express");
-const ollama = require("../controllers/Chatbot.controller");
+const chatbot = require("../controllers/Chatbot.controller");
 
 const router = express.Router();
 
 router.route("/")
-    .post(ollama.handleAsk)
+  .post(chatbot.handleAsk);
 
 module.exports = router;

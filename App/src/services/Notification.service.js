@@ -1,7 +1,7 @@
 import createApiClient from "./api.service";
 
 class NotificationService {
-    constructor(baseUrl = "/api/thongbao") {
+    constructor(baseUrl = "/api/noti") {
         this.api = createApiClient(baseUrl);
     }
 

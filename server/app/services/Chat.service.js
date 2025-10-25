@@ -302,7 +302,13 @@ class ChatService {
 
   //file
   async addMessageWithFiles(payload) {
-    const { channel_id, sender_id, parent_id, content, files = [] } = payload;
+    const {
+      channel_id,
+      sender_id,
+      parent_id = null,
+      content = null,
+      files = [],
+    } = payload;
 
     const connection = await this.mysql.getConnection();
     try {
@@ -311,43 +317,59 @@ class ChatService {
       const [msgResult] = await connection.execute(
         `INSERT INTO chat_messages (channel_id, sender_id, parent_id, content, have_file)
         VALUES (?, ?, ?, ?, true)`,
-        [channel_id, sender_id, parent_id ?? null, content ?? null]
+        [
+          channel_id ?? null,
+          sender_id ?? null,
+          parent_id ?? null,
+          content ?? null,
+        ]
       );
-      const messageId = msgResult.insertId;
 
+      const messageId = msgResult.insertId;
       let attachedFiles = [];
-      if (files.length > 0) {
+
+      if (Array.isArray(files) && files.length > 0) {
         attachedFiles = await Promise.all(
           files.map(async (file) => {
             const filePayload = {
               ...file,
               created_by: sender_id,
-              project_id: file.project_id ?? null,
-              task_id: file.task_id ?? null,
+              project_id: file?.project_id ?? null,
+              task_id: file?.task_id ?? null,
             };
 
             const saved = await this.fileService.create(filePayload);
 
+            const fileId = saved?.id || saved?.file_id;
+            if (!fileId) {
+              console.warn("Không tìm thấy file_id sau khi tạo file:", saved);
+              return null;
+            }
+
             await connection.execute(
               `INSERT INTO chat_message_files (message_id, file_id)
               VALUES (?, ?)`,
-              [messageId, saved.file_id]
+              [messageId, fileId]
             );
 
             return saved;
           })
         );
+
+        attachedFiles = attachedFiles.filter((f) => f);
       }
 
       const [msgRows] = await connection.execute(
-        `SELECT m.*, u.name AS sender_name 
+        `SELECT m.*, u.name AS sender_name, u.id AS user_id
         FROM chat_messages m 
         JOIN users u ON u.id = m.sender_id
         WHERE m.id = ?`,
         [messageId]
       );
-      const message = msgRows[0];
+
+      const message = msgRows[0] ?? {};
       message.files = attachedFiles;
+      message.have_file = attachedFiles.length > 0;
 
       sendMessageToChannel(channel_id, message);
 

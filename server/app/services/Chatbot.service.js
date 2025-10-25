@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 const OLLAMA_API = "http://localhost:11434/api/generate";
 
 class Ollama {
-    constructor() {};
+    constructor() {}
 
     async askOllama(prompt) {
         try {

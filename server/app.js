@@ -28,12 +28,12 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRouter);
 
 // app.use(verifyToken); //Tắt để test API
-app.use("/api/duan", projectRouter);
-app.use("/api/thanhvien", memberRouter);
-app.use("/api/congviec", taskRouter);
-app.use("/api/phancong", assignmentRouter);
-app.use("/api/binhluan", commentRouter);
-app.use("/api/thongbao", notificationRouter);
+app.use("/api/projects", projectRouter);
+app.use("/api/members", memberRouter);
+app.use("/api/tasks", taskRouter);
+app.use("/api/assigns", assignmentRouter);
+app.use("/api/comments", commentRouter);
+app.use("/api/noti", notificationRouter);
 app.use("/api/file", fileRouter);
 app.use("/api/chat", chatRouter)
 app.use("/api/ask", chatbotRouter);

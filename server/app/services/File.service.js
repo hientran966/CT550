@@ -44,6 +44,7 @@ class FileService {
 
             let ownerId = null;
 
+            // --- Xác định owner ---
             if (payload.project_id) {
                 const [projRows] = await connection.execute(
                     "SELECT created_by FROM projects WHERE id = ? AND deleted_at IS NULL",
@@ -60,6 +61,7 @@ class FileService {
                 if (taskRows.length > 0) ownerId = taskRows[0].created_by;
             }
 
+            // --- Lưu file vật lý ---
             let file_url = null;
             if (payload.file) {
                 file_url = await this.saveFileFromPayload(payload);
@@ -69,9 +71,10 @@ class FileService {
                 .replace(".", "")
                 .toLowerCase();
 
+            // --- Tạo file ---
             const [fileResult] = await connection.execute(
                 `INSERT INTO files (file_name, project_id, task_id, created_by)
-                 VALUES (?, ?, ?, ?)`,
+                VALUES (?, ?, ?, ?)`,
                 [
                     payload.file_name,
                     payload.project_id ?? null,
@@ -81,13 +84,16 @@ class FileService {
             );
             const fileId = fileResult.insertId;
 
+            // --- Tạo version đầu tiên ---
             const [verResult] = await connection.execute(
                 `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-                 VALUES (?, 1, ?, ?, 'Hoạt động')`,
+                VALUES (?, 1, ?, ?, 'Hoạt động')`,
                 [fileId, file_url, fileType]
             );
 
+            const versionId = verResult.insertId;
 
+            // --- Gửi thông báo ---
             if (ownerId && Number(ownerId) !== Number(payload.created_by)) {
                 await notificationService.create(
                     {
@@ -103,7 +109,29 @@ class FileService {
 
             await connection.commit();
 
-            return { file_id: fileId, version_id: verResult.insertId, file_url };
+            // --- Chuẩn hóa dữ liệu trả về ---
+            const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+
+            const fileData = {
+                id: fileId,
+                file_name: payload.file_name,
+                project_id: payload.project_id ?? null,
+                task_id: payload.task_id ?? null,
+                created_by: payload.created_by ?? null,
+                created_at: new Date(),
+                versions: [
+                    {
+                        id: versionId,
+                        file_id: fileId,
+                        version_number: 1,
+                        file_url: file_url ? `${baseUrl}/${file_url.replace(/\\/g, "/")}` : null,
+                        file_type: fileType,
+                        status: "Hoạt động",
+                    },
+                ],
+            };
+
+            return fileData;
         } catch (error) {
             await connection.rollback();
             throw error;

@@ -1,7 +1,7 @@
 import createApiClient from "./api.service";
 
 class TaskService {
-    constructor(baseUrl = "/api/congviec") {
+    constructor(baseUrl = "/api/tasks") {
         this.api = createApiClient(baseUrl);
     }
 

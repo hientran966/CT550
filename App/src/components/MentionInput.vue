@@ -74,6 +74,16 @@ function highlightPrev() {
 function selectMention() {
   if (showDropdown.value) chooseUser(filteredUsers.value[activeIndex.value]);
 }
+
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val !== content.value) {
+      content.value = val;
+    }
+  }
+);
+
 </script>
 
 <style scoped>

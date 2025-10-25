@@ -1,7 +1,7 @@
 import createApiClient from "./api.service";
 
 class CommentService {
-    constructor(baseUrl = "/api/binhluan") {
+    constructor(baseUrl = "/api/comments") {
         this.api = createApiClient(baseUrl);
     }
 
