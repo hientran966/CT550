@@ -1,9 +1,20 @@
 const express = require("express");
-const chatbot = require("../controllers/Chatbot.controller");
-
 const router = express.Router();
+const ChatbotController = require("../controllers/Chatbot.controller");
 
-router.route("/")
-  .post(chatbot.handleAsk);
+router.post("/", ChatbotController.handleAsk);
+
+router.route("/history")
+  .get(ChatbotController.findAll)
+  .post(ChatbotController.create);
+
+router.route("/history/:id")
+  .get(ChatbotController.findOne)
+  .put(ChatbotController.update)
+  .delete(ChatbotController.delete);
+
+router.route("/history/project/:project_id")
+  .get(ChatbotController.findByProject)
+  .delete(ChatbotController.deleteByProject);
 
 module.exports = router;

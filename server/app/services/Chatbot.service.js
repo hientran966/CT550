@@ -11,7 +11,7 @@ class Ollama {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "gemma3:4b",
+                    model: "gpt-oss:20b-cloud",
                     prompt,
                     stream: false
                 }),

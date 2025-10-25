@@ -245,4 +245,15 @@ CREATE TABLE chat_mentions (
     FOREIGN KEY (mentioned_user_id) REFERENCES users(id)
 );
 
+DROP TABLE IF EXISTS chatbot_history;
+CREATE TABLE chatbot_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    project_id INT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT,
+    intent VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 SET FOREIGN_KEY_CHECKS = 1;
