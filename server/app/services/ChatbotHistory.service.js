@@ -1,3 +1,5 @@
+const { sendToUser } = require("../socket/index");
+
 class ChatbotHistoryService {
     constructor(mysql) {
         this.mysql = mysql;
@@ -9,20 +11,40 @@ class ChatbotHistoryService {
              VALUES (?, ?, ?, ?, ?)`,
             [project_id, user_id, question, answer, intent]
         );
-        return { id: result.insertId, project_id, user_id, question, answer, intent };
+
+        const newRecord = {
+            id: result.insertId,
+            project_id,
+            user_id,
+            question,
+            answer,
+            intent,
+        };
+
+        if (user_id) {
+            sendToUser(user_id, "chatbot_history", {
+                action: "created",
+                data: newRecord,
+            });
+        }
+
+        return newRecord;
     }
 
     async find(filters = {}) {
-        let sql = `SELECT * FROM chatbot_history`;
+        let sql = `SELECT * FROM chatbot_history WHERE 1=1`;
         const params = [];
 
         if (filters.project_id) {
-            sql += ` WHERE project_id = ?`;
+            sql += ` AND project_id = ?`;
             params.push(filters.project_id);
         }
+        if (filters.user_id) {
+            sql += ` AND user_id = ?`;
+            params.push(filters.user_id);
+        }
 
-        sql += ` ORDER BY created_at DESC`;
-
+        sql += ` ORDER BY created_at ASC`;
         const [rows] = await this.mysql.execute(sql, params);
         return rows;
     }
@@ -54,14 +76,37 @@ class ChatbotHistoryService {
         values.push(id);
 
         const [result] = await this.mysql.execute(sql, values);
-        return result.affectedRows > 0;
+
+        if (result.affectedRows > 0) {
+            const updated = await this.findById(id);
+            if (updated.user_id) {
+                sendToUser(updated.user_id, "chatbot_history", {
+                    action: "updated",
+                    data: updated,
+                });
+            }
+            return updated;
+        }
+
+        return null;
     }
 
     async delete(id) {
+        const record = await this.findById(id);
+        if (!record) return false;
+
         const [result] = await this.mysql.execute(
             `DELETE FROM chatbot_history WHERE id = ?`,
             [id]
         );
+
+        if (result.affectedRows > 0 && record.user_id) {
+            sendToUser(record.user_id, "chatbot_history", {
+                action: "deleted",
+                data: { id },
+            });
+        }
+
         return result.affectedRows > 0;
     }
 

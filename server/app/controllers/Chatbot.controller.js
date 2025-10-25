@@ -101,7 +101,8 @@ const customMethods = {
     try {
       const service = new ChatbotHistoryService(MySQL.pool);
       const projectId = req.params.project_id;
-      const rows = await service.find({ project_id: projectId });
+      const userId = req.params.user_id;
+      const rows = await service.find({ project_id: projectId, user_id: userId });
       res.send(rows);
     } catch (error) {
       return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy lịch sử theo dự án"));

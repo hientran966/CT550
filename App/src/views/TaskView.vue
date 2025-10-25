@@ -63,6 +63,10 @@
     :task-id="selectedTask.id"
     :project-id="projectId"
   />
+  <Chatbot
+    :project-id="projectId"
+    :user-id="userId"
+  />
 </template>
 
 <script setup>
@@ -81,6 +85,7 @@ import Chat from "@/components/Chat.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
+import Chatbot from "@/components/Chatbot.vue";
 
 const route = useRoute();
 const projectId = Number(route.params.id);

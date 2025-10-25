@@ -21,8 +21,8 @@ class ChatService {
         return (await this.api.delete(`/history/${id}`)).data;
     }
 
-    async getHistoryByProject(projectId) {
-        return (await this.api.get(`/history/project/${projectId}`)).data;
+    async getHistoryByProject(projectId, userId) {
+        return (await this.api.get(`/history/project/${projectId}/user/${userId}`)).data;
     }
 }
 

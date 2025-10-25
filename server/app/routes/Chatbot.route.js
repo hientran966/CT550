@@ -13,7 +13,7 @@ router.route("/history/:id")
   .put(ChatbotController.update)
   .delete(ChatbotController.delete);
 
-router.route("/history/project/:project_id")
+router.route("/history/project/:project_id/user/:user_id")
   .get(ChatbotController.findByProject)
   .delete(ChatbotController.deleteByProject);
 
