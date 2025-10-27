@@ -1,10 +1,10 @@
 <template>
   <el-row :gutter="0">
-    <el-col :span="16">
-      <el-card style="height: 100vh">
+    <el-col :span="16" style="height: 99vh">
+      <el-card style="height: 100%">
         <!-- HEADER -->
         <div class="file-header">
-          <h3>{{ file.file_name }}</h3>
+          <h3 class="file-name">{{ file.file_name }}</h3>
           <el-select
             v-if="file?.versions?.length"
             v-model="selectedVersionId"
@@ -97,7 +97,7 @@
     </el-col>
 
     <!-- COMMENT -->
-    <el-col :span="8">
+    <el-col :span="8" style="height: 99vh">
       <el-card style="height: 100%">
         <template #header>
           <div style="font-weight: 600">Bình luận</div>
@@ -137,15 +137,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { getSocket } from "@/plugins/socket";
 import { dayjs } from "element-plus";
 import CommentService from "@/services/Comment.service";
 import { Close, Crop } from "@element-plus/icons-vue";
 
 const props = defineProps({ file: Object });
+let socket;
 const selectedVersionId = ref(null);
 const comments = ref([]);
 const newComment = ref("");
+
 const visualMode = ref(false);
 const isDrawing = ref(false);
 const startPos = ref(null);
@@ -192,8 +195,10 @@ const addComment = async () => {
   try {
     const payload = {
       user_id: JSON.parse(localStorage.getItem("user") || "{}")?.id,
+      file_id: props.file.id,
       file_version_id: selectedVersionId.value,
       content: newComment.value,
+      owner_id: props.file.created_by
     };
 
     if (startPos.value && endPos.value) {
@@ -316,7 +321,20 @@ watch(
   { immediate: true }
 );
 watch(selectedVersionId, (val) => val && loadComments());
-onMounted(loadComments);
+onMounted(() => {
+  loadComments();
+
+  socket = getSocket();
+
+  socket.on("comment", (data) => {
+    loadComments();
+  });
+});
+
+onUnmounted(() => {
+  socket.off("comment");
+});
+
 </script>
 
 <style scoped>
@@ -325,6 +343,13 @@ onMounted(loadComments);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+.file-name {
+  max-width: 350px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 .file-viewer {
   width: 100%;
@@ -360,7 +385,7 @@ onMounted(loadComments);
   z-index: 10;
 }
 .comment-list {
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
   margin-bottom: 12px;
 }

@@ -52,11 +52,11 @@ function initSocket(server) {
     });
 }
 
-function sendToUser(userId, type, payload) {
+function sendToUser(userId, event, payload) {
     if (!io) return;
     const socketId = onlineUsers.get(userId);
     if (socketId) {
-        io.to(socketId).emit("notification", { type, payload });
+        io.to(socketId).emit(event, payload);
     }
 }
 

@@ -1,9 +1,12 @@
 const AssignmentService = require("./Assign.service");
+const MemberService = require("./Member.service");
+const { sendToUser } = require("../socket/index");
 
 class TaskService {
   constructor(mysql) {
     this.mysql = mysql;
     this.assignmentService = new AssignmentService(mysql);
+    this.memberService = new MemberService(mysql);
   }
 
   async extractTaskData(payload) {
@@ -25,7 +28,7 @@ class TaskService {
 
       const [result] = await connection.execute(
         `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -53,6 +56,18 @@ class TaskService {
       }
 
       await connection.commit();
+
+      const members = await this.memberService.getByProjectId(task.project_id);
+
+      if (members?.length > 0) {
+        for (const member of members) {
+          sendToUser(member.user_id, "task_updated", {
+            task: newTask,
+            message: `Task "${newTask.title}" vừa được tạo trong dự án ${newTask.project_id}`,
+          });
+        }
+      }
+
       return newTask;
     } catch (error) {
       await connection.rollback();
@@ -118,22 +133,51 @@ class TaskService {
   }
 
   async update(id, payload) {
-    const allowedFields = ["title", "description", "start_date", "due_date", "created_by", "project_id", "status"];
+    const allowedFields = [
+      "title",
+      "description",
+      "start_date",
+      "due_date",
+      "status",
+      "priority",
+    ];
+
     const fields = [];
     const params = [];
+
     for (const key of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(payload, key)) {
         fields.push(`${key} = ?`);
         params.push(payload[key]);
       }
     }
+
     if (fields.length === 0) {
       return await this.findById(id);
     }
+
     const sql = `UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`;
     params.push(id);
     await this.mysql.execute(sql, params);
-    return await this.findById(id);
+
+    const updatedTask = await this.findById(id);
+
+    const projectId = updatedTask?.project_id || payload.project_id;
+
+    if (projectId) {
+      const members = await this.memberService.getByProjectId(projectId);
+
+      if (members?.length > 0) {
+        for (const member of members) {
+          sendToUser(member.user_id, "task_updated", {
+            task: updatedTask,
+            message: `Task "${updatedTask.title}" vừa được cập nhật trong dự án ${projectId}`,
+          });
+        }
+      }
+    }
+
+    return updatedTask;
   }
 
   async delete(id) {
@@ -170,13 +214,44 @@ class TaskService {
     const connection = await this.mysql.getConnection();
     try {
       await connection.beginTransaction();
+
       const [result] = await connection.execute(
         `INSERT INTO progress_logs (task_id, progress, updated_by)
-         VALUES (?, ?, ?)`,
+        VALUES (?, ?, ?)`,
         [taskId, progress, loggedBy]
       );
+
+      const [rows] = await connection.execute(
+        `SELECT id, title, project_id FROM tasks WHERE id = ?`,
+        [taskId]
+      );
+      const task = rows[0];
+
       await connection.commit();
-      return { id: result.insertId, task_id: taskId, progress, logged_by: loggedBy };
+
+      const newLog = {
+        id: result.insertId,
+        task_id: taskId,
+        progress,
+        logged_by: loggedBy,
+      };
+
+      if (task?.project_id) {
+        const members = await this.memberService.getByProjectId(task.project_id);
+
+        if (members?.length > 0) {
+          for (const member of members) {
+            sendToUser(member.user_id, "task_updated", {
+              task_id: task.id,
+              project_id: task.project_id,
+              progress,
+              message: `Tiến độ của task "${task.title}" vừa được cập nhật: ${progress}%`,
+            });
+          }
+        }
+      }
+
+      return newLog;
     } catch (error) {
       await connection.rollback();
       throw error;

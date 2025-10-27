@@ -108,9 +108,14 @@ class NotificationService {
 
             if (!connection) await conn.commit();
             if (newNotification.recipient_id) {
-                sendToUser(newNotification.recipient_id, "info", {
+                sendToUser(newNotification.recipient_id, "notification", {
+                    id: newNotification.id,
+                    type: newNotification.type,
                     title: "Thông báo mới",
                     message: newNotification.message || "Bạn có thông báo mới",
+                    reference_type: newNotification.reference_type,
+                    reference_id: newNotification.reference_id,
+                    created_at: new Date(),
                 });
             }
 

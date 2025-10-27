@@ -67,6 +67,7 @@ import { color } from "echarts";
 const md = new MarkdownIt({
   linkify: true,
   breaks: true,
+  html: true,
 });
 
 const props = defineProps({

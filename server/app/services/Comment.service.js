@@ -1,6 +1,10 @@
+const { sendToUser } = require("../socket/index");
+const NotificationService = require("./Notification.service");
+
 class CommentService {
   constructor(mysql) {
     this.mysql = mysql;
+    this.notificationService = new NotificationService(mysql);
   }
 
   async extractCommentData(payload) {
@@ -50,8 +54,38 @@ class CommentService {
         );
       }
 
+      if (payload.owner_id) {
+        sendToUser(payload.owner_id, "comment", {
+            id: payload.owner_id,
+            title: "Bình luận mới",
+            message: "Bạn có bình luận mới",
+        });
+      }
+
+      if (payload.owner_id && payload.owner_id !== comment.user_id) {
+        await this.notificationService.create({
+          recipient_id: payload.owner_id,
+          actor_id: comment.user_id,
+          type: "comment_added",
+          reference_type: comment.task_id ? "task" : (comment.file_id ? "file" : "project"),
+          reference_id: comment.task_id || comment.file_id || null,
+        },
+        connection
+        );
+      }
+
       await connection.commit();
-      return { id: commentId, ...comment, visual: payload.visual ?? null };
+      const [userRows] = await connection.execute(
+        "SELECT id, name FROM users WHERE id = ?",
+        [comment.user_id]
+      );
+
+      return {
+        id: commentId,
+        ...comment,
+        user: userRows[0] || null,
+        visual: payload.visual ?? null,
+      };
     } catch (error) {
       await connection.rollback();
       throw error;

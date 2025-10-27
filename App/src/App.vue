@@ -47,24 +47,33 @@ watch(isAuthenticated, async (loggedIn) => {
     if (user?.id) {
 
       socket = initSocket(user.id);
-      socket.on("notification", async ({ type, payload }) => {
-        console.log("Nhận thông báo:", payload);
+      socket.on("notification", async (data) => {
+        console.log("Nhận thông báo:", data);
+
         ElNotification({
-          title: payload.title || "Thông báo mới",
-          message: payload.message || "Bạn có thông báo mới",
-          type: type || "info",
+          title: data.title || "Thông báo mới",
+          message: data.message || "Bạn có thông báo mới",
+          type: data.type || "info",
           duration: 4000,
         });
 
-        await notiStore.addNotification(payload);
+        await notiStore.addNotification(data);
 
-        if (type === "task_assigned" || type === "task_updated") {
-          taskStore.loadTasks(payload.project_id);
+        if (data.type === "task_assigned" || data.type === "task_updated") {
+          taskStore.loadTasks(data.project_id);
         }
-        if (type === "project_updated") {
+        if (data.type === "project_updated") {
           projectStore.fetchProjects();
         }
       });
+
+      socket.on("task_updated", (data) => {
+        const projectId = data.project_id || data.task?.project_id;
+        if (projectId) {
+          taskStore.loadTasks(projectId);
+        }
+      });
+
     }
   } else {
     disconnectSocket();

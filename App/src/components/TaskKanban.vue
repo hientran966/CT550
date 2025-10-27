@@ -236,6 +236,10 @@ function columnClass(name) {
   margin-bottom: 10px;
 }
 
+.kanban-column {
+  height: 80vh;
+}
+
 .header-warning {
   background-color: #fff8e1;
   color: #b88200;
@@ -285,6 +289,7 @@ function columnClass(name) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: scroll;
 }
 
 .kanban-task {
