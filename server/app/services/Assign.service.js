@@ -1,4 +1,5 @@
 const NotificationService = require("./Notification.service");
+const { sendToProject } = require("../socket/index");
 
 class AssignmentService {
     constructor(mysql) {
@@ -47,9 +48,17 @@ class AssignmentService {
                     type: "task_assigned",
                     reference_type: "task",
                     reference_id: assignment.task_id,
+                    project_id: payload.project_id,
                 },
                 conn
             );
+
+            if (payload.project_id) {
+                sendToProject(payload.project_id, "task_updated", {
+                    project_id: payload.project_id,
+                    task_id: assignment.task_id,
+                });
+            }
 
             if (!connection) await conn.commit();
             return newAssignment;

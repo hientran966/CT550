@@ -164,10 +164,11 @@
 
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { dayjs, ElMessage } from "element-plus";
+import { getSocket } from "@/plugins/socket";
 
 import UploadForm from "./Upload.vue";
 import AvatarGroup from "./AvatarGroup.vue";
@@ -177,6 +178,8 @@ import { useTaskStore } from "@/stores/taskStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useCommentStore } from "@/stores/commentStore";
 import MemberService from "@/services/Member.service";
+
+let socket;
 
 const props = defineProps({
   modelValue: Boolean,
@@ -190,6 +193,7 @@ const formRef = ref(false);
 const editRow = ref(null);
 const editCache = ref();
 const members = ref([])
+const task = ref({});
 const newComment = ref("");
 
 const taskStore = useTaskStore();
@@ -205,7 +209,6 @@ const visible = computed({
   set: (val) => emit("update:modelValue", val),
 });
 
-const task = computed(() => getTasksByProject.value(props.projectId).find(t => t.id === props.taskId) || {});
 const files = computed(() => getFilesByTask.value(task.value.id) || []);
 const comments = computed(() => getCommentsByTask.value(task.value.id) || []);
 
@@ -252,7 +255,7 @@ const saveEdit = (key) => {
   }
 
   const updatedTask = { ...updated, changedField: key };
-  taskStore.updateTask(updatedTask.id, updatedTask);
+  taskStore.updateTask(props.projectId, updatedTask);
   editRow.value = null;
   visible.value = false;
 };
@@ -279,6 +282,9 @@ const loadMembers = async () => {
 const loadData = async () => {
   if (props.projectId) {
     await taskStore.loadTasks(props.projectId);
+    const taskList = getTasksByProject.value(props.projectId);
+    task.value = taskList.find(t => t.id === props.taskId) || {};
+
     if (task.value?.id) {
       await Promise.all([
         fileStore.loadFiles(task.value.id),
@@ -292,10 +298,12 @@ const addComment = async () => {
   if (!newComment.value.trim()) return;
   try {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    await commentStore.addComment(task.id, {
+    await commentStore.addComment(task.value.id, {
       user_id: user.id,
-      task_id: task.id,
+      task_id: task.value.id,
       content: newComment.value.trim(),
+      project_id: props.projectId,
+      owner_id: task.value.created_by
     });
     newComment.value = "";
     ElMessage.success("Đã thêm bình luận");
@@ -307,6 +315,16 @@ const addComment = async () => {
 onMounted(() => {
   loadData();
   loadMembers();
+
+  socket = getSocket();
+
+  socket.on("comment", (data) => {
+    loadData();
+  });
+});
+
+onUnmounted(() => {
+  socket.off("comment");
 });
 
 watch(

@@ -1,4 +1,4 @@
-const { sendToUser } = require("../socket/index");
+const { sendToUser, sendToProject } = require("../socket/index");
 const NotificationService = require("./Notification.service");
 
 class CommentService {
@@ -54,14 +54,6 @@ class CommentService {
         );
       }
 
-      if (payload.owner_id) {
-        sendToUser(payload.owner_id, "comment", {
-            id: payload.owner_id,
-            title: "Bình luận mới",
-            message: "Bạn có bình luận mới",
-        });
-      }
-
       if (payload.owner_id && payload.owner_id !== comment.user_id) {
         await this.notificationService.create({
           recipient_id: payload.owner_id,
@@ -79,6 +71,18 @@ class CommentService {
         "SELECT id, name FROM users WHERE id = ?",
         [comment.user_id]
       );
+
+      if (payload.project_id) {
+        sendToProject(payload.project_id, "comment", {
+          action: "create",
+          data: {
+            id: commentId,
+            ...comment,
+            user: userRows[0] || null,
+            visual: payload.visual ?? null,
+          },
+        });
+      }
 
       return {
         id: commentId,

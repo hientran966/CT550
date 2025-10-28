@@ -119,12 +119,6 @@ const columns = computed(() => [
   { name: "Đã Xong", tasks: tasks.value.filter((t) => t.status === "done") },
 ]);
 
-onMounted(async () => {
-  if (props.projectId) {
-    await taskStore.loadTasks(props.projectId);
-  }
-});
-
 function formatDate(date) {
   if (!date) return "-";
   return new Date(date).toLocaleString("vi-VN", {
@@ -183,12 +177,6 @@ async function loadAvatars() {
   avatarsMap.value = results;
 }
 
-watch(
-  () => tasks.value,
-  () => loadAvatars(),
-  { deep: true, immediate: true }
-);
-
 function headerClass(name) {
   switch (name) {
     case "Đang Chờ":
@@ -218,6 +206,17 @@ function columnClass(name) {
       return "";
   }
 }
+onMounted(async () => {
+  if (props.projectId) {
+    await taskStore.loadTasks(props.projectId);
+  }
+});
+
+watch(
+  () => tasks.value,
+  () => loadAvatars(),
+  { deep: true, immediate: true }
+);
 </script>
 
 <style scoped>

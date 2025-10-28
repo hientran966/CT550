@@ -1,4 +1,5 @@
 const { Server } = require("socket.io");
+const MySQL = require("../utils/mysql.util");
 
 let io;
 const onlineUsers = new Map();
@@ -65,10 +66,26 @@ function broadcast(type, payload) {
 }
 
 function sendMessageToChannel(channelId, message) {
-  if (io) io.to(`channel_${channelId}`).emit("chat_message", message);
+    if (io) io.to(`channel_${channelId}`).emit("chat_message", message);
+}
+
+async function sendToProject(projectId, event, payload) {
+    if (!io) return;
+    const [rows] = await MySQL.pool.execute(
+        `SELECT user_id FROM project_members WHERE project_id = ? AND deleted_at IS NULL`,
+        [projectId]
+    );
+
+    for (const r of rows) {
+        const socketId = onlineUsers.get(r.user_id);
+        if (socketId) {
+            io.to(socketId).emit(event, payload);
+        }
+    }
 }
 
 module.exports = initSocket;
 module.exports.sendToUser = sendToUser;
 module.exports.broadcast = broadcast;
 module.exports.sendMessageToChannel = sendMessageToChannel;
+module.exports.sendToProject = sendToProject;

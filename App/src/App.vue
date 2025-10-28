@@ -48,8 +48,6 @@ watch(isAuthenticated, async (loggedIn) => {
 
       socket = initSocket(user.id);
       socket.on("notification", async (data) => {
-        console.log("Nhận thông báo:", data);
-
         ElNotification({
           title: data.title || "Thông báo mới",
           message: data.message || "Bạn có thông báo mới",
@@ -59,11 +57,23 @@ watch(isAuthenticated, async (loggedIn) => {
 
         await notiStore.addNotification(data);
 
-        if (data.type === "task_assigned" || data.type === "task_updated") {
-          taskStore.loadTasks(data.project_id);
+        if (data.unread !== false) {
+          notiStore.newCount++;
         }
-        if (data.type === "project_updated") {
-          projectStore.fetchProjects();
+
+        switch (data.type) {
+          case "comment_added":
+            if (taskStore.currentTask?.id === data.reference_id) {
+              commentStore.reloadComments(taskStore.currentTask.id);
+            }
+            break;
+          case "task_assigned":
+          case "task_updated":
+            taskStore.loadTasks(data.project_id);
+            break;
+          case "project_updated":
+            projectStore.fetchProjects();
+            break;
         }
       });
 

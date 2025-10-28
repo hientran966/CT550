@@ -66,6 +66,7 @@ export const useTaskStore = defineStore("task", {
               task_id: updatedTask.id,
               user_id: userId,
               actor_id: user.id,
+              project_id: projectId
             });
           }
         } else {

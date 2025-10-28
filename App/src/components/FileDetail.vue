@@ -143,8 +143,9 @@ import { dayjs } from "element-plus";
 import CommentService from "@/services/Comment.service";
 import { Close, Crop } from "@element-plus/icons-vue";
 
-const props = defineProps({ file: Object });
 let socket;
+
+const props = defineProps({ file: Object });
 const selectedVersionId = ref(null);
 const comments = ref([]);
 const newComment = ref("");
@@ -198,6 +199,7 @@ const addComment = async () => {
       file_id: props.file.id,
       file_version_id: selectedVersionId.value,
       content: newComment.value,
+      project_id: props.file.project_id,
       owner_id: props.file.created_by
     };
 
@@ -326,9 +328,11 @@ onMounted(() => {
 
   socket = getSocket();
 
-  socket.on("comment", (data) => {
-    loadComments();
-  });
+  socket.on("comment", (event) => {
+  if (event.action === "create") {
+    comments.value.unshift(event.data);
+  }
+});
 });
 
 onUnmounted(() => {
