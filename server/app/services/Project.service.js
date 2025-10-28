@@ -1,9 +1,12 @@
 const MemberService = require("./Member.service");
+const NotificationService = require("./Notification.service");
+const { sendToProject } = require("../socket/index");
 
 class ProjectService {
   constructor(mysql) {
     this.mysql = mysql;
     this.memberService = new MemberService(mysql);
+    this.notificationService = new NotificationService(mysql);
   }
 
   async extractProjectData(payload) {
@@ -111,24 +114,56 @@ class ProjectService {
   }
 
   async update(id, payload) {
-    const fields = [];
-    const params = [];
+    const connection = await this.mysql.getConnection();
+    const notificationService = this.notificationService;
+    try {
+      await connection.beginTransaction();
 
-    for (const key in payload) {
-      if (key === "id") continue;
-      fields.push(`${key} = ?`);
-      params.push(payload[key]);
+      const fields = [];
+      const params = [];
+
+      for (const key in payload) {
+        if (["id", "actor_id"].includes(key)) continue;
+        fields.push(`${key} = ?`);
+        params.push(payload[key]);
+      }
+
+      if (fields.length === 0) {
+        throw new Error("Không có trường nào để cập nhật.");
+      }
+
+      const sql = `UPDATE projects SET ${fields.join(", ")} WHERE id = ?`;
+      params.push(id);
+
+      await connection.execute(sql, params);
+
+      const members = await this.memberService.getByProjectId(id);
+      const actorId = payload.actor_id;
+
+      for (const member of members) {
+        if (member.user_id === actorId) continue;
+
+        await notificationService.create(
+          {
+            actor_id: actorId,
+            recipient_id: member.user_id,
+            type: "project_updated",
+            reference_type: "project",
+            reference_id: id,
+          },
+          connection
+        );
+      }
+
+      await connection.commit();
+
+      return await this.findById(id);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    if (fields.length === 0) {
-      throw new Error("Không có trường nào để cập nhật.");
-    }
-
-    const sql = `UPDATE projects SET ${fields.join(", ")} WHERE id = ?`;
-    params.push(id);
-
-    await this.mysql.execute(sql, params);
-    return this.findById(id);
   }
 
   async delete(id) {
@@ -207,8 +242,16 @@ class ProjectService {
       GROUP BY status`,
       [projectId]
     );
-    const statusMap = { todo: "Đang chờ", in_progress: "Đang tiến hành", review: "Review", done: "Đã xong" };
-    const taskStatus = taskStatusRows.map(r => ({ status: statusMap[r.status] || r.status, count: r.count }));
+    const statusMap = {
+      todo: "Đang chờ",
+      in_progress: "Đang tiến hành",
+      review: "Review",
+      done: "Đã xong",
+    };
+    const taskStatus = taskStatusRows.map((r) => ({
+      status: statusMap[r.status] || r.status,
+      count: r.count,
+    }));
 
     const [priorityRows] = await this.mysql.execute(
       `SELECT priority, COUNT(*) AS count 
@@ -218,7 +261,10 @@ class ProjectService {
       [projectId]
     );
     const priorityMap = { low: "Thấp", medium: "Trung bình", high: "Cao" };
-    const priority = priorityRows.map(r => ({ priority: priorityMap[r.priority] || r.priority, count: r.count }));
+    const priority = priorityRows.map((r) => ({
+      priority: priorityMap[r.priority] || r.priority,
+      count: r.count,
+    }));
 
     const [members] = await this.mysql.execute(
       `SELECT u.id, u.name 
@@ -236,18 +282,23 @@ class ProjectService {
       [projectId]
     );
 
-    const hoursByUser = members.map(m => {
-      const log = timeLogs.find(t => t.user_id === m.id);
-      return { name: m.name, total_hours: log ? parseFloat(log.total_hours) : 0 };
+    const hoursByUser = members.map((m) => {
+      const log = timeLogs.find((t) => t.user_id === m.id);
+      return {
+        name: m.name,
+        total_hours: log ? parseFloat(log.total_hours) : 0,
+      };
     });
 
     const [tasks] = await this.mysql.execute(
       `SELECT id FROM tasks WHERE project_id = ? AND deleted_at IS NULL`,
       [projectId]
     );
-    const taskIds = tasks.map(t => t.id);
+    const taskIds = tasks.map((t) => t.id);
 
-    const startDate = project.start_date ? new Date(project.start_date) : new Date();
+    const startDate = project.start_date
+      ? new Date(project.start_date)
+      : new Date();
     const endDate = new Date();
     const dayDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
     const dates = Array.from({ length: dayDiff + 1 }, (_, i) => {
@@ -274,24 +325,33 @@ class ProjectService {
       }
 
       const taskLogsMap = {};
-      taskIds.forEach(id => (taskLogsMap[id] = []));
-      progressRows.forEach(p => {
-        const day = p.date instanceof Date ? p.date.toISOString().slice(0, 10) : new Date(p.date).toISOString().slice(0, 10);
-        taskLogsMap[p.task_id].push({ date: day, progress: parseFloat(p.avg_progress) });
+      taskIds.forEach((id) => (taskLogsMap[id] = []));
+      progressRows.forEach((p) => {
+        const day =
+          p.date instanceof Date
+            ? p.date.toISOString().slice(0, 10)
+            : new Date(p.date).toISOString().slice(0, 10);
+        taskLogsMap[p.task_id].push({
+          date: day,
+          progress: parseFloat(p.avg_progress),
+        });
       });
 
       const taskProgressState = {};
-      taskIds.forEach(id => (taskProgressState[id] = 0));
+      taskIds.forEach((id) => (taskProgressState[id] = 0));
 
-      progress_trend = dates.map(d => {
+      progress_trend = dates.map((d) => {
         let sum = 0;
-        taskIds.forEach(taskId => {
+        taskIds.forEach((taskId) => {
           const logs = taskLogsMap[taskId];
-          const log = logs.filter(l => l.date === d).pop();
+          const log = logs.filter((l) => l.date === d).pop();
           if (log) taskProgressState[taskId] = log.progress;
           sum += taskProgressState[taskId];
         });
-        const normalized = taskIds.length > 0 ? parseFloat((sum / taskIds.length).toFixed(1)) : 0;
+        const normalized =
+          taskIds.length > 0
+            ? parseFloat((sum / taskIds.length).toFixed(1))
+            : 0;
         return { date: d, avg_progress: normalized };
       });
     }
@@ -309,7 +369,6 @@ class ProjectService {
       progress_trend,
     };
   }
-
 }
 
 module.exports = ProjectService;

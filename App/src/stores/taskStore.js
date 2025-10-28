@@ -89,7 +89,7 @@ export const useTaskStore = defineStore("task", {
 
     async updateStatus(projectId, task) {
       try {
-        await TaskService.updateTask(task.id, { status: task.status });
+        await TaskService.updateTask(task.id, { status: task.status, project_id: projectId });
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === task.id);
         if (idx !== -1) list[idx].status = task.status;

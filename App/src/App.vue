@@ -48,6 +48,7 @@ watch(isAuthenticated, async (loggedIn) => {
 
       socket = initSocket(user.id);
       socket.on("notification", async (data) => {
+        console.log(data)
         ElNotification({
           title: data.title || "Thông báo mới",
           message: data.message || "Bạn có thông báo mới",
@@ -57,16 +58,7 @@ watch(isAuthenticated, async (loggedIn) => {
 
         await notiStore.addNotification(data);
 
-        if (data.unread !== false) {
-          notiStore.newCount++;
-        }
-
         switch (data.type) {
-          case "comment_added":
-            if (taskStore.currentTask?.id === data.reference_id) {
-              commentStore.reloadComments(taskStore.currentTask.id);
-            }
-            break;
           case "task_assigned":
           case "task_updated":
             taskStore.loadTasks(data.project_id);

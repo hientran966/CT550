@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 
 import AvatarGroup from "@/components/AvatarGroup.vue";
@@ -210,7 +210,13 @@ function stopEditing() {
     editingRow.value[field] = value;
   }
 
-  emit("update-project", { id, [field]: value });
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  emit("update-project", {
+    id,
+    [field]: value,
+    actor_id: user?.id,
+  });
   editingRow.value = null;
   editingField.value = null;
 }
@@ -295,6 +301,8 @@ function getManagerName(id) {
 watch(
   () => props.projects,
   async (newVal) => {
+    await nextTick();
+    console.log(props.projects);
     editableProjects.value = newVal.map((p) => ({ ...p }));
     await loadManagerData(newVal);
     await loadMembers(newVal);

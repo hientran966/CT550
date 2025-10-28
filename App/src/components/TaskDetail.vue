@@ -284,6 +284,7 @@ const loadData = async () => {
     await taskStore.loadTasks(props.projectId);
     const taskList = getTasksByProject.value(props.projectId);
     task.value = taskList.find(t => t.id === props.taskId) || {};
+    console.log(task.value)
 
     if (task.value?.id) {
       await Promise.all([

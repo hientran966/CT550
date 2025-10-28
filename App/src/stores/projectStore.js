@@ -9,21 +9,19 @@ export const useProjectStore = defineStore("project", {
 
   actions: {
     async fetchProjects() {
-      try {
-        this.loading = true;
-        const user = JSON.parse(localStorage.getItem("user"));
-        this.projects = await ProjectService.getProjectsByAccountId(user.id);
-      } catch (err) {
-        console.error("Lỗi load project:", err);
-      } finally {
-        this.loading = false;
-      }
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) return;
+
+      const data = await ProjectService.getProjectsByAccountId(user.id);
+
+      this.projects = data.map(p => ({ ...p }));
+      console.log("Projects reloaded:", this.projects.length);
     },
 
-    async updateProject(updatedProject) {
-      await ProjectService.updateProject(updatedProject.id, updatedProject);
-      const index = this.projects.findIndex(p => p.id === updatedProject.id);
-      if (index !== -1) this.projects[index] = updatedProject;
+    async updateProject(payload) {
+      await ProjectService.updateProject(payload.id, payload);
+
+      await this.fetchProjects();
     },
 
     addProject(newProject) {

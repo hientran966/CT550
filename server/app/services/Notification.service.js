@@ -33,7 +33,7 @@ class NotificationService {
                     case "task":
                         return `${actorName} đã bình luận về công việc.`;
                     case "file":
-                        return `${actorName} đã bình luận về tệp.`;
+                        return `${actorName} đã bình luận về file.`;
                     case "project":
                         return `${actorName} đã để lại bình luận trong dự án.`;
                     default:
@@ -57,6 +57,9 @@ class NotificationService {
 
             case "project_status_changed":
                 return `${actorName} đã thay đổi trạng thái của dự án.`;
+            
+            case "project_updated":
+                return `${actorName} đã cập nhật thông tin của dự án.`;
 
             default:
                 return `${actorName} đã thực hiện một hành động.`;
