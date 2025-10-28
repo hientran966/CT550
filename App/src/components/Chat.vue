@@ -152,7 +152,6 @@ async function sendMessage() {
     });
 
     chatStore.chatByChannel[props.channelId].push(saved);
-    socket.emit("chat_message", saved);
 
     message.value = "";
     uploadedFiles.value = [];

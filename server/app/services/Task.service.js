@@ -169,7 +169,6 @@ class TaskService {
 
       if (members?.length > 0) {
         for (const member of members) {
-          console.log("send", member.user_id)
           sendToUser(member.user_id, "task_updated", {
             task: updatedTask,
             message: `Task "${updatedTask.title}" vừa được cập nhật trong dự án ${projectId}`,

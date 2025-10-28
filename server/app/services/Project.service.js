@@ -1,12 +1,13 @@
 const MemberService = require("./Member.service");
 const NotificationService = require("./Notification.service");
-const { sendToProject } = require("../socket/index");
+const ChatService = require("./Chat.service");
 
 class ProjectService {
   constructor(mysql) {
     this.mysql = mysql;
     this.memberService = new MemberService(mysql);
     this.notificationService = new NotificationService(mysql);
+    this.chatService = new ChatService(mysql);
   }
 
   async extractProjectData(payload) {
@@ -65,6 +66,17 @@ class ProjectService {
           );
         }
       }
+
+      await this.chatService.create(
+        {
+          project_id: projectId,
+          name: "Thảo luận chung",
+          description: "Kênh mặc định để thảo luận trong dự án này",
+          type: "general",
+          created_by: project.created_by,
+        },
+        connection
+      );
 
       await connection.commit();
       return { id: projectId };
@@ -198,6 +210,7 @@ class ProjectService {
   }
 
   async report(projectId) {
+    //Thông tin dự án
     const [projectRows] = await this.mysql.execute(
       `SELECT id, name, start_date, end_date 
       FROM projects 
@@ -207,6 +220,7 @@ class ProjectService {
     if (projectRows.length === 0) throw new Error("Không tìm thấy dự án");
     const project = projectRows[0];
 
+    //Số task, thành viên,...
     const [[taskStats]] = await this.mysql.execute(
       `SELECT 
         COUNT(*) AS total_tasks,
@@ -290,6 +304,7 @@ class ProjectService {
       };
     });
 
+    //Tiến độ/thời gian
     const [tasks] = await this.mysql.execute(
       `SELECT id FROM tasks WHERE project_id = ? AND deleted_at IS NULL`,
       [projectId]
@@ -308,13 +323,23 @@ class ProjectService {
     });
 
     let progress_trend = [];
+
     if (taskIds.length > 0) {
       const [progressRows] = await this.mysql.execute(
-        `SELECT task_id, DATE(created_at) AS date, ROUND(AVG(progress),1) AS avg_progress
-        FROM progress_logs
-        WHERE task_id IN (${taskIds.map(() => "?").join(",")}) AND deleted_at IS NULL
-        GROUP BY task_id, DATE(created_at)
-        ORDER BY DATE(created_at) ASC`,
+        `
+    SELECT task_id, DATE(created_at) AS date, progress
+    FROM (
+      SELECT 
+        task_id,
+        created_at,
+        progress,
+        ROW_NUMBER() OVER (PARTITION BY task_id, DATE(created_at) ORDER BY created_at DESC) AS rn
+      FROM progress_logs
+      WHERE task_id IN (${taskIds.map(() => "?").join(",")}) AND deleted_at IS NULL
+    ) t
+    WHERE rn = 1
+    ORDER BY task_id, date ASC
+    `,
         taskIds
       );
 
@@ -327,13 +352,10 @@ class ProjectService {
       const taskLogsMap = {};
       taskIds.forEach((id) => (taskLogsMap[id] = []));
       progressRows.forEach((p) => {
-        const day =
-          p.date instanceof Date
-            ? p.date.toISOString().slice(0, 10)
-            : new Date(p.date).toISOString().slice(0, 10);
+        const day = new Date(p.date).toISOString().slice(0, 10);
         taskLogsMap[p.task_id].push({
           date: day,
-          progress: parseFloat(p.avg_progress),
+          progress: parseFloat(p.progress),
         });
       });
 
@@ -344,15 +366,17 @@ class ProjectService {
         let sum = 0;
         taskIds.forEach((taskId) => {
           const logs = taskLogsMap[taskId];
-          const log = logs.filter((l) => l.date === d).pop();
+          const log = logs.find((l) => l.date === d);
           if (log) taskProgressState[taskId] = log.progress;
           sum += taskProgressState[taskId];
         });
+
         const normalized =
           taskIds.length > 0
             ? parseFloat((sum / taskIds.length).toFixed(1))
             : 0;
-        return { date: d, avg_progress: normalized };
+
+        return { date: d, progress: normalized };
       });
     }
 

@@ -63,7 +63,7 @@ export const useNotificationStore = defineStore("noti", {
       if (payload.reference_type === "project") {
         title = projectStore.getNameById(payload.reference_id);
       } else if (payload.reference_type === "task") {
-        title = taskStore.getTaskNameById(payload.reference_id);
+        title = taskStore.getNameById(payload.reference_id);
       }
 
       this.notifications.unshift({ ...payload, title });

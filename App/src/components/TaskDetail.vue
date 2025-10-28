@@ -291,7 +291,10 @@ const loadData = async () => {
         fileStore.loadFiles(task.value.id),
         commentStore.loadComments(task.value.id),
       ]);
+      
+      console.log("file")
     }
+
   }
 };
 
@@ -322,10 +325,14 @@ onMounted(() => {
   socket.on("comment", (data) => {
     loadData();
   });
+  socket.on("file", (data) => {
+    loadData();
+  });
 });
 
 onUnmounted(() => {
   socket.off("comment");
+  socket.off("file");
 });
 
 watch(

@@ -64,6 +64,7 @@
     :project-id="projectId"
   />
   <Chatbot
+    v-if="activeView === 'kanban'"
     :project-id="projectId"
     :user-id="userId"
   />

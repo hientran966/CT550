@@ -1,4 +1,4 @@
-const { sendToUser, sendToProject } = require("../socket/index");
+const { sendToProject } = require("../socket/index");
 const NotificationService = require("./Notification.service");
 
 class CommentService {

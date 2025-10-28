@@ -10,7 +10,7 @@
     </el-row>
 
     <el-row :gutter="20" class="chart-row">
-      <el-col :span="8">
+      <el-col :span="12">
         <el-card>
           <v-chart
             :option="taskStatusOption"
@@ -20,19 +20,9 @@
         </el-card>
       </el-col>
 
-      <el-col :span="8">
+      <el-col :span="12">
         <el-card>
           <v-chart :option="priorityOption" autoresize style="height: 300px" />
-        </el-card>
-      </el-col>
-
-      <el-col :span="8">
-        <el-card>
-          <v-chart
-            :option="hoursByUserOption"
-            autoresize
-            style="height: 300px"
-          />
         </el-card>
       </el-col>
     </el-row>
@@ -76,6 +66,8 @@ import {
   LegendComponent,
   GridComponent,
 } from "echarts/components";
+import { getSocket } from "@/plugins/socket";
+
 import ProjectService from "@/services/Project.service";
 
 use([
@@ -89,8 +81,10 @@ use([
   GridComponent,
 ]);
 
+let socket;
+
 const props = defineProps({
-  projectId: Number
+  projectId: Number,
 });
 
 const project = ref(null);
@@ -107,19 +101,41 @@ const progressTrendOption = ref({});
 const hoursByUserOption = ref({});
 const priorityOption = ref({});
 
-onMounted(async () => {
-  await loadDashboardData(props.projectId);
-});
-
 async function loadDashboardData(projectId) {
   try {
     const data = await ProjectService.getReportData(projectId);
-    console.log(data)
+    console.log(data);
 
     project.value = data.project;
     members.value = data.hours_by_user;
 
-    const kanbanColors = ["#ffb300", "#1976d2", "#9e9e9e", "#388e3c"];
+    const STATUS_COLOR_MAP = {
+      "Đang Chờ": "#ffb300", // vàng
+      "Đang Tiến Hành": "#1976d2", // xanh dương
+      Review: "#9e9e9e", // xám
+      "Đã Xong": "#388e3c", // xanh lá
+    };
+
+    const PRIORITY_COLOR_MAP = {
+      Cao: "#e53935", // đỏ
+      "Trung Bình": "#fb8c00", // cam
+      Thấp: "#43a047", // xanh lá
+    };
+
+    function mapWithColor(baseMap, dataList, keyField = "status") {
+      return Object.keys(baseMap)
+        .map((key) => {
+          const value =
+            dataList.find(
+              (d) => d[keyField].toLowerCase() === key.toLowerCase()
+            )?.count || 0;
+
+          return value > 0
+            ? { name: key, value, itemStyle: { color: baseMap[key] } }
+            : null;
+        })
+        .filter(Boolean);
+    }
 
     kpi.value = [
       { label: "Tổng số Task", value: data.total_tasks },
@@ -129,28 +145,18 @@ async function loadDashboardData(projectId) {
     ];
 
     taskStatusOption.value = {
-      color: kanbanColors,
       title: {
         text: "Trạng thái",
         left: "center",
-        textStyle: { fontFamily: '"Noto Sans", Arial, sans-serif' },
+        textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
       },
-      tooltip: {
-        trigger: "item",
-        textStyle: { fontFamily: '"Noto Sans", Arial, sans-serif' },
-      },
-      legend: {
-        bottom: 0,
-        textStyle: { fontFamily: '"Noto Sans", Arial, sans-serif' },
-      },
+      tooltip: { trigger: "item" },
+      legend: { bottom: 0 },
       series: [
         {
           type: "pie",
           radius: "60%",
-          data: data.task_status.map((item) => ({
-            name: item.status,
-            value: item.count,
-          })),
+          data: mapWithColor(STATUS_COLOR_MAP, data.task_status, "status"),
           label: {
             textStyle: { fontFamily: '"Noto Sans", Arial, sans-serif' },
           },
@@ -159,25 +165,18 @@ async function loadDashboardData(projectId) {
     };
 
     priorityOption.value = {
-      color: [ "#43a047", "#fb8c00","#e53935"],
       title: {
         text: "Độ ưu tiên",
         left: "center",
         textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
       },
       tooltip: { trigger: "item" },
-      legend: {
-        bottom: 0,
-        textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
-      },
+      legend: { bottom: 0 },
       series: [
         {
           type: "pie",
           radius: ["40%", "70%"],
-          data: data.priority.map((item) => ({
-            name: item.priority,
-            value: item.count,
-          })),
+          data: mapWithColor(PRIORITY_COLOR_MAP, data.priority, "priority"),
           label: {
             textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
           },
@@ -227,7 +226,7 @@ async function loadDashboardData(projectId) {
       yAxis: { type: "value", max: 100 },
       series: [
         {
-          data: data.progress_trend.map((d) => d.avg_progress),
+          data: data.progress_trend.map((d) => d.progress),
           type: "line",
           smooth: true,
           label: {
@@ -257,11 +256,23 @@ async function loadDashboardData(projectId) {
     ElMessage.error("Không thể tải dữ liệu báo cáo");
   }
 }
+
+onMounted(async () => {
+  await loadDashboardData(props.projectId);
+
+  socket = getSocket();
+
+  socket.on("task_updated", async (event) => {
+    await loadDashboardData(props.projectId);
+  });
+});
 </script>
 
 <style scoped>
 .dashboard-container {
   padding: 20px;
+  overflow-y: scroll;
+  height: calc(100vh - 140px);
 }
 
 .dashboard-title {
