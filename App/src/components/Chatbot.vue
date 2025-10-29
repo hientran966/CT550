@@ -89,7 +89,6 @@ async function fetchHistory() {
   loading.value = true;
   try {
     history.value = await ChatbotService.getHistoryByProject(props.projectId, props.userId);
-    console.log("lịch sử",history.value)
     await nextTick();
     scrollToBottom();
   } catch (err) {
