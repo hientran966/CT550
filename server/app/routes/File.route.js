@@ -17,6 +17,9 @@ router.route("/:id/version")
     .get(file.findAllVersion)
     .post(file.addVersion);
 
+router.route("/:id/role/:user_id")
+    .get(file.getRole);
+
 router.route("/:id/version/:versionId")
     .get(file.findVersion)
 

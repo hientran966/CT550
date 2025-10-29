@@ -37,6 +37,10 @@ class TaskService {
     async deleteAssign (id) {
         return (await this.api.delete(`/assign/${id}`)).data;
     }
+
+    async getRole(id, user_id) {
+        return (await this.api.get(`/${id}/role/${user_id}`)).data;
+    }
 }
 
 export default new TaskService();

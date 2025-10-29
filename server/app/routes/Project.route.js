@@ -15,6 +15,9 @@ router.route("/:id")
 router.route("/:id/report")
     .get(project.report);
 
+router.route("/:id/role/:user_id")
+    .get(project.getRole);
+
 router.route("/account/:id")
     .get(project.findByAccountId)
 

@@ -79,6 +79,15 @@ const customMethods = {
         }
     },
 
+    getRole: async (req, res, next) => {
+        try {
+            const service = new TaskService(MySQL.connection);
+            const role = await service.getRole(req.params.id, req.params.user_id);
+            return res.send(role);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy quyền"));
+        }
+    },
 };
 
 module.exports = {

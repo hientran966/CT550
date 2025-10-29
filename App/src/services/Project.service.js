@@ -32,6 +32,10 @@ class ProjectService {
     async getReportData(id) {
         return (await this.api.get(`/${id}/report`)).data;
     }
+
+    async getRole(id, user_id) {
+        return (await this.api.get(`/${id}/role/${user_id}`)).data;
+    }
 }
 
 export default new ProjectService();

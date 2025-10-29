@@ -5,20 +5,34 @@
         <!-- HEADER -->
         <div class="file-header">
           <h3 class="file-name">{{ file.file_name }}</h3>
-          <el-select
-            v-if="file?.versions?.length"
-            v-model="selectedVersionId"
-            placeholder="Chọn phiên bản"
-            size="small"
-            style="width: 160px"
-          >
-            <el-option
-              v-for="v in file.versions"
-              :key="v.id"
-              :label="'Version ' + v.version_number"
-              :value="v.id"
-            />
-          </el-select>
+
+          <div style="display: flex; align-items: center; gap: 8px">
+            <el-select
+              v-if="file?.versions?.length"
+              v-model="selectedVersionId"
+              placeholder="Chọn phiên bản"
+              size="small"
+              style="width: 160px"
+            >
+              <el-option
+                v-for="v in file.versions"
+                :key="v.id"
+                :label="'Version ' + v.version_number"
+                :value="v.id"
+              />
+            </el-select>
+
+            <!-- Nút upload version -->
+            <el-button
+              v-if="canUploadVersion"
+              type="primary"
+              size="small"
+              @click="handleUploadVersion"
+            >
+              <el-icon><Upload /></el-icon>
+              Upload phiên bản mới
+            </el-button>
+          </div>
         </div>
 
         <!-- VIEWER -->
@@ -141,7 +155,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { getSocket } from "@/plugins/socket";
 import { dayjs } from "element-plus";
 import CommentService from "@/services/Comment.service";
-import { Close, Crop } from "@element-plus/icons-vue";
+import FileService from "@/services/File.service";
+import { Close, Crop, Upload } from "@element-plus/icons-vue";
+import { useRoleStore } from "@/stores/roleStore";
+import { ElMessage } from "element-plus";
 
 let socket;
 
@@ -156,6 +173,9 @@ const startPos = ref(null);
 const endPos = ref(null);
 const imageEl = ref(null);
 const canvasEl = ref(null);
+
+const canUploadVersion = ref(false);
+const roleStore = useRoleStore();
 
 const file = computed(() => props.file);
 const currentVersion = computed(() =>
@@ -200,7 +220,7 @@ const addComment = async () => {
       file_version_id: selectedVersionId.value,
       content: newComment.value,
       project_id: props.file.project_id,
-      owner_id: props.file.created_by
+      owner_id: props.file.created_by,
     };
 
     if (startPos.value && endPos.value) {
@@ -263,7 +283,6 @@ const onMouseDown = (e) => {
   startPos.value = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   isDrawing.value = true;
 };
-
 const onMouseMove = (e) => {
   if (!visualMode.value || !isDrawing.value) return;
   const rect = canvasEl.value.getBoundingClientRect();
@@ -272,7 +291,6 @@ const onMouseMove = (e) => {
   clearCanvas();
   drawRect(ctx, startPos.value, endPos.value);
 };
-
 const onMouseUp = () => {
   if (!visualMode.value || !isDrawing.value) return;
   isDrawing.value = false;
@@ -312,6 +330,39 @@ const showVisual = (comment) => {
   });
 };
 
+// UPLOAD NEW VERSION
+const handleUploadVersion = async () => {
+  try {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "*/*";
+    input.click();
+
+    input.onchange = async () => {
+      const fileData = input.files[0];
+      if (!fileData) return;
+
+      const formData = new FormData();
+      formData.append("file", fileData);
+      formData.append("file_id", file.value.id);
+      formData.append("project_id", file.value.project_id);
+      formData.append(
+        "uploaded_by",
+        JSON.parse(localStorage.getItem("user")).id
+      );
+
+      const res = await FileService.uploadVersion(formData);
+
+      ElMessage.success("Tải lên phiên bản mới thành công!");
+      file.value.versions.push(res.data);
+      selectedVersionId.value = res.data.id;
+    };
+  } catch (err) {
+    console.error("Lỗi khi upload phiên bản:", err);
+    ElMessage.error("Tải lên thất bại, vui lòng thử lại!");
+  }
+};
+
 // WATCH
 watch(
   () => file.value,
@@ -323,22 +374,26 @@ watch(
   { immediate: true }
 );
 watch(selectedVersionId, (val) => val && loadComments());
-onMounted(() => {
+
+onMounted(async () => {
   loadComments();
+  canUploadVersion.value = await roleStore.canUpdateFileVersion(
+    file.value.id,
+    file.value.project_id
+  );
+
 
   socket = getSocket();
-
   socket.on("comment", (event) => {
-  if (event.action === "create") {
-    comments.value.unshift(event.data);
-  }
-});
+    if (event.action === "create") {
+      comments.value.unshift(event.data);
+    }
+  });
 });
 
 onUnmounted(() => {
   socket.off("comment");
 });
-
 </script>
 
 <style scoped>

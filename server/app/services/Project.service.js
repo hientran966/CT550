@@ -393,6 +393,17 @@ class ProjectService {
       progress_trend,
     };
   }
+
+  async getRole(projectId, userId) {
+    const sql = `
+            SELECT role
+            FROM project_members
+            WHERE project_id = ? AND user_id = ? AND deleted_at IS NULL AND status = 'accepted'
+            LIMIT 1;
+        `;
+    const [rows] = await this.mysql.execute(sql, [projectId, userId]);
+    return rows[0];
+  }
 }
 
 module.exports = ProjectService;

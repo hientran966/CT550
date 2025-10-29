@@ -1,9 +1,7 @@
 <template>
   <el-header class="task-header" height="100px">
     <!-- Tiêu đề -->
-    <div
-      style="height: 40px; display: flex; flex-direction: row; width: 100%;"
-    >
+    <div style="height: 40px; display: flex; flex-direction: row; width: 100%;">
       <el-button text style="margin-top: 10px;">
         <el-icon size="large"><Fold /></el-icon>
       </el-button>
@@ -19,7 +17,13 @@
     >
       <!-- Bên trái -->
       <div class="left-section">
-        <el-button type="primary" :icon="Plus" plain @click="emit('add')">
+        <el-button
+          v-if="canAdd"
+          type="primary"
+          :icon="Plus"
+          plain
+          @click="emit('add')"
+        >
           <strong>Thêm mới</strong>
         </el-button>
       </div>
@@ -65,33 +69,38 @@
   </el-header>
 </template>
 
-<script lang="ts" setup>
+<script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { Plus, Search, Filter, More, Fold } from "@element-plus/icons-vue";
 import { useProjectStore } from "@/stores/projectStore";
+import { useRoleStore } from "@/stores/roleStore";
 import MemberService from "@/services/Member.service";
 import AvatarGroup from "./AvatarGroup.vue";
 
+// ----------- PROPS & EMIT -----------
+const props = defineProps({
+  page: { type: String, required: true },
+  projectId: { type: Number, required: false },
+});
+
+const emit = defineEmits(["add", "member-click"]);
+
 const search = ref("");
 
-const props = defineProps<{
-  page: "project" | "task" | "member" | "user";
-  projectId?: number;
-}>();
-
-const emit = defineEmits<{
-  (e: "add"): void;
-  (e: "member-click"): void;
-}>();
-
+// ----------- STORE -----------
 const projectStore = useProjectStore();
+const roleStore = useRoleStore();
+
+// ----------- TITLE -----------
 const projectName = computed(() => {
   if (props.page !== "task" || !props.projectId) return "";
-  const project = projectStore.projects?.find((p: any) => p.id === props.projectId);
+  const project = projectStore.projects?.find(
+    (p) => p.id === props.projectId
+  );
   return project ? project.name : "";
 });
 
-const titleMap: Record<string, string> = {
+const titleMap = {
   project: "Danh sách Project",
   task: "Danh sách Task",
   member: "Danh sách thành viên",
@@ -104,18 +113,18 @@ const pageTitle = computed(() =>
     : titleMap[props.page] || "Danh sách"
 );
 
-const memberIds = ref<number[]>([]);
-const namesMap = ref<Record<number, string>>({});
+// ----------- MEMBERS -----------
+const memberIds = ref([]);
+const namesMap = ref({});
 
 async function loadMembers() {
   if (props.page !== "task" || !props.projectId) return;
-
   try {
     const members = await MemberService.getByProjectId(props.projectId);
     if (!Array.isArray(members)) return;
 
-    memberIds.value = members.map((m: any) => m.user_id);
-    namesMap.value = members.reduce((map: Record<number, string>, m: any) => {
+    memberIds.value = members.map((m) => m.user_id);
+    namesMap.value = members.reduce((map, m) => {
       if (m.user_id != null) map[m.user_id] = m.name || "Người dùng";
       return map;
     }, {});
@@ -128,14 +137,43 @@ function memberClick() {
   emit("member-click");
 }
 
-onMounted(() => {
+// ----------- ROLE CHECK -----------
+const canAdd = ref(false);
+
+async function checkRole() {
+  if (props.page === "project") {
+    canAdd.value = true;
+    return;
+  }
+
+  if (!props.projectId) {
+    canAdd.value = false;
+    return;
+  }
+
+  try {
+    const projectRole = await roleStore.fetchProjectRole(props.projectId);
+    canAdd.value = ["owner", "manager"].includes(projectRole.role);
+  } catch (err) {
+    canAdd.value = false;
+  }
+}
+
+// ----------- LIFECYCLE -----------
+onMounted(async () => {
   loadMembers();
 
   if (!projectStore.projects?.length && props.projectId) {
     projectStore.fetchProjects?.();
   }
+
+  await checkRole();
 });
-watch(() => props.projectId, loadMembers);
+
+watch(() => props.projectId, async () => {
+  await loadMembers();
+  await checkRole();
+});
 </script>
 
 <style scoped>

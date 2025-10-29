@@ -277,6 +277,24 @@ class TaskService {
       connection.release();
     }
   }
+
+  async getRole(taskId, userId) {
+    const sql = `
+      SELECT
+        CASE WHEN t.created_by = ? THEN TRUE ELSE FALSE END AS isCreator,
+        CASE WHEN ta.id IS NOT NULL THEN TRUE ELSE FALSE END AS isAssigned
+      FROM tasks t
+      LEFT JOIN task_assignees ta 
+        ON t.id = ta.task_id 
+        AND ta.user_id = ? 
+        AND ta.deleted_at IS NULL
+      WHERE t.id = ? 
+        AND t.deleted_at IS NULL
+      LIMIT 1;
+    `;
+    const [rows] = await this.mysql.execute(sql, [userId, userId, taskId]);
+    return rows[0] || { isCreator: false, isAssigned: false };
+  }
 }
 
 module.exports = TaskService;

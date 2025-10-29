@@ -315,6 +315,25 @@ class FileService {
     );
     return rows;
   }
+
+  async getRole(fileId, userId) {
+    const sql = `
+      SELECT
+        CASE WHEN f.created_by = ? THEN TRUE ELSE FALSE END AS isCreator,
+        CASE WHEN ta.id IS NOT NULL THEN TRUE ELSE FALSE END AS isAssigned
+      FROM files f
+      LEFT JOIN task_assignees ta 
+        ON f.task_id = ta.task_id 
+        AND ta.user_id = ? 
+        AND ta.deleted_at IS NULL
+      WHERE f.id = ? 
+        AND f.deleted_at IS NULL
+      LIMIT 1;
+    `;
+    const [rows] = await this.mysql.execute(sql, [userId, userId, fileId]);
+    console.log(rows)
+    return rows[0] || { isCreator: false, isAssigned: false };
+  }
 }
 
 module.exports = FileService;

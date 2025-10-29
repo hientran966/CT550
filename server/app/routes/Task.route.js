@@ -15,6 +15,9 @@ router.route("/:id")
 router.route("/:id/progress")
     .post(task.logProgress);
 
+router.route("/:id/role/:user_id")
+    .get(task.getRole);
+
 router.route("/project/:id")
     .get(task.findByProject);
 

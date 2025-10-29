@@ -8,6 +8,7 @@
       :height="'610px'"
       @row-click="onRowClick"
     >
+      <!-- Tên dự án -->
       <el-table-column prop="name" label="Tên dự án">
         <template #default="{ row }">
           <template v-if="isEditing(row, 'name')">
@@ -21,11 +22,17 @@
             />
           </template>
           <template v-else>
-            <span @click.stop="startEditing(row, 'name')">{{ row.name }}</span>
+            <span
+              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              @click.stop="startEditing(row, 'name')"
+            >
+              {{ row.name }}
+            </span>
           </template>
         </template>
       </el-table-column>
 
+      <!-- Ngày bắt đầu -->
       <el-table-column prop="start_date" label="Ngày bắt đầu" sortable>
         <template #default="{ row }">
           <template v-if="isEditing(row, 'start_date')">
@@ -38,13 +45,17 @@
             />
           </template>
           <template v-else>
-            <span @click.stop="startEditing(row, 'start_date')">
+            <span
+              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              @click.stop="startEditing(row, 'start_date')"
+            >
               {{ formatDate(row.start_date) }}
             </span>
           </template>
         </template>
       </el-table-column>
 
+      <!-- Ngày kết thúc -->
       <el-table-column prop="end_date" label="Ngày kết thúc" sortable>
         <template #default="{ row }">
           <template v-if="isEditing(row, 'end_date')">
@@ -57,13 +68,17 @@
             />
           </template>
           <template v-else>
-            <span @click.stop="startEditing(row, 'end_date')">
+            <span
+              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              @click.stop="startEditing(row, 'end_date')"
+            >
               {{ formatDate(row.end_date) }}
             </span>
           </template>
         </template>
       </el-table-column>
 
+      <!-- Trạng thái -->
       <el-table-column
         prop="status"
         label="Trạng thái"
@@ -87,6 +102,7 @@
             <el-tag
               :type="row.status === 'Đang tiến hành' ? 'primary' : 'success'"
               disable-transitions
+              :class="{ 'disabled-text': !canEditProject(row.id) }"
               @click.stop="startEditing(row, 'status')"
             >
               {{ row.status }}
@@ -95,19 +111,18 @@
         </template>
       </el-table-column>
 
+      <!-- Quản lý -->
       <el-table-column prop="created_by" label="Quản lý" width="220">
         <template #default="{ row }">
           <div style="display: flex; align-items: center; gap: 8px">
-            <el-tooltip
-              :content="getManagerName(row.created_by)"
-              placement="top"
-            >
+            <el-tooltip :content="getManagerName(row.created_by)" placement="top">
               <el-avatar :src="getManagerAvatar(row.created_by)" size="small" />
             </el-tooltip>
           </div>
         </template>
       </el-table-column>
 
+      <!-- Thành viên -->
       <el-table-column prop="members" label="Thành viên" width="180">
         <template #default="{ row }">
           <AvatarGroup
@@ -136,20 +151,19 @@
 <script setup>
 import { ref, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
+import { useRoleStore } from "@/stores/roleStore";
 
 import AvatarGroup from "@/components/AvatarGroup.vue";
 import FileService from "@/services/File.service";
 import AccountService from "@/services/Account.service";
-import defaultAvatar from "@/assets/default-avatar.png";
 import MemberService from "@/services/Member.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 
 const router = useRouter();
+const roleStore = useRoleStore();
 
 const props = defineProps({
-  projects: {
-    type: Array,
-    required: true,
-  },
+  projects: { type: Array, required: true },
 });
 
 const emit = defineEmits(["update-project"]);
@@ -158,8 +172,9 @@ const editableProjects = ref([]);
 const projectMembers = ref({});
 const managerAvatars = ref({});
 const managerNames = ref({});
+const projectRoles = ref({});
 
-// Phân trang
+// ------------------ PHÂN TRANG ------------------
 const currentPage = ref(1);
 const pageSize = ref(13);
 
@@ -173,6 +188,7 @@ function handlePageChange(page) {
   currentPage.value = page;
 }
 
+// ------------------ TRẠNG THÁI / EDIT ------------------
 const tableRef = ref(null);
 const statusFilters = [
   { text: "Chưa bắt đầu", value: "Chưa bắt đầu" },
@@ -193,14 +209,19 @@ function toSQLDate(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function canEditProject(projectId) {
+  const role = projectRoles.value[projectId];
+  return ["owner", "manager"].includes(role);
+}
+
 function startEditing(row, field) {
+  if (!canEditProject(row.id)) return;
   editingRow.value = row;
   editingField.value = field;
 }
 
 function stopEditing() {
   if (!editingRow.value || !editingField.value) return;
-
   const field = editingField.value;
   const id = editingRow.value.id;
   let value = editingRow.value[field];
@@ -211,12 +232,7 @@ function stopEditing() {
   }
 
   const user = JSON.parse(localStorage.getItem("user"));
-
-  emit("update-project", {
-    id,
-    [field]: value,
-    actor_id: user?.id,
-  });
+  emit("update-project", { id, [field]: value, actor_id: user?.id });
   editingRow.value = null;
   editingField.value = null;
 }
@@ -239,6 +255,7 @@ function formatDate(cellValue) {
   return date.toLocaleDateString("vi-VN");
 }
 
+// ------------------ DỮ LIỆU PHỤ TRỢ ------------------
 async function loadManagerData(projects) {
   const uniqueIds = Array.from(new Set(projects.map((p) => p.created_by)));
   const avatars = {};
@@ -268,7 +285,6 @@ async function loadManagerData(projects) {
 
 async function loadMembers(projects) {
   if (!projects || !Array.isArray(projects)) return;
-
   const membersMap = {};
 
   await Promise.all(
@@ -298,14 +314,27 @@ function getManagerName(id) {
   return managerNames.value[id] || "Đang tải...";
 }
 
+// ------------------ LOAD DỮ LIỆU ------------------
 watch(
   () => props.projects,
   async (newVal) => {
     await nextTick();
-    console.log(props.projects);
     editableProjects.value = newVal.map((p) => ({ ...p }));
     await loadManagerData(newVal);
     await loadMembers(newVal);
+
+    const roles = {};
+    await Promise.all(
+      newVal.map(async (p) => {
+        try {
+          const res = await roleStore.fetchProjectRole(p.id);
+          roles[p.id] = res.role;
+        } catch {
+          roles[p.id] = "viewer";
+        }
+      })
+    );
+    projectRoles.value = roles;
   },
   { immediate: true }
 );
@@ -315,5 +344,11 @@ watch(
 .el-table__body tr.is-empty-row td {
   border-bottom: none !important;
   background: transparent !important;
+}
+
+.disabled-text {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

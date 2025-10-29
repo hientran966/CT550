@@ -40,6 +40,10 @@ class FileService {
     async deleteFile(id) {
         return (await this.api.delete(`/${id}`)).data;
     }
+
+    async getRole(id, user_id) {
+        return (await this.api.get(`/${id}/role/${user_id}`)).data;
+    }
 }
 
 export default new FileService();
