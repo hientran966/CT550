@@ -8,7 +8,8 @@
     :destroy-on-close="true"
   >
     <el-form :model="form" ref="memberForm" label-width="120px">
-      <el-form-item label="Thành viên">
+      <!-- Form thêm thành viên -->
+      <el-form-item label="Thành viên" v-if="canManage">
         <div class="members-input">
           <el-input
             v-model="newMember.email"
@@ -24,11 +25,12 @@
             <el-option label="Member" value="member" />
             <el-option label="Viewer" value="viewer" />
           </el-select>
-          <el-button type="primary" plain @click="addMember"> Thêm </el-button>
+          <el-button type="primary" plain @click="addMember">Thêm</el-button>
         </div>
       </el-form-item>
     </el-form>
 
+    <!-- Bảng danh sách -->
     <el-table
       v-loading="loading"
       :data="form.members"
@@ -40,6 +42,7 @@
       <el-table-column label="Hành động" width="100">
         <template #default="{ row }">
           <el-popconfirm
+            v-if="canManage"
             title="Bạn có chắc muốn xóa thành viên này không?"
             confirm-button-text="Xóa"
             cancel-button-text="Hủy"
@@ -56,13 +59,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ref, reactive, computed, watch, onMounted } from "vue";
+import { ElMessage } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
+import { useRoleStore } from "@/stores/roleStore";
 
 import MemberService from "@/services/Member.service";
 import AccountService from "@/services/Account.service";
-import ProjectService from "@/services/Project.service";
 
 const props = defineProps<{ modelValue: boolean; project_id: number }>();
 const emit = defineEmits<{
@@ -87,15 +90,31 @@ const newMember = reactive({
   role: "member",
 });
 
+// ---------- ROLE STORE ----------
+const roleStore = useRoleStore();
+const projectRole = ref(null);
+
+const canManage = computed(() =>
+  ["owner", "manager"].includes(projectRole.value?.role)
+);
+
+async function loadRole() {
+  if (!props.project_id) return;
+  projectRole.value = await roleStore.fetchProjectRole(props.project_id);
+}
+
+// ---------- WATCHERS ----------
 watch(
   () => props.modelValue,
-  (val) => {
+  async (val) => {
     if (val && props.project_id) {
-      loadMembers();
+      await loadRole();
+      await loadMembers();
     }
   }
 );
 
+// ---------- METHODS ----------
 function handleClose() {
   visible.value = false;
   resetForm();
@@ -121,6 +140,8 @@ async function loadMembers() {
 }
 
 async function addMember() {
+  if (!canManage.value) return ElMessage.warning("Bạn không có quyền thêm thành viên");
+
   const curr_user = await AccountService.getCurrentUser();
   if (!newMember.email) return ElMessage.warning("Vui lòng nhập email");
 
@@ -158,8 +179,9 @@ async function addMember() {
 }
 
 async function deleteMember(memberId: number) {
+  if (!canManage.value) return ElMessage.warning("Bạn không có quyền xóa thành viên");
+
   try {
-    console.log("Deleting member with ID:", memberId);
     await MemberService.deleteMember(memberId);
     ElMessage.success("Đã xóa thành viên");
     await loadMembers();
@@ -169,6 +191,11 @@ async function deleteMember(memberId: number) {
     ElMessage.error("Không thể xóa thành viên");
   }
 }
+
+// ---------- INIT ----------
+onMounted(async () => {
+  if (props.project_id) await loadRole();
+});
 </script>
 
 <style scoped>

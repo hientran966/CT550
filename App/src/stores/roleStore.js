@@ -98,7 +98,7 @@ export const useRoleStore = defineStore('role', () => {
 
   async function canUpdateFileVersion(fileId, projectId) {
     const f = await fetchFileRole(fileId, projectId);
-    return f.isCreator || ['owner', 'manager'].includes(f.projectRole);
+    return f.isCreator;
   }
 
   // ---------- INVALIDATION ----------

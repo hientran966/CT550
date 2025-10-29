@@ -17,6 +17,8 @@
               ? 'warning'
               : column.name === 'Đang Tiến Hành'
               ? 'primary'
+              : column.name === 'Review'
+              ? 'info'
               : 'success'
           "
           round
@@ -31,7 +33,8 @@
           v-for="task in column.tasks"
           :key="task.id"
           class="kanban-task"
-          draggable="true"
+          :class="{ 'can-drag': canChangeStatusMap[task.id] }"
+          :draggable="canChangeStatusMap[task.id]"
           @dragstart="onDragStart($event, task, column.name)"
           @click="openTaskDetail(task)"
           shadow="hover"
@@ -40,6 +43,7 @@
             <strong :class="{ 'done-task': task.status === 'done' }">
               {{ task.title }}
             </strong>
+
             <el-tag
               :type="
                 task.priority === 'high'
@@ -51,7 +55,7 @@
               size="small"
               effect="plain"
             >
-              {{priorityLabel( task.priority )}}
+              {{ priorityLabel(task.priority) }}
             </el-tag>
           </div>
 
@@ -59,16 +63,25 @@
             <p v-if="task.description">{{ task.description }}</p>
             <p><strong>Đến hạn:</strong> {{ formatDate(task.due_date) }}</p>
             <el-progress
-              :percentage="task.latest_progress || 0"
+              v-if="task.latest_progress"
+              :percentage="task.latest_progress"
               size="small"
               style="margin-top: 8px"
-              v-if="task.latest_progress"
             />
           </div>
 
           <div class="task-footer">
             <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
           </div>
+
+          <el-button
+            v-if="canDeleteMap[task.id]"
+            class="delete-btn"
+            link
+            size="small"
+            :icon="Close"
+            @click.stop="confirmDelete(task)"
+          />
         </el-card>
       </div>
     </div>
@@ -78,8 +91,10 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import { useTaskStore } from "@/stores/taskStore";
+import { useRoleStore } from "@/stores/roleStore";
 import { storeToRefs } from "pinia";
-
+import { ElMessageBox, ElMessage } from "element-plus";
+import { Close, Delete } from "@element-plus/icons-vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
@@ -90,10 +105,14 @@ const props = defineProps({
 const emit = defineEmits(["open-detail"]);
 
 const taskStore = useTaskStore();
+const roleStore = useRoleStore();
+
 const { getTasksByProject } = storeToRefs(taskStore);
 const tasks = computed(() => getTasksByProject.value(props.projectId) || []);
 
 const avatarsMap = ref({});
+const canChangeStatusMap = ref({});
+const canDeleteMap = ref({});
 
 const statusMap = {
   todo: "Đang Chờ",
@@ -105,7 +124,7 @@ const statusMap = {
 const reverseStatusMap = {
   "Đang Chờ": "todo",
   "Đang Tiến Hành": "in_progress",
-  "Review": "review",
+  Review: "review",
   "Đã Xong": "done",
 };
 
@@ -114,7 +133,10 @@ const priorityLabel = (val) =>
 
 const columns = computed(() => [
   { name: "Đang Chờ", tasks: tasks.value.filter((t) => t.status === "todo") },
-  { name: "Đang Tiến Hành", tasks: tasks.value.filter((t) => t.status === "in_progress") },
+  {
+    name: "Đang Tiến Hành",
+    tasks: tasks.value.filter((t) => t.status === "in_progress"),
+  },
   { name: "Review", tasks: tasks.value.filter((t) => t.status === "review") },
   { name: "Đã Xong", tasks: tasks.value.filter((t) => t.status === "done") },
 ]);
@@ -133,6 +155,7 @@ const draggedTask = ref(null);
 const fromColumn = ref(null);
 
 function onDragStart(event, task, columnName) {
+  if (!canChangeStatusMap.value[task.id]) return;
   draggedTask.value = task;
   fromColumn.value = columnName;
   dragging.value = true;
@@ -177,6 +200,45 @@ async function loadAvatars() {
   avatarsMap.value = results;
 }
 
+async function checkRoles() {
+  const resultStatus = {};
+  const resultDelete = {};
+
+  for (const task of tasks.value) {
+    const canChange = await roleStore.canChangeTaskStatus(
+      task.id,
+      props.projectId
+    );
+    const projectRole = (await roleStore.fetchProjectRole(props.projectId))
+      ?.role;
+
+    resultStatus[task.id] = canChange;
+    resultDelete[task.id] = ["owner", "manager"].includes(projectRole);
+  }
+
+  canChangeStatusMap.value = resultStatus;
+  canDeleteMap.value = resultDelete;
+}
+
+async function confirmDelete(task) {
+  try {
+    await ElMessageBox.confirm(
+      `Bạn có chắc muốn xóa task "<b>${task.title}</b>" không?`,
+      "Xác nhận",
+      {
+        type: "warning",
+        confirmButtonText: "Xóa",
+        cancelButtonText: "Hủy",
+        dangerouslyUseHTMLString: true,
+      }
+    );
+    await taskStore.deleteTask(task.id);
+    ElMessage.success("Đã xóa task");
+  } catch {
+    // Bỏ qua nếu hủy
+  }
+}
+
 function headerClass(name) {
   switch (name) {
     case "Đang Chờ":
@@ -184,7 +246,7 @@ function headerClass(name) {
     case "Đang Tiến Hành":
       return "header-primary";
     case "Review":
-      return "header-info"
+      return "header-info";
     case "Đã Xong":
       return "header-success";
     default:
@@ -201,20 +263,26 @@ function columnClass(name) {
     case "Review":
       return "column-info";
     case "Đã Xong":
-      return "header-success";
+      return "column-success";
     default:
       return "";
   }
 }
+
 onMounted(async () => {
   if (props.projectId) {
     await taskStore.loadTasks(props.projectId);
+    await checkRoles();
+    await loadAvatars();
   }
 });
 
 watch(
   () => tasks.value,
-  () => loadAvatars(),
+  async () => {
+    await checkRoles();
+    await loadAvatars();
+  },
   { deep: true, immediate: true }
 );
 </script>
@@ -237,8 +305,47 @@ watch(
 
 .kanban-column {
   height: 80vh;
+  flex: 1;
+  padding: 8px;
+  border-radius: 10px;
+  position: relative;
 }
 
+.kanban-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 75vh;
+}
+
+.kanban-task {
+  cursor: grab;
+  position: relative;
+  transition: 0.2s ease;
+}
+
+.kanban-task:hover .delete-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.delete-btn {
+  padding: 5px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.2s ease;
+}
+
+.done-task {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Header colors */
 .header-warning {
   background-color: #fff8e1;
   color: #b88200;
@@ -263,6 +370,7 @@ watch(
   border: 1px solid #e0e0e0;
 }
 
+/* Column colors */
 .column-warning {
   background-color: #fffdf6;
   border: 2px solid #ffecb3;
@@ -281,26 +389,5 @@ watch(
 .column-info {
   background-color: #fcfcfc;
   border: 2px solid #e0e0e0;
-}
-
-.kanban-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: scroll;
-}
-
-.kanban-task {
-  cursor: grab;
-}
-
-.kanban-task:active {
-  cursor: grabbing;
-}
-
-.done-task {
-  text-decoration: line-through;
-  opacity: 0.7;
 }
 </style>

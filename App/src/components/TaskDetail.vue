@@ -44,7 +44,7 @@
                       <AvatarGroup v-if="task.assignees && task.assignees.length" :user-ids="task.assignees" :size="32" :max="5" :tooltips="true" /> 
                       <span v-else>Chưa có</span> 
                     </div> 
-                    <el-button size="small" type="info" @click="startEdit(row.key)" link :icon="EditPen" /> 
+                    <el-button v-if="canEdit" size="small" type="info" @click="startEdit(row.key)" link :icon="EditPen" /> 
                   </template> 
                   <!-- Chế độ chỉnh sửa --> 
                   <template v-else> 
@@ -87,6 +87,7 @@
 
             <!-- Đính kèm file -->
             <el-button
+              v-if="canUpload"
               style="margin-top: 16px"
               plain
               :icon="Upload"
@@ -167,7 +168,7 @@
 import { computed, onMounted, ref, watch, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
-import { dayjs, ElMessage } from "element-plus";
+import { ElMessage } from "element-plus";
 import { getSocket } from "@/plugins/socket";
 
 import UploadForm from "./Upload.vue";
@@ -177,6 +178,7 @@ import FileCard from "./FileCard.vue";
 import { useTaskStore } from "@/stores/taskStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useCommentStore } from "@/stores/commentStore";
+import { useRoleStore } from "@/stores/roleStore";
 import MemberService from "@/services/Member.service";
 
 let socket;
@@ -192,13 +194,16 @@ const emit = defineEmits(["update:modelValue"]);
 const formRef = ref(false);
 const editRow = ref(null);
 const editCache = ref();
-const members = ref([])
+const members = ref([]);
 const task = ref({});
 const newComment = ref("");
+const canEdit = ref(false);
+const canUpload = ref(false);
 
 const taskStore = useTaskStore();
 const fileStore = useFileStore();
 const commentStore = useCommentStore();
+const roleStore = useRoleStore();
 
 const { getTasksByProject } = storeToRefs(taskStore);
 const { getFilesByTask } = storeToRefs(fileStore);
@@ -219,7 +224,24 @@ const tableData = computed(() => [
   { key: "assignee", label: "Người được giao" },
 ]);
 
+// ===================== ROLE CHECK =====================
+async function checkRole() {
+  try {
+    canEdit.value = await roleStore.canEditTask(props.taskId, props.projectId);
+    canUpload.value = await roleStore.canUploadFileToTask(props.taskId, props.projectId);
+  } catch (err) {
+    console.error("Lỗi kiểm tra quyền:", err);
+    canEdit.value = false;
+    canUpload.value = false;
+  }
+}
+
+// ===================== EDITING =====================
 const startEdit = (key) => {
+  if (!canEdit.value) {
+    ElMessage.warning("Bạn không có quyền chỉnh sửa task này");
+    return;
+  }
   editRow.value = key;
   editCache.value = { ...task.value };
 };
@@ -230,29 +252,27 @@ const cancelEdit = () => {
 };
 
 const saveEdit = (key) => {
+  if (!canEdit.value) {
+    ElMessage.warning("Bạn không có quyền chỉnh sửa");
+    return;
+  }
+
   const updated = { ...task.value, ...editCache.value };
 
-  if (key === "date") {
-    if (
-      updated.start_date &&
-      updated.due_date &&
-      new Date(updated.start_date) > new Date(updated.due_date)
-    ) {
+  if (key === "date" && updated.start_date && updated.due_date) {
+    if (new Date(updated.start_date) > new Date(updated.due_date)) {
       ElMessage("Ngày kết thúc phải sau ngày bắt đầu");
       return;
     }
   }
 
   if (updated.start_date)
-    updated.start_date = new Date(updated.start_date)
-      .toISOString()
-      .split("T")[0];
+    updated.start_date = new Date(updated.start_date).toISOString().split("T")[0];
   if (updated.due_date)
     updated.due_date = new Date(updated.due_date).toISOString().split("T")[0];
 
-  if (Array.isArray(updated.assignees)) {
+  if (Array.isArray(updated.assignees))
     updated.assignees = updated.assignees.map((id) => Number(id));
-  }
 
   const updatedTask = { ...updated, changedField: key };
   taskStore.updateTask(props.projectId, updatedTask);
@@ -260,14 +280,20 @@ const saveEdit = (key) => {
   visible.value = false;
 };
 
-const onUpload = () => (formRef.value = true);
+// ===================== UPLOAD =====================
+const onUpload = () => {
+  if (!canUpload.value) {
+    ElMessage.warning("Bạn không có quyền upload file cho task này");
+    return;
+  }
+  formRef.value = true;
+};
 
+// ===================== OTHER METHODS =====================
 const priorityLabel = (val) =>
   val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
 
-const formatDate = (d) =>
-  d ? new Date(d).toLocaleDateString("vi-VN") : "—";
-
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
 const handleClose = () => (visible.value = false);
 
 const loadMembers = async () => {
@@ -283,18 +309,14 @@ const loadData = async () => {
   if (props.projectId) {
     await taskStore.loadTasks(props.projectId);
     const taskList = getTasksByProject.value(props.projectId);
-    task.value = taskList.find(t => t.id === props.taskId) || {};
-    console.log(task.value)
+    task.value = taskList.find((t) => t.id === props.taskId) || {};
 
     if (task.value?.id) {
       await Promise.all([
         fileStore.loadFiles(task.value.id),
         commentStore.loadComments(task.value.id),
       ]);
-      
-      console.log("file")
     }
-
   }
 };
 
@@ -307,7 +329,7 @@ const addComment = async () => {
       task_id: task.value.id,
       content: newComment.value.trim(),
       project_id: props.projectId,
-      owner_id: task.value.created_by
+      owner_id: task.value.created_by,
     });
     newComment.value = "";
     ElMessage.success("Đã thêm bình luận");
@@ -316,18 +338,15 @@ const addComment = async () => {
   }
 };
 
-onMounted(() => {
-  loadData();
-  loadMembers();
+// ===================== SOCKET & LIFECYCLE =====================
+onMounted(async () => {
+  await loadData();
+  await loadMembers();
+  await checkRole();
 
   socket = getSocket();
-
-  socket.on("comment", (data) => {
-    loadData();
-  });
-  socket.on("file", (data) => {
-    loadData();
-  });
+  socket.on("comment", loadData);
+  socket.on("file", loadData);
 });
 
 onUnmounted(() => {
@@ -337,9 +356,10 @@ onUnmounted(() => {
 
 watch(
   () => visible.value,
-  (val) => {
-    if (val && task?.id) {
-      loadData();
+  async (val) => {
+    if (val) {
+      await loadData();
+      await checkRole();
     }
   }
 );
