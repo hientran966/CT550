@@ -60,10 +60,19 @@ const customMethods = {
 
     addVersion: async (req, res, next) => {
         try {
-            const service = new FileService(MySQL.connection);
-            const doc = await service.addVersion(req.params.id, req.body);
-            if (!doc) return next(new ApiError(404, "File không tồn tại"));
-            return res.json(doc);
+            if (!req.file) {
+            return next(new ApiError(400, "Thiếu file upload"));
+            }
+
+            const decodedName = Buffer.from(req.file.originalname, "latin1").toString("utf8");
+            const payload = {
+            file_name: decodedName || req.file.originalname,
+            file: req.file.path,
+            };
+
+            const service = new FileService(MySQL.pool);
+            const result = await service.addVersion(req.params.id, payload);
+            return res.json({ message: "Thêm phiên bản thành công", result });
         } catch (err) {
             console.error(err);
             return next(new ApiError(500, "Đã xảy ra lỗi khi thêm phiên bản file"));

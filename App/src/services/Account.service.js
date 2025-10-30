@@ -25,6 +25,11 @@ class AuthService {
         return (await this.api.delete(`/${id}`)).data;
     }
 
+    async getStats(id, projectId = null) {
+        const url = projectId ? `/${id}/stats?projectId=${projectId}` : `/${id}/stats`;
+        return (await this.api.get(url)).data;
+    }
+
     async getAllAccounts() {
         return (await this.api.get("/")).data;
     }

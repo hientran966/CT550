@@ -111,22 +111,12 @@
         </template>
       </el-table-column>
 
-      <!-- Quản lý -->
-      <el-table-column prop="created_by" label="Quản lý" width="220">
-        <template #default="{ row }">
-          <div style="display: flex; align-items: center; gap: 8px">
-            <el-tooltip :content="getManagerName(row.created_by)" placement="top">
-              <el-avatar :src="getManagerAvatar(row.created_by)" size="small" />
-            </el-tooltip>
-          </div>
-        </template>
-      </el-table-column>
-
       <!-- Thành viên -->
       <el-table-column prop="members" label="Thành viên" width="180">
         <template #default="{ row }">
           <AvatarGroup
             :user-ids="projectMembers[row.id] || []"
+            :project-id="row.id"
             :max="3"
             :size="28"
           />

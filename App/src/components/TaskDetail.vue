@@ -154,8 +154,8 @@
       </div>
     </div>
 
-    <UploadForm
-      v-model="formRef"
+    <UploadDialog
+      v-model="uploadRef"
       :project-id="props.projectId"
       :task-id="task.id"
       @file-added="loadData"
@@ -171,7 +171,7 @@ import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { getSocket } from "@/plugins/socket";
 
-import UploadForm from "./Upload.vue";
+import UploadDialog from "./UploadDialog.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
 
@@ -191,7 +191,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const formRef = ref(false);
+const uploadRef = ref(false);
 const editRow = ref(null);
 const editCache = ref();
 const members = ref([]);
@@ -286,7 +286,7 @@ const onUpload = () => {
     ElMessage.warning("Bạn không có quyền upload file cho task này");
     return;
   }
-  formRef.value = true;
+  uploadRef.value = true;
 };
 
 // ===================== OTHER METHODS =====================

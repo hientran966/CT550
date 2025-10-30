@@ -98,7 +98,7 @@ class FileService {
 
       const versionId = verResult.insertId;
 
-      console.log(ownerId, payload.created_by)
+      console.log(ownerId, payload.created_by);
 
       // --- Gửi thông báo ---
       if (ownerId && Number(ownerId) !== Number(payload.created_by)) {
@@ -158,6 +158,60 @@ class FileService {
     }
   }
 
+  async addVersion(fileId, payload) {
+    const connection = await this.mysql.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Kiểm tra file tồn tại
+      const [fileRows] = await connection.execute(
+        "SELECT id FROM files WHERE id = ? AND deleted_at IS NULL",
+        [fileId]
+      );
+      if (fileRows.length === 0) {
+        throw new Error("File không tồn tại");
+      }
+
+      // Lưu file vật lý
+      const file_url = await this.saveFileFromPayload(payload);
+      const fileType = path
+        .extname(payload.file_name)
+        .replace(".", "")
+        .toLowerCase();
+
+      // Lấy version hiện tại
+      const [verCount] = await connection.execute(
+        "SELECT COUNT(*) AS count FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
+        [fileId]
+      );
+      const version = verCount[0].count + 1;
+
+      // Tạo version mới
+      const [verResult] = await connection.execute(
+        `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
+        VALUES (?, ?, ?, ?, 'Hoạt động')`,
+        [fileId, version, file_url, fileType]
+      );
+
+      await connection.commit();
+
+      const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+      return {
+        id: verResult.insertId,
+        file_id: fileId,
+        version_number: version,
+        file_url: `${baseUrl}/${file_url.replace(/\\/g, "/")}`,
+        file_type: fileType,
+        status: "Hoạt động",
+      };
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  }
+
   async updateAvatar(userId, payload) {
     const connection = await this.mysql.getConnection();
     try {
@@ -169,10 +223,24 @@ class FileService {
         .replace(".", "")
         .toLowerCase();
 
+      const [userRows] = await connection.execute(
+        `SELECT name FROM users WHERE id = ? LIMIT 1`,
+        [userId]
+      );
+
+      if (userRows.length === 0) {
+        throw new Error(`Không tìm thấy người dùng với id = ${userId}`);
+      }
+
+      const userName = userRows[0].name || `user_${userId}`;
+
       const [rows] = await connection.execute(
         `SELECT id FROM files 
-                 WHERE created_by = ? AND project_id IS NULL AND task_id IS NULL 
-                 AND deleted_at IS NULL AND category = 'user_avatar'`,
+       WHERE created_by = ? 
+         AND project_id IS NULL 
+         AND task_id IS NULL 
+         AND deleted_at IS NULL 
+         AND category = 'user_avatar'`,
         [userId]
       );
 
@@ -180,28 +248,30 @@ class FileService {
 
       if (rows.length > 0) {
         fileId = rows[0].id;
+
         const [verCount] = await connection.execute(
-          `SELECT COUNT(*) as count FROM file_versions WHERE file_id = ? AND deleted_at IS NULL`,
+          `SELECT COUNT(*) as count FROM file_versions 
+         WHERE file_id = ? AND deleted_at IS NULL`,
           [fileId]
         );
         const version = verCount[0].count + 1;
 
         await connection.execute(
           `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-                     VALUES (?, ?, ?, ?, 'Hoạt động')`,
+         VALUES (?, ?, ?, ?, 'Hoạt động')`,
           [fileId, version, file_url, fileType]
         );
       } else {
         const [fileRes] = await connection.execute(
-          `INSERT INTO files (category, created_by, project_id, task_id)
-                     VALUES ('user_avatar', ?, NULL, NULL)`,
-          [userId]
+          `INSERT INTO files (file_name, category, created_by, project_id, task_id)
+         VALUES (?, 'user_avatar', ?, NULL, NULL)`,
+          [userName, userId]
         );
         fileId = fileRes.insertId;
 
         await connection.execute(
           `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-                     VALUES (?, 1, ?, ?, 'Hoạt động')`,
+         VALUES (?, 1, ?, ?, 'Hoạt động')`,
           [fileId, file_url, fileType]
         );
       }

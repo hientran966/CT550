@@ -5,7 +5,21 @@
         <el-col :span="24">
           <!-- Header -->
           <div class="me-header-overlay">
-            <ElAvatar :src="avatar" :size="64" class="me-avatar" />
+            <div class="avatar-wrapper" @mouseenter="hovering = true" @mouseleave="hovering = false">
+              <el-upload
+                class="avatar-uploader"
+                :show-file-list="false"
+                :before-upload="beforeAvatarUpload"
+                :http-request="uploadAvatar"
+              >
+                <ElAvatar :src="avatar || defaultAvatar" :size="64" class="me-avatar" />
+                <div v-if="hovering" class="upload-overlay">
+                  <el-icon><UploadFilled /></el-icon>
+                  <span>Upload</span>
+                </div>
+              </el-upload>
+            </div>
+
             <h2>Xin chào, {{ user.name }}!</h2>
           </div>
 
@@ -126,6 +140,8 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import dayjs from "dayjs";
+import { UploadFilled } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
 
 import { useProjectStore } from "@/stores/projectStore";
 import { useInviteStore } from "@/stores/inviteStore";
@@ -140,6 +156,7 @@ const inviteStore = useInviteStore();
 
 const user = ref({ id: "", name: "" });
 const avatar = ref("");
+const hovering = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(7);
 
@@ -206,6 +223,44 @@ async function rejectInvite(id) {
   await inviteStore.rejectInvite(id);
   await inviteStore.fetchInvites();
   await loadInviterAvatars(inviteStore.invites);
+}
+
+function beforeAvatarUpload(file) {
+  const isImage = file.type.startsWith("image/");
+
+  if (!isImage) {
+    ElMessage.error("Chỉ được chọn file ảnh!");
+    return false;
+  }
+  return true;
+}
+
+async function uploadAvatar({ file }) {
+  try {
+    if (!user.value.id) {
+      ElMessage.error("Không tìm thấy thông tin người dùng!");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await FileService.uploadAvatar(user.value.id, formData);
+
+    if (res?.result?.file_url) {
+      const updated = await FileService.getAvatar(user.value.id);
+      avatar.value = updated?.file_url || res.result.file_url;
+
+      avatar.value = `${avatar.value}?v=${Date.now()}`;
+
+      ElMessage.success("Cập nhật ảnh đại diện thành công!");
+    } else {
+      ElMessage.warning("Không nhận được đường dẫn ảnh từ server.");
+    }
+  } catch (err) {
+    console.error("Upload avatar lỗi:", err);
+    ElMessage.error("Tải ảnh lên thất bại!");
+  }
 }
 
 onMounted(async () => {
@@ -305,5 +360,45 @@ onMounted(async () => {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.avatar-uploader {
+  display: inline-block;
+  position: relative;
+}
+
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.upload-overlay el-icon {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.me-avatar {
+  border: 2px solid white;
+  transition: transform 0.2s;
+}
+
+.avatar-wrapper:hover .me-avatar {
+  transform: scale(1.05);
 }
 </style>

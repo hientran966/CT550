@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="Upload File"
+    :title="dialogTitle"
     width="500px"
     :before-close="handleClose"
     :close-on-click-modal="false"
@@ -26,36 +26,38 @@
     <template #footer>
       <el-button @click="handleClose">Hủy</el-button>
       <el-button type="primary" @click="submitFiles" :loading="loading">
-        Upload
+        {{ fileId ? "Upload version" : "Upload" }}
       </el-button>
     </template>
   </el-dialog>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from "vue";
 import { UploadFilled } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import FileService from "@/services/File.service";
 
-const props = defineProps<{ 
-  modelValue: boolean;
-  projectId?: number;
-  taskId?: number;
-}>();
+const props = defineProps({
+  modelValue: Boolean,
+  projectId: Number,
+  taskId: Number,
+  fileId: Number,
+});
 
-const emit = defineEmits<{
-  (e: "update:modelValue", value: boolean): void;
-  (e: "file-added"): void;
-}>();
+const emit = defineEmits(["update:modelValue", "file-added"]);
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val: boolean) => emit("update:modelValue", val),
+  set: (val) => emit("update:modelValue", val),
 });
 
-const fileList = ref<any[]>([]);
+const fileList = ref([]);
 const loading = ref(false);
+
+const dialogTitle = computed(() =>
+  props.fileId ? "Upload version mới" : "Upload File"
+);
 
 function handleClose() {
   visible.value = false;
@@ -85,10 +87,14 @@ async function submitFiles() {
       if (props.taskId) formData.append("task_id", props.taskId.toString());
       if (createdBy) formData.append("created_by", createdBy.toString());
 
-      await FileService.uploadFile(formData);
+      if (props.fileId) {
+        await FileService.uploadVersion(props.fileId, formData);
+      } else {
+        await FileService.uploadFile(formData);
+      }
     }
 
-    ElMessage.success("Upload thành công!");
+    ElMessage.success(props.fileId ? "Upload version thành công!" : "Upload thành công!");
     emit("file-added");
     handleClose();
   } catch (err) {

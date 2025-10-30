@@ -15,7 +15,7 @@ router.route("/:id")
 
 router.route("/:id/version")
     .get(file.findAllVersion)
-    .post(file.addVersion);
+    .post(upload.single("file"), file.addVersion);
 
 router.route("/:id/role/:user_id")
     .get(file.getRole);
@@ -25,6 +25,6 @@ router.route("/:id/version/:versionId")
 
 router.route("/avatar/:id")
     .get(file.getAvatar)
-    .post(upload.single("avatar"), file.uploadAvatar);
+    .post(upload.single("file"), file.uploadAvatar);
 
 module.exports = router;

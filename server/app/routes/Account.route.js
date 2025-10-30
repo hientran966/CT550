@@ -21,6 +21,9 @@ router.route("/:id")
     .put(auth.update)
     .delete(auth.delete);
 
+router.route("/:id/stats")
+    .get(auth.getStats);
+
 router.route("/:id/password")
     .put(auth.changePassword);
 

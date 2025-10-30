@@ -21,6 +21,14 @@ class FileService {
         ).data;
     }
 
+    async uploadVersion(fileId, formData) {
+        return (
+            await this.api.post(`/${fileId}/version`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
+        ).data;
+    }
+
     async getAvatar(userId) {
         return (await this.api.get(`/avatar/${userId}`)).data;
     }

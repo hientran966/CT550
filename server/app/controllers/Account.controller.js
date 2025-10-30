@@ -65,6 +65,20 @@ const customMethods = {
         }
     },
 
+    getStats: async (req, res, next) => {
+        try {
+            const service = new AuthService(MySQL.connection);
+
+            const userId = req.params.id;
+            const projectId = req.query.projectId || null;
+
+            const stats = await service.getStats(userId, projectId);
+
+            return res.send(stats);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy thống kê người dùng"));
+        }
+    },
 };
 
 module.exports = {

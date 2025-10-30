@@ -26,22 +26,16 @@
               v-if="canUploadVersion"
               type="primary"
               size="small"
+              :icon="Upload"
               @click="handleUploadVersion"
-            >
-              <el-icon><Upload /></el-icon>
-              Upload phiên bản mới
-            </el-button>
+            />
           </div>
         </div>
 
         <!-- VIEWER -->
         <div class="file-viewer">
           <!-- IMAGE -->
-          <div
-            v-if="isImage"
-            ref="imageWrapper"
-            class="image-wrapper"
-          >
+          <div v-if="isImage" ref="imageWrapper" class="image-wrapper">
             <img
               ref="imageEl"
               :src="currentVersion?.file_url"
@@ -149,6 +143,13 @@
       </el-card>
     </el-col>
   </el-row>
+  <UploadDialog
+    v-model="uploadRef"
+    :file-id="props.file.id"
+    :project-id="props.file.project_id"
+    :task-id="props.file.task_id"
+    @file-added="loadData"
+  />
 </template>
 
 <script setup>
@@ -159,14 +160,17 @@ import CommentService from "@/services/Comment.service";
 import FileService from "@/services/File.service";
 import { Close, Crop, Upload } from "@element-plus/icons-vue";
 import { useRoleStore } from "@/stores/roleStore";
-import { ElMessage } from "element-plus";
+import UploadDialog from "./UploadDialog.vue";
 
 let socket;
 const props = defineProps({ file: Object });
 
 const selectedVersionId = ref(null);
+const uploadRef = ref(false);
+
 const comments = ref([]);
 const newComment = ref("");
+
 const visualMode = ref(false);
 const isDrawing = ref(false);
 const startPos = ref(null);
@@ -371,35 +375,11 @@ const showVisual = (comment) => {
 
 // --- UPLOAD VERSION ---
 const handleUploadVersion = async () => {
-  try {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "*/*";
-    input.click();
-
-    input.onchange = async () => {
-      const fileData = input.files[0];
-      if (!fileData) return;
-
-      const formData = new FormData();
-      formData.append("file", fileData);
-      formData.append("file_id", file.value.id);
-      formData.append("project_id", file.value.project_id);
-      formData.append(
-        "uploaded_by",
-        JSON.parse(localStorage.getItem("user")).id
-      );
-
-      const res = await FileService.uploadVersion(formData);
-
-      ElMessage.success("Tải lên phiên bản mới thành công!");
-      file.value.versions.push(res.data);
-      selectedVersionId.value = res.data.id;
-    };
-  } catch (err) {
-    console.error("Lỗi khi upload phiên bản:", err);
-    ElMessage.error("Tải lên thất bại, vui lòng thử lại!");
+  if (!canUploadVersion.value) {
+    ElMessage.warning("Bạn không có quyền upload file cho task này");
+    return;
   }
+  uploadRef.value = true;
 };
 
 // --- WATCH + SOCKET ---
@@ -423,7 +403,10 @@ onMounted(async () => {
 
   socket = getSocket();
   socket.on("comment", (event) => {
-    if (event.action === "create") comments.value.unshift(event.data);
+    if (event.action === "create") {
+      const exists = comments.value.some(c => c.id === event.data.id);
+      if (!exists) comments.value.unshift(event.data);
+    }
   });
 
   const observer = new ResizeObserver(() => updateCanvasSize());
