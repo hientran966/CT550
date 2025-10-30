@@ -331,7 +331,7 @@ class FileService {
       LIMIT 1;
     `;
     const [rows] = await this.mysql.execute(sql, [userId, userId, fileId]);
-    console.log(rows)
+
     return rows[0] || { isCreator: false, isAssigned: false };
   }
 }

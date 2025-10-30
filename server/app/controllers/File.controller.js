@@ -17,12 +17,13 @@ const baseController = createController(FileService, {
 const customMethods = {
     create: async (req, res, next) => {
         try {
+            const decodedName = Buffer.from(req.file.originalname, "latin1").toString("utf8");
             const payload = {
-                file_name: req.file?.originalname || req.body.file_name,
-                file: req.file || req.body.file,
-                project_id: req.body.project_id,
-                task_id: req.body.task_id,
-                created_by: req.body.created_by
+            file_name: decodedName || req.body.file_name,
+            file: req.file || req.body.file,
+            project_id: req.body.project_id,
+            task_id: req.body.task_id,
+            created_by: req.body.created_by
             };
 
             const service = new FileService(MySQL.pool);

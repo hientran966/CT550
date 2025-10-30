@@ -21,6 +21,13 @@ class ProjectService {
     };
   }
 
+  formatLocalDate(date) {
+    const d = new Date(date);
+    const offsetMs = d.getTimezoneOffset() * 60 * 1000;
+    const local = new Date(d.getTime() - offsetMs);
+    return local.toISOString().slice(0, 10);
+  }
+
   async create(payload) {
     const project = await this.extractProjectData(payload);
     const connection = await this.mysql.getConnection();
@@ -210,23 +217,21 @@ class ProjectService {
   }
 
   async report(projectId) {
-    //Thông tin dự án
     const [projectRows] = await this.mysql.execute(
       `SELECT id, name, start_date, end_date 
-      FROM projects 
-      WHERE id = ? AND deleted_at IS NULL`,
+     FROM projects 
+     WHERE id = ? AND deleted_at IS NULL`,
       [projectId]
     );
     if (projectRows.length === 0) throw new Error("Không tìm thấy dự án");
     const project = projectRows[0];
 
-    //Số task, thành viên,...
     const [[taskStats]] = await this.mysql.execute(
       `SELECT 
-        COUNT(*) AS total_tasks,
-        SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done_tasks
-      FROM tasks 
-      WHERE project_id = ? AND deleted_at IS NULL`,
+      COUNT(*) AS total_tasks,
+      SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done_tasks
+     FROM tasks 
+     WHERE project_id = ? AND deleted_at IS NULL`,
       [projectId]
     );
 
@@ -237,23 +242,23 @@ class ProjectService {
 
     const [[memberCount]] = await this.mysql.execute(
       `SELECT COUNT(DISTINCT user_id) AS count
-      FROM project_members 
-      WHERE project_id = ? AND deleted_at IS NULL AND status = 'accepted'`,
+     FROM project_members 
+     WHERE project_id = ? AND deleted_at IS NULL AND status = 'accepted'`,
       [projectId]
     );
 
     const [[timeSum]] = await this.mysql.execute(
       `SELECT IFNULL(SUM(hours),0) AS total_hours
-      FROM time_logs 
-      WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL`,
+     FROM time_logs 
+     WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL`,
       [projectId]
     );
 
     const [taskStatusRows] = await this.mysql.execute(
       `SELECT status, COUNT(*) AS count 
-      FROM tasks 
-      WHERE project_id = ? AND deleted_at IS NULL 
-      GROUP BY status`,
+     FROM tasks 
+     WHERE project_id = ? AND deleted_at IS NULL 
+     GROUP BY status`,
       [projectId]
     );
     const statusMap = {
@@ -269,9 +274,9 @@ class ProjectService {
 
     const [priorityRows] = await this.mysql.execute(
       `SELECT priority, COUNT(*) AS count 
-      FROM tasks 
-      WHERE project_id = ? AND deleted_at IS NULL 
-      GROUP BY priority`,
+     FROM tasks 
+     WHERE project_id = ? AND deleted_at IS NULL 
+     GROUP BY priority`,
       [projectId]
     );
     const priorityMap = { low: "Thấp", medium: "Trung bình", high: "Cao" };
@@ -282,17 +287,17 @@ class ProjectService {
 
     const [members] = await this.mysql.execute(
       `SELECT u.id, u.name 
-      FROM project_members pm 
-      JOIN users u ON pm.user_id = u.id
-      WHERE pm.project_id = ? AND pm.deleted_at IS NULL AND pm.status = 'accepted'`,
+     FROM project_members pm 
+     JOIN users u ON pm.user_id = u.id
+     WHERE pm.project_id = ? AND pm.deleted_at IS NULL AND pm.status = 'accepted'`,
       [projectId]
     );
 
     const [timeLogs] = await this.mysql.execute(
       `SELECT user_id, SUM(hours) AS total_hours 
-      FROM time_logs 
-      WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL
-      GROUP BY user_id`,
+     FROM time_logs 
+     WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL
+     GROUP BY user_id`,
       [projectId]
     );
 
@@ -304,7 +309,6 @@ class ProjectService {
       };
     });
 
-    //Tiến độ/thời gian
     const [tasks] = await this.mysql.execute(
       `SELECT id FROM tasks WHERE project_id = ? AND deleted_at IS NULL`,
       [projectId]
@@ -314,12 +318,17 @@ class ProjectService {
     const startDate = project.start_date
       ? new Date(project.start_date)
       : new Date();
-    const endDate = new Date();
-    const dayDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const endDate = today;
+    const dayDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+
     const dates = Array.from({ length: dayDiff + 1 }, (_, i) => {
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
-      return d.toISOString().slice(0, 10);
+      return this.formatLocalDate(d);
     });
 
     let progress_trend = [];
@@ -327,32 +336,26 @@ class ProjectService {
     if (taskIds.length > 0) {
       const [progressRows] = await this.mysql.execute(
         `
-    SELECT task_id, DATE(created_at) AS date, progress
-    FROM (
-      SELECT 
-        task_id,
-        created_at,
-        progress,
-        ROW_NUMBER() OVER (PARTITION BY task_id, DATE(created_at) ORDER BY created_at DESC) AS rn
-      FROM progress_logs
-      WHERE task_id IN (${taskIds.map(() => "?").join(",")}) AND deleted_at IS NULL
-    ) t
-    WHERE rn = 1
-    ORDER BY task_id, date ASC
-    `,
+      SELECT task_id, DATE(CONVERT_TZ(created_at, '+00:00', '+07:00')) AS date, progress
+      FROM (
+        SELECT 
+          task_id,
+          created_at,
+          progress,
+          ROW_NUMBER() OVER (PARTITION BY task_id, DATE(CONVERT_TZ(created_at, '+00:00', '+07:00')) ORDER BY created_at DESC) AS rn
+        FROM progress_logs
+        WHERE task_id IN (${taskIds.map(() => "?").join(",")}) AND deleted_at IS NULL
+      ) t
+      WHERE rn = 1
+      ORDER BY task_id, date ASC
+      `,
         taskIds
       );
-
-      for (const p of progressRows) {
-        const d = new Date(p.date);
-        d.setDate(d.getDate() + 1);
-        p.date = d;
-      }
 
       const taskLogsMap = {};
       taskIds.forEach((id) => (taskLogsMap[id] = []));
       progressRows.forEach((p) => {
-        const day = new Date(p.date).toISOString().slice(0, 10);
+        const day = this.formatLocalDate(p.date);
         taskLogsMap[p.task_id].push({
           date: day,
           progress: parseFloat(p.progress),
@@ -370,12 +373,10 @@ class ProjectService {
           if (log) taskProgressState[taskId] = log.progress;
           sum += taskProgressState[taskId];
         });
-
         const normalized =
           taskIds.length > 0
             ? parseFloat((sum / taskIds.length).toFixed(1))
             : 0;
-
         return { date: d, progress: normalized };
       });
     }

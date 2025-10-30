@@ -220,8 +220,13 @@ async function loadDashboardData(projectId) {
       tooltip: { trigger: "axis" },
       xAxis: {
         type: "category",
-        data: data.progress_trend.map((d) => d.date),
-        axisLabel: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
+        data: data.progress_trend.map((d) =>
+          new Date(d.date + "T00:00:00").toLocaleDateString("vi-VN")
+        ),
+        label: {
+          show: true,
+          fontFamily: 'Arial, "Helvetica Neue", sans-serif',
+        },
       },
       yAxis: { type: "value", max: 100 },
       series: [
@@ -229,23 +234,9 @@ async function loadDashboardData(projectId) {
           data: data.progress_trend.map((d) => d.progress),
           type: "line",
           smooth: true,
-          label: {
-            show: true,
-            fontFamily: 'Arial, "Helvetica Neue", sans-serif',
-          },
+          label: { show: true },
           markLine: {
             symbol: "none",
-            label: {
-              show: true,
-              position: "end",
-              formatter: "End Day",
-              fontFamily: 'Arial, "Helvetica Neue", sans-serif',
-            },
-            lineStyle: {
-              type: "dashed",
-              color: "#e53935",
-              width: 2,
-            },
             data: [{ xAxis: data.project.end_date.split("T")[0] }],
           },
         },

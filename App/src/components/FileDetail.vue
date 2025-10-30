@@ -22,7 +22,6 @@
               />
             </el-select>
 
-            <!-- Nút upload version -->
             <el-button
               v-if="canUploadVersion"
               type="primary"
@@ -40,7 +39,8 @@
           <!-- IMAGE -->
           <div
             v-if="isImage"
-            style="position: relative; width: 100%; height: 100%"
+            ref="imageWrapper"
+            class="image-wrapper"
           >
             <img
               ref="imageEl"
@@ -48,6 +48,7 @@
               alt="preview"
               class="preview-img"
               @load="onImageLoad"
+              draggable="false"
             />
             <canvas
               ref="canvasEl"
@@ -151,7 +152,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { getSocket } from "@/plugins/socket";
 import { dayjs } from "element-plus";
 import CommentService from "@/services/Comment.service";
@@ -161,18 +162,19 @@ import { useRoleStore } from "@/stores/roleStore";
 import { ElMessage } from "element-plus";
 
 let socket;
-
 const props = defineProps({ file: Object });
+
 const selectedVersionId = ref(null);
 const comments = ref([]);
 const newComment = ref("");
-
 const visualMode = ref(false);
 const isDrawing = ref(false);
 const startPos = ref(null);
 const endPos = ref(null);
 const imageEl = ref(null);
 const canvasEl = ref(null);
+const imageWrapper = ref(null);
+const activeVisualCommentId = ref(null);
 
 const canUploadVersion = ref(false);
 const roleStore = useRoleStore();
@@ -196,7 +198,6 @@ const isPreviewable = computed(() =>
   ["txt", "html", "svg"].includes(fileType.value)
 );
 
-// LOAD COMMENTS
 const loadComments = async () => {
   try {
     const res = await CommentService.getAllComments({
@@ -211,7 +212,7 @@ const loadComments = async () => {
   }
 };
 
-// ADD COMMENT
+// --- ADD COMMENT ---
 const addComment = async () => {
   try {
     const payload = {
@@ -250,7 +251,7 @@ const addComment = async () => {
   }
 };
 
-// VISUAL MODE
+// --- VISUAL MODE ---
 const toggleVisualMode = () => {
   visualMode.value = true;
   canvasEl.value.classList.add("drawing");
@@ -264,25 +265,49 @@ const cancelVisualMode = () => {
   canvasEl.value.classList.remove("drawing");
 };
 
-const onImageLoad = () => {
-  const img = imageEl.value;
-  const canvas = canvasEl.value;
-  if (img && canvas) {
-    const rect = img.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    canvas.style.width = rect.width + "px";
-    canvas.style.height = rect.height + "px";
-  }
+// --- CANVAS LOGIC ---
+const onImageLoad = () => updateCanvasSize();
+const updateCanvasSize = () => {
+  nextTick(() => {
+    const img = imageEl.value;
+    const canvas = canvasEl.value;
+    const wrapper = imageWrapper.value;
+    if (!img || !canvas || !wrapper) return;
+
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const naturalRatio = img.naturalWidth / img.naturalHeight;
+    const wrapperRatio = wrapperRect.width / wrapperRect.height;
+
+    let displayWidth, displayHeight, offsetX, offsetY;
+
+    if (naturalRatio > wrapperRatio) {
+      displayWidth = wrapperRect.width;
+      displayHeight = wrapperRect.width / naturalRatio;
+      offsetX = 0;
+      offsetY = (wrapperRect.height - displayHeight) / 2;
+    } else {
+      displayHeight = wrapperRect.height;
+      displayWidth = wrapperRect.height * naturalRatio;
+      offsetY = 0;
+      offsetX = (wrapperRect.width - displayWidth) / 2;
+    }
+
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    canvas.style.left = `${offsetX}px`;
+    canvas.style.top = `${offsetY}px`;
+  });
 };
 
-// DRAW LOGIC
 const onMouseDown = (e) => {
   if (!visualMode.value) return;
   const rect = canvasEl.value.getBoundingClientRect();
   startPos.value = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   isDrawing.value = true;
 };
+
 const onMouseMove = (e) => {
   if (!visualMode.value || !isDrawing.value) return;
   const rect = canvasEl.value.getBoundingClientRect();
@@ -291,6 +316,7 @@ const onMouseMove = (e) => {
   clearCanvas();
   drawRect(ctx, startPos.value, endPos.value);
 };
+
 const onMouseUp = () => {
   if (!visualMode.value || !isDrawing.value) return;
   isDrawing.value = false;
@@ -312,25 +338,38 @@ const drawRect = (ctx, start, end) => {
   ctx.fillRect(x, y, width, height);
   ctx.globalAlpha = 1;
 };
-
 const clearCanvas = () => {
   const ctx = canvasEl.value.getContext("2d");
   ctx.clearRect(0, 0, canvasEl.value.width, canvasEl.value.height);
 };
 
-// SHOW VISUAL FROM COMMENT
+// --- SHOW VISUAL ---
 const showVisual = (comment) => {
-  if (!comment.visual) return;
   const ctx = canvasEl.value.getContext("2d");
+
+  if (activeVisualCommentId.value === comment.id) {
+    clearCanvas();
+    activeVisualCommentId.value = null;
+    return;
+  }
+
   clearCanvas();
+
+  if (!comment.visual) {
+    activeVisualCommentId.value = null;
+    return;
+  }
+
   const coords = comment.visual.coordinates || {};
   drawRect(ctx, coords, {
     x: coords.x + coords.width,
     y: coords.y + coords.height,
   });
+
+  activeVisualCommentId.value = comment.id;
 };
 
-// UPLOAD NEW VERSION
+// --- UPLOAD VERSION ---
 const handleUploadVersion = async () => {
   try {
     const input = document.createElement("input");
@@ -363,7 +402,7 @@ const handleUploadVersion = async () => {
   }
 };
 
-// WATCH
+// --- WATCH + SOCKET ---
 watch(
   () => file.value,
   (newFile) => {
@@ -382,17 +421,17 @@ onMounted(async () => {
     file.value.project_id
   );
 
-
   socket = getSocket();
   socket.on("comment", (event) => {
-    if (event.action === "create") {
-      comments.value.unshift(event.data);
-    }
+    if (event.action === "create") comments.value.unshift(event.data);
   });
+
+  const observer = new ResizeObserver(() => updateCanvasSize());
+  if (imageWrapper.value) observer.observe(imageWrapper.value);
 });
 
 onUnmounted(() => {
-  socket.off("comment");
+  socket?.off("comment");
 });
 </script>
 
@@ -412,7 +451,7 @@ onUnmounted(() => {
 }
 .file-viewer {
   width: 100%;
-  height: 500px;
+  height: 600px;
   border: 1px solid #afafaf;
   border-radius: 8px;
   overflow: hidden;
@@ -421,18 +460,33 @@ onUnmounted(() => {
   align-items: center;
   position: relative;
 }
-.preview-img {
+.file-frame {
   width: 100%;
   height: 100%;
+  border: none;
+  display: block;
   object-fit: contain;
-  z-index: 1;
+}
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
 }
 .draw-canvas {
   position: absolute;
-  top: 0;
-  left: 0;
   z-index: 2;
   pointer-events: none;
+  border: none;
 }
 .draw-canvas.drawing {
   pointer-events: auto;
