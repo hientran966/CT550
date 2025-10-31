@@ -5,14 +5,22 @@
         <el-col :span="24">
           <!-- Header -->
           <div class="me-header-overlay">
-            <div class="avatar-wrapper" @mouseenter="hovering = true" @mouseleave="hovering = false">
+            <div
+              class="avatar-wrapper"
+              @mouseenter="hovering = true"
+              @mouseleave="hovering = false"
+            >
               <el-upload
                 class="avatar-uploader"
                 :show-file-list="false"
                 :before-upload="beforeAvatarUpload"
                 :http-request="uploadAvatar"
               >
-                <ElAvatar :src="avatar || defaultAvatar" :size="64" class="me-avatar" />
+                <ElAvatar
+                  :src="avatar || defaultAvatar"
+                  :size="64"
+                  class="me-avatar"
+                />
                 <div v-if="hovering" class="upload-overlay">
                   <el-icon><UploadFilled /></el-icon>
                   <span>Upload</span>
@@ -21,6 +29,15 @@
             </div>
 
             <h2>Xin chào, {{ user.name }}!</h2>
+
+            <el-button
+              type="primary"
+              size="small"
+              style="margin-left: auto"
+              @click="openEditModal"
+            >
+              Chỉnh sửa thông tin
+            </el-button>
           </div>
 
           <el-row :gutter="16" style="margin-top: 20px">
@@ -39,7 +56,11 @@
                   @row-click="handleRowClick"
                   :height="'341px'"
                 >
-                  <ElTableColumn prop="name" label="Tên dự án" min-width="200" />
+                  <ElTableColumn
+                    prop="name"
+                    label="Tên dự án"
+                    min-width="200"
+                  />
                   <ElTableColumn
                     prop="start_date"
                     label="Bắt đầu"
@@ -54,7 +75,10 @@
                   />
                   <ElTableColumn prop="status" label="Trạng thái" width="150">
                     <template #default="{ row }">
-                      <el-tag :type="statusType(row.status)" disable-transitions>
+                      <el-tag
+                        :type="statusType(row.status)"
+                        disable-transitions
+                      >
                         {{ row.status }}
                       </el-tag>
                     </template>
@@ -134,6 +158,11 @@
       </el-row>
     </div>
   </div>
+  <UserForm
+    v-model="editModalVisible"
+    :user="user"
+    @saved="handleUserSaved"
+  />
 </template>
 
 <script setup>
@@ -149,6 +178,7 @@ import { useInviteStore } from "@/stores/inviteStore";
 import AccountService from "@/services/Account.service";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
+import UserForm from "@/components/UserForm.vue";
 
 const router = useRouter();
 const projectStore = useProjectStore();
@@ -159,6 +189,7 @@ const avatar = ref("");
 const hovering = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(7);
+const editModalVisible = ref(false);
 
 const inviterAvatars = ref({});
 
@@ -192,6 +223,10 @@ function statusType(status) {
   }
 }
 
+function openEditModal() {
+  editModalVisible.value = true;
+}
+
 function handleRowClick(row) {
   router.push({ name: "tasks", params: { id: row.id } });
 }
@@ -203,6 +238,7 @@ async function loadInviterAvatars(invites) {
     uniqueIds.map(async (id) => {
       if (!inviterAvatars.value[id]) {
         try {
+          console.log("user:", id)
           const res = await FileService.getAvatar(id);
           inviterAvatars.value[id] = res?.file_url || defaultAvatar;
         } catch {
@@ -223,6 +259,11 @@ async function rejectInvite(id) {
   await inviteStore.rejectInvite(id);
   await inviteStore.fetchInvites();
   await loadInviterAvatars(inviteStore.invites);
+}
+
+function handleUserSaved() {
+  loadData();
+  ElMessage.success("Thông tin người dùng đã được cập nhật!");
 }
 
 function beforeAvatarUpload(file) {
@@ -263,7 +304,7 @@ async function uploadAvatar({ file }) {
   }
 }
 
-onMounted(async () => {
+async function loadData() {
   try {
     const data = await AccountService.getCurrentUser();
     Object.assign(user.value, data);
@@ -286,6 +327,10 @@ onMounted(async () => {
   } catch (err) {
     console.error("Không lấy được thông tin người dùng:", err);
   }
+}
+
+onMounted(async () => {
+  loadData();
 });
 </script>
 

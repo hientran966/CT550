@@ -16,7 +16,6 @@ export const useInviteStore = defineStore("invite", {
         if (!user?.id) return;
 
         const res = await MemberService.getInviteList(user.id);
-        console.log("Lời mời đã tải:", res);
         this.invites = Array.isArray(res) ? res : [];
       } catch (err) {
         console.error("Lỗi khi tải lời mời:", err);

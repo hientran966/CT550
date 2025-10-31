@@ -237,8 +237,6 @@ class FileService {
       const [rows] = await connection.execute(
         `SELECT id FROM files 
        WHERE created_by = ? 
-         AND project_id IS NULL 
-         AND task_id IS NULL 
          AND deleted_at IS NULL 
          AND category = 'user_avatar'`,
         [userId]
@@ -384,6 +382,33 @@ class FileService {
       [id]
     );
     return rows;
+  }
+
+  async findById(id) {
+    const [rows] = await this.mysql.execute(
+      "SELECT * FROM files WHERE id = ? AND deleted_at IS NULL",
+      [id]
+    );
+
+    if (rows.length === 0) return null;
+
+    const file = rows[0];
+
+    const [versions] = await this.mysql.execute(
+      "SELECT * FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
+      [id]
+    );
+
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+
+    file.versions = versions.map((v) => ({
+      ...v,
+      file_url: v.file_url
+        ? `${baseUrl}/${v.file_url.replace(/\\/g, "/")}`
+        : null,
+    }));
+
+    return file;
   }
 
   async getRole(fileId, userId) {

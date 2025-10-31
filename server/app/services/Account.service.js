@@ -35,7 +35,7 @@ class AccountService {
     );
     if (name.length > 0) throw new Error("Tên người dùng đã tồn tại");
 
-    if (!payload.Password) payload.Password = "defaultPW";
+    if (!payload.password) payload.password = "defaultPW";
 
     const auth = await this.extractAuthData(payload);
     const connection = await this.mysql.getConnection();
@@ -43,7 +43,7 @@ class AccountService {
     try {
       await connection.beginTransaction();
 
-      const hashedPassword = await bcrypt.hash(payload.Password, 10);
+      const hashedPassword = await bcrypt.hash(payload.password, 10);
 
       const [result] = await connection.execute(
         `INSERT INTO users (email, name, role, password_hash)
@@ -145,7 +145,7 @@ class AccountService {
     return await bcrypt.compare(inputPassword, storedPassword);
   }
 
-  async login(identifier, Password) {
+  async login(identifier, password) {
     const [rows] = await this.mysql.execute(
       "SELECT * FROM users WHERE (email = ? OR name = ?) AND deleted_at IS NULL",
       [identifier, identifier]
@@ -154,7 +154,7 @@ class AccountService {
     const auth = rows[0];
     if (!auth) throw new Error("Tài khoản không tồn tại");
 
-    const isMatch = await this.comparePassword(Password, auth.password_hash);
+    const isMatch = await this.comparePassword(password, auth.password_hash);
     if (!isMatch) throw new Error("Mật khẩu không đúng");
 
     const payload = {
