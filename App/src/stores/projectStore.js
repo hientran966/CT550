@@ -5,6 +5,9 @@ export const useProjectStore = defineStore("project", {
   state: () => ({
     projects: [],
     loading: false,
+    searchTerm: "",
+    statusFilter: null,
+    dateRange: null,
   }),
 
   actions: {
@@ -23,7 +26,7 @@ export const useProjectStore = defineStore("project", {
 
       await this.fetchProjects();
     },
-
+    
     addProject(newProject) {
       this.projects.push(newProject);
     },
@@ -32,7 +35,33 @@ export const useProjectStore = defineStore("project", {
       await this.fetchProjects();
       const project = this.projects.find(p => p.id === id);
 
-      return project ? "Project#"+ project.id + " - " + project.name : "Dự án không xác định";
-    }
+      return project
+        ? "Project#" + project.id + " - " + project.name
+        : "Dự án không xác định";
+    },
+
+    setSearch(term) {
+      this.searchTerm = term.toLowerCase();
+    },
+    setStatusFilter(status) {
+      this.statusFilter = status;
+    },
+    setDateRange(range) {
+      this.dateRange = range;
+    },
+  },
+
+  getters: {
+    filteredProjects: (state) => {
+      return state.projects.filter((p) => {
+        const matchesSearch =
+          !state.searchTerm || p.name.toLowerCase().includes(state.searchTerm);
+
+        const matchesStatus =
+          !state.statusFilter || p.status === state.statusFilter;
+
+        return matchesSearch && matchesStatus;
+      });
+    },
   },
 });

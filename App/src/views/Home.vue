@@ -45,7 +45,7 @@
             <el-col :xs="24" :md="24" :lg="16">
               <ElCard shadow="hover" style="height: 100%">
                 <template #header>
-                  <strong>Projects</strong>
+                  <strong>Projects hiện tại</strong>
                 </template>
 
                 <ElTable
@@ -73,16 +73,6 @@
                     width="120"
                     :formatter="(r) => formatDate(r.end_date)"
                   />
-                  <ElTableColumn prop="status" label="Trạng thái" width="150">
-                    <template #default="{ row }">
-                      <el-tag
-                        :type="statusType(row.status)"
-                        disable-transitions
-                      >
-                        {{ row.status }}
-                      </el-tag>
-                    </template>
-                  </ElTableColumn>
                 </ElTable>
 
                 <div style="margin-top: 10px; text-align: right">
@@ -106,13 +96,13 @@
 
                 <div class="scroll-area">
                   <ElEmpty
-                    v-if="!invited.length"
+                    v-if="!inviteStore.inviteCount"
                     description="Không có lời mời nào"
                   />
 
                   <el-scrollbar v-else height="400px">
                     <div
-                      v-for="item in invited"
+                      v-for="item in inviteStore.invitesWithAvatar"
                       :key="item.id"
                       class="invite-item"
                     >
@@ -191,20 +181,16 @@ const currentPage = ref(1);
 const pageSize = ref(7);
 const editModalVisible = ref(false);
 
-const inviterAvatars = ref({});
-
-const invited = computed(() =>
-  inviteStore.invites.map((item) => ({
-    ...item,
-    inviterAvatar: inviterAvatars.value[item.invited_by] || "",
-  }))
-);
-
 const paginatedProjects = computed(() => {
+  const ongoing = projectStore.projectsByStatus
+    ? projectStore.projectsByStatus("Đang tiến hành")
+    : projectStore.projects.filter(p => p.status === "Đang tiến hành");
+
   const start = (currentPage.value - 1) * pageSize.value;
   const end = start + pageSize.value;
-  return projectStore.projects.slice(start, end);
+  return ongoing.slice(start, end);
 });
+
 
 function formatDate(dateString) {
   return dateString ? dayjs(dateString).format("DD/MM/YYYY") : "";
@@ -231,34 +217,14 @@ function handleRowClick(row) {
   router.push({ name: "tasks", params: { id: row.id } });
 }
 
-async function loadInviterAvatars(invites) {
-  const uniqueIds = [...new Set(invites.map((i) => i.invited_by))];
-
-  await Promise.all(
-    uniqueIds.map(async (id) => {
-      if (!inviterAvatars.value[id]) {
-        try {
-          console.log("user:", id)
-          const res = await FileService.getAvatar(id);
-          inviterAvatars.value[id] = res?.file_url || defaultAvatar;
-        } catch {
-          inviterAvatars.value[id] = defaultAvatar;
-        }
-      }
-    })
-  );
-}
-
 async function acceptInvite(id) {
   await inviteStore.acceptInvite(id);
   await inviteStore.fetchInvites();
-  await loadInviterAvatars(inviteStore.invites);
 }
 
 async function rejectInvite(id) {
-  await inviteStore.rejectInvite(id);
+  await inviteStore.declineInvite(id);
   await inviteStore.fetchInvites();
-  await loadInviterAvatars(inviteStore.invites);
 }
 
 function handleUserSaved() {
@@ -291,9 +257,7 @@ async function uploadAvatar({ file }) {
     if (res?.result?.file_url) {
       const updated = await FileService.getAvatar(user.value.id);
       avatar.value = updated?.file_url || res.result.file_url;
-
       avatar.value = `${avatar.value}?v=${Date.now()}`;
-
       ElMessage.success("Cập nhật ảnh đại diện thành công!");
     } else {
       ElMessage.warning("Không nhận được đường dẫn ảnh từ server.");
@@ -317,12 +281,7 @@ async function loadData() {
         avatar.value = "";
       }
 
-      await Promise.all([
-        projectStore.fetchProjects(),
-        inviteStore.fetchInvites(),
-      ]);
-
-      await loadInviterAvatars(inviteStore.invites);
+      await Promise.all([projectStore.fetchProjects(), inviteStore.fetchInvites()]);
     }
   } catch (err) {
     console.error("Không lấy được thông tin người dùng:", err);

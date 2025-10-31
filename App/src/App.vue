@@ -26,10 +26,12 @@ import LoginPage from "@/views/LoginPage.vue";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { useInviteStore } from "@/stores/inviteStore";
 
 const notiStore = useNotificationStore();
 const taskStore = useTaskStore();
 const projectStore = useProjectStore();
+const inviteStore = useInviteStore();
 
 const isAuthenticated = ref(false);
 const newCount = computed(() => notiStore.newCount);
@@ -65,6 +67,10 @@ watch(isAuthenticated, async (loggedIn) => {
             break;
           case "project_updated":
             projectStore.fetchProjects();
+            break;
+          case "project_invite":
+            await inviteStore.fetchInvites();
+            await loadInviterAvatars(inviteStore.invites);
             break;
         }
       });

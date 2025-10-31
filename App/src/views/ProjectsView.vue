@@ -1,6 +1,6 @@
 <template>
   <Header :page="'project'" @add="onAdd" />
-  <ProjectTable class="project-table" :projects="projects" @update-project="projectStore.updateProject" />
+  <ProjectTable class="project-table" :projects="projectStore.filteredProjects" @update-project="projectStore.updateProject" />
   <ProjectForm v-model="formRef" @project-added="projectStore.fetchProjects" />
 </template>
 

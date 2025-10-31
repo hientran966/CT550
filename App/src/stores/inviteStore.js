@@ -1,11 +1,14 @@
 import { defineStore } from "pinia";
 import MemberService from "@/services/Member.service";
+import FileService from "@/services/File.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 import { ElMessage } from "element-plus";
 
 export const useInviteStore = defineStore("invite", {
   state: () => ({
     invites: [],
     loading: false,
+    inviterAvatars: {},
   }),
 
   actions: {
@@ -17,11 +20,30 @@ export const useInviteStore = defineStore("invite", {
 
         const res = await MemberService.getInviteList(user.id);
         this.invites = Array.isArray(res) ? res : [];
+
+        await this.loadInviterAvatars();
       } catch (err) {
         console.error("Lỗi khi tải lời mời:", err);
       } finally {
         this.loading = false;
       }
+    },
+
+    async loadInviterAvatars() {
+      const uniqueIds = [...new Set(this.invites.map((i) => i.invited_by))];
+
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          if (!this.inviterAvatars[id]) {
+            try {
+              const res = await FileService.getAvatar(id);
+              this.inviterAvatars[id] = res?.file_url || defaultAvatar;
+            } catch {
+              this.inviterAvatars[id] = defaultAvatar;
+            }
+          }
+        })
+      );
     },
 
     async acceptInvite(inviteId) {
@@ -52,5 +74,11 @@ export const useInviteStore = defineStore("invite", {
 
   getters: {
     inviteCount: (state) => state.invites.length,
+
+    invitesWithAvatar: (state) =>
+      state.invites.map((item) => ({
+        ...item,
+        inviterAvatar: state.inviterAvatars[item.invited_by] || defaultAvatar,
+      })),
   },
 });

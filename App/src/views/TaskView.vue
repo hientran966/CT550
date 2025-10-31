@@ -18,7 +18,7 @@
       <div class="content-body">
         <TaskKanban
           v-if="activeView === 'kanban'"
-          :tasks="tasksByProject[projectId] || []"
+          :tasks="taskStore.filteredTasksByProject(projectId)"
           :project-id="projectId"
           @open-detail="openTaskDetail"
           @update-task-status="t => taskStore.updateStatus(projectId, t)"
@@ -72,12 +72,10 @@
 
 <script setup>
 import { ref, onMounted, watch } from "vue";
-import { storeToRefs } from "pinia";
-import { useTaskStore } from "@/stores/taskStore";
 import { useRoute } from "vue-router";
-
-import Header from "@/components/Header.vue";
+import { useTaskStore } from "@/stores/taskStore";
 import ProjectMenu from "@/components/ProjectMenu.vue";
+import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
 import Timeline from "@/components/Timeline.vue";
 import Report from "@/components/Report.vue";
@@ -93,12 +91,10 @@ const projectId = Number(route.params.id);
 const user = JSON.parse(localStorage.getItem("user") || "{}");
 const userId = user?.id || null;
 
+const taskStore = useTaskStore();
+
 const activeView = ref("kanban");
 const selectedChannel = ref(null);
-
-const taskStore = useTaskStore();
-const { tasksByProject } = storeToRefs(taskStore);
-
 const formRef = ref(false);
 const memberRef = ref(false);
 const selectedTask = ref(null);
@@ -113,7 +109,7 @@ function openTaskDetail(task) {
 }
 
 function openTaskDetailById(taskId) {
-  const task = tasksByProject.value[projectId]?.find((t) => t.id === taskId);
+  const task = taskStore.getTasksByProject(projectId)?.find((t) => t.id === taskId);
   if (task) {
     selectedTask.value = task;
     detailVisible.value = true;

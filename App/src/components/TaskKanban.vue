@@ -92,23 +92,24 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useTaskStore } from "@/stores/taskStore";
 import { useRoleStore } from "@/stores/roleStore";
-import { storeToRefs } from "pinia";
 import { ElMessageBox, ElMessage } from "element-plus";
-import { Close, Delete } from "@element-plus/icons-vue";
+import { Close } from "@element-plus/icons-vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
 
 const props = defineProps({
   projectId: Number,
+  tasks: {
+    type: Array,
+    default: () => [],
+  },
 });
+
 const emit = defineEmits(["open-detail"]);
 
 const taskStore = useTaskStore();
 const roleStore = useRoleStore();
-
-const { getTasksByProject } = storeToRefs(taskStore);
-const tasks = computed(() => getTasksByProject.value(props.projectId) || []);
 
 const avatarsMap = ref({});
 const canChangeStatusMap = ref({});
@@ -132,13 +133,13 @@ const priorityLabel = (val) =>
   val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
 
 const columns = computed(() => [
-  { name: "Đang Chờ", tasks: tasks.value.filter((t) => t.status === "todo") },
+  { name: "Đang Chờ", tasks: props.tasks.filter((t) => t.status === "todo") },
   {
     name: "Đang Tiến Hành",
-    tasks: tasks.value.filter((t) => t.status === "in_progress"),
+    tasks: props.tasks.filter((t) => t.status === "in_progress"),
   },
-  { name: "Review", tasks: tasks.value.filter((t) => t.status === "review") },
-  { name: "Đã Xong", tasks: tasks.value.filter((t) => t.status === "done") },
+  { name: "Review", tasks: props.tasks.filter((t) => t.status === "review") },
+  { name: "Đã Xong", tasks: props.tasks.filter((t) => t.status === "done") },
 ]);
 
 function formatDate(date) {
@@ -182,7 +183,7 @@ function openTaskDetail(task) {
 }
 
 async function loadAvatars() {
-  const list = Array.isArray(tasks.value) ? tasks.value : [];
+  const list = Array.isArray(props.tasks) ? props.tasks : [];
   const allUserIds = Array.from(new Set(list.flatMap((t) => t.assignees || [])));
   const results = {};
 
@@ -204,7 +205,7 @@ async function checkRoles() {
   const resultStatus = {};
   const resultDelete = {};
 
-  for (const task of tasks.value) {
+  for (const task of props.tasks) {
     const canChange = await roleStore.canChangeTaskStatus(
       task.id,
       props.projectId
@@ -234,9 +235,7 @@ async function confirmDelete(task) {
     );
     await taskStore.deleteTask(task.id);
     ElMessage.success("Đã xóa task");
-  } catch {
-    // Bỏ qua nếu hủy
-  }
+  } catch {}
 }
 
 function headerClass(name) {
@@ -278,7 +277,7 @@ onMounted(async () => {
 });
 
 watch(
-  () => tasks.value,
+  () => props.tasks,
   async () => {
     await checkRoles();
     await loadAvatars();
@@ -305,6 +304,7 @@ watch(
 
 .kanban-column {
   height: 80vh;
+  width: 300px;
   flex: 1;
   padding: 8px;
   border-radius: 10px;

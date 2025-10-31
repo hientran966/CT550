@@ -6,27 +6,56 @@ export const useTaskStore = defineStore("task", {
   state: () => ({
     tasksByProject: {},
     taskCache: {},
+    loading: false,
+
+    searchTerm: "",
+    priorityFilter: null,
+    assigneeFilter: null,
   }),
 
   getters: {
     getTasksByProject: (state) => (projectId) =>
       state.tasksByProject[projectId] || [],
+
+    filteredTasksByProject: (state) => (projectId) => {
+      const list = state.tasksByProject[projectId] || [];
+
+      return list.filter((t) => {
+        const matchesSearch =
+          !state.searchTerm ||
+          t.title?.toLowerCase().includes(state.searchTerm.toLowerCase());
+
+        const matchesPriority =
+          !state.priorityFilter ||
+          (t.priority && t.priority.includes(state.priorityFilter));
+
+        const matchesAssignee =
+          !state.assigneeFilter ||
+          (t.assignees && t.assignees.includes(state.assigneeFilter));
+
+        return matchesSearch && matchesPriority && matchesAssignee;
+      });
+    },
   },
 
   actions: {
     async loadTasks(projectId) {
       if (!projectId) return;
+      this.loading = true;
       try {
         const tasks = await TaskService.getByProject(projectId);
         this.tasksByProject = {
           ...this.tasksByProject,
           [projectId]: tasks || [],
         };
+        console.log(this.tasksByProject)
         for (const t of tasks) {
           this.taskCache[t.id] = t;
         }
       } catch (err) {
         console.error("Lỗi khi load task:", err);
+      } finally {
+        this.loading = false;
       }
     },
 
@@ -47,7 +76,7 @@ export const useTaskStore = defineStore("task", {
         }
       } catch (err) {
         console.error("Lỗi khi load task theo ID:", err);
-      } 
+      }
       return null;
     },
 
@@ -66,7 +95,7 @@ export const useTaskStore = defineStore("task", {
               task_id: updatedTask.id,
               user_id: userId,
               actor_id: user.id,
-              project_id: projectId
+              project_id: projectId,
             });
           }
         } else {
@@ -89,7 +118,10 @@ export const useTaskStore = defineStore("task", {
 
     async updateStatus(projectId, task) {
       try {
-        await TaskService.updateTask(task.id, { status: task.status, project_id: projectId });
+        await TaskService.updateTask(task.id, {
+          status: task.status,
+          project_id: projectId,
+        });
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === task.id);
         if (idx !== -1) list[idx].status = task.status;
@@ -126,13 +158,23 @@ export const useTaskStore = defineStore("task", {
               this.tasksByProject[task.project_id] = list;
             }
           }
-            return "Task#"+ task.id + " - " + task.title || "Không có tiêu đề";
+          return "Task#" + task.id + " - " + (task.title || "Không có tiêu đề");
         }
       } catch (err) {
         console.error("Lỗi khi lấy task theo ID:", err);
       }
 
       return "Công việc";
+    },
+
+    setSearch(term) {
+      this.searchTerm = term.toLowerCase();
+    },
+    setPriorityFilter(priority) {
+      this.priorityFilter = priority;
+    },
+    setAssigneeFilter(userId) {
+      this.assigneeFilter = userId;
     },
   },
 });
