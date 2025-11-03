@@ -50,10 +50,13 @@ DROP TABLE IF EXISTS tasks;
 CREATE TABLE tasks (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     project_id BIGINT NOT NULL,
+	parent_task_id BIGINT DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     status ENUM('todo', 'in_progress', 'review', 'done') DEFAULT 'todo',
     priority ENUM('low','medium','high') DEFAULT 'medium',
+    progress_type ENUM('manual', 'quantity', 'subtask') DEFAULT 'manual',
+    progress_value DECIMAL(5,2) DEFAULT 0,
     start_date DATE,
     due_date DATE,
     created_by BIGINT,
@@ -61,8 +64,21 @@ CREATE TABLE tasks (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (parent_task_id) REFERENCES tasks(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
+
+DROP TABLE IF EXISTS task_quantity_progress;
+CREATE TABLE task_quantity_progress (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    total_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    completed_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    unit VARCHAR(50) DEFAULT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
+
 
 -- TASK ASSIGNEES
 DROP TABLE IF EXISTS task_assignees;
@@ -80,6 +96,7 @@ DROP TABLE IF EXISTS progress_logs;
 CREATE TABLE progress_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     task_id BIGINT NOT NULL,
+    progress_type ENUM('manual', 'quantity', 'subtask') DEFAULT 'manual',
     updated_by BIGINT NOT NULL,
     progress INT CHECK (progress >= 0 AND progress <= 100),
     comment TEXT,
@@ -257,6 +274,18 @@ CREATE TABLE chatbot_history (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- GITHUB
+DROP TABLE IF EXISTS github_installations;
+CREATE TABLE github_installations (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  installation_id BIGINT UNIQUE,
+  account_login VARCHAR(255),
+  project_id BIGINT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_project (project_id),
+  FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

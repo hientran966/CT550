@@ -14,6 +14,7 @@ const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const chatRouter = require("./app/routes/Chat.route")
 const chatbotRouter = require("./app/routes/Chatbot.route");
+const githubRoutes = require("./app/routes/github.route.js");
 
 const app = express();
 
@@ -37,6 +38,12 @@ app.use("/api/noti", notificationRouter);
 app.use("/api/file", fileRouter);
 app.use("/api/chat", chatRouter)
 app.use("/api/ask", chatbotRouter);
+
+app.get("/github/callback", (req, res, next) => {
+  res.setHeader("ngrok-skip-browser-warning", "true");
+  next();
+});
+app.use("/github", githubRoutes);
 
 //handle 404
 app.use((req, res, next) => {

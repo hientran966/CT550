@@ -140,3 +140,5 @@ uploads/
 
 server/app/temp/
 app/temp/
+
+config/

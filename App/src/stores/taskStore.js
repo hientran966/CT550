@@ -131,6 +131,14 @@ export const useTaskStore = defineStore("task", {
       }
     },
 
+    async deleteTask(taskId) {
+      try {
+        await TaskService.deleteTask(taskId);
+      } catch (err) {
+        console.error("Lỗi xóa task:", err);
+      }
+    },
+
     addTask(projectId, task) {
       const list = this.tasksByProject[projectId] || [];
       this.tasksByProject = {

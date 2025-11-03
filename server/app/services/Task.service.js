@@ -188,6 +188,17 @@ class TaskService {
       deletedAt,
       id,
     ]);
+
+    const members = await this.memberService.getByProjectId(task.project_id);
+
+    if (members?.length > 0) {
+      for (const member of members) {
+        sendToUser(member.user_id, "task_updated", {
+          task: task,
+          message: `Task "${task.title}" đã xóa`,
+        });
+      }
+    }
     return { ...task, deleted_at: deletedAt };
   }
 
