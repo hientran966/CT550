@@ -54,15 +54,22 @@ const customMethods = {
 
     // log tiến độ công việc
     logProgress: async (req, res, next) => {
-        const { progress, loggedBy } = req.body;
+        const progressData = req.body;
 
-        if (progress == null || progress < 0 || progress > 100) {
-            return next(new ApiError(400, "Tiến độ công việc không hợp lệ"));
+        if (!progressData || typeof progressData !== "object") {
+            return next(new ApiError(400, "Dữ liệu tiến độ không hợp lệ"));
         }
+
+        const { loggedBy, comment } = req.body;
+
+        if (!loggedBy) {
+            return next(new ApiError(400, "Người cập nhật tiến độ không được để trống"));
+        }
+
         try {
             const service = new TaskService(MySQL.pool);
-            const document = await service.logProgress(req.params.id, progress, loggedBy);
-            return res.send(document);
+            const result = await service.logProgress(req.params.id, progressData, loggedBy, comment);
+            return res.send(result);
         } catch (error) {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi log tiến độ công việc"));
         }

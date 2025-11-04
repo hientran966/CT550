@@ -7,7 +7,6 @@ export const useTaskStore = defineStore("task", {
     tasksByProject: {},
     taskCache: {},
     loading: false,
-
     searchTerm: "",
     priorityFilter: null,
     assigneeFilter: null,
@@ -19,20 +18,16 @@ export const useTaskStore = defineStore("task", {
 
     filteredTasksByProject: (state) => (projectId) => {
       const list = state.tasksByProject[projectId] || [];
-
       return list.filter((t) => {
         const matchesSearch =
           !state.searchTerm ||
           t.title?.toLowerCase().includes(state.searchTerm.toLowerCase());
-
         const matchesPriority =
           !state.priorityFilter ||
           (t.priority && t.priority.includes(state.priorityFilter));
-
         const matchesAssignee =
           !state.assigneeFilter ||
           (t.assignees && t.assignees.includes(state.assigneeFilter));
-
         return matchesSearch && matchesPriority && matchesAssignee;
       });
     },
@@ -44,51 +39,49 @@ export const useTaskStore = defineStore("task", {
       this.loading = true;
       try {
         const tasks = await TaskService.getByProject(projectId);
-        this.tasksByProject = {
-          ...this.tasksByProject,
-          [projectId]: tasks || [],
-        };
-        console.log(this.tasksByProject)
-        for (const t of tasks) {
-          this.taskCache[t.id] = t;
-        }
+        this.tasksByProject[projectId] = tasks || [];
+        tasks.forEach((t) => (this.taskCache[t.id] = t));
       } catch (err) {
-        console.error("Lỗi khi load task:", err);
+        console.error("Lỗi load tasks:", err);
       } finally {
         this.loading = false;
       }
     },
 
     async loadTaskById(taskId) {
-      if (this.taskCache[taskId]) {
-        return this.taskCache[taskId];
-      }
+      if (this.taskCache[taskId]) return this.taskCache[taskId];
       try {
         const task = await TaskService.getTaskById(taskId);
         if (task) {
           this.taskCache[task.id] = task;
           const list = this.tasksByProject[task.project_id] || [];
-          if (!list.some((t) => t.id === task.id)) {
-            list.push(task);
-            this.tasksByProject[task.project_id] = list;
-          }
+          if (!list.some((t) => t.id === task.id)) list.push(task);
+          this.tasksByProject[task.project_id] = list;
           return task;
         }
       } catch (err) {
-        console.error("Lỗi khi load task theo ID:", err);
+        console.error("Lỗi load task theo ID:", err);
       }
       return null;
     },
 
     async updateTask(projectId, updatedTask) {
-      const user = JSON.parse(localStorage.getItem("user"));
       try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+        // MANUAL hoặc QUANTITY: progress
         if (updatedTask.changedField === "progress") {
           await TaskService.progressLog(updatedTask.id, {
-            progress: updatedTask.latest_progress,
+            progress:
+              updatedTask.progress_type === "manual"
+                ? updatedTask.latest_progress
+                : updatedTask.completed_quantity,
+            total_quantity: updatedTask.total_quantity,
             loggedBy: user.id,
           });
-        } else if (updatedTask.changedField === "assignee") {
+        } 
+        // ASSIGNEE
+        else if (updatedTask.changedField === "assignee") {
           await TaskService.deleteAssign(updatedTask.id);
           for (const userId of updatedTask.assignees) {
             await AssignService.createAssign({
@@ -98,18 +91,18 @@ export const useTaskStore = defineStore("task", {
               project_id: projectId,
             });
           }
-        } else {
+        } 
+        // STATUS / SUBTASK
+        else {
           await TaskService.updateTask(updatedTask.id, updatedTask);
         }
 
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === updatedTask.id);
-        if (idx !== -1) {
-          list[idx] = { ...list[idx], ...updatedTask };
-        } else {
-          list.push(updatedTask);
-        }
-        this.tasksByProject = { ...this.tasksByProject, [projectId]: [...list] };
+        if (idx !== -1) list[idx] = { ...list[idx], ...updatedTask };
+        else list.push(updatedTask);
+
+        this.tasksByProject[projectId] = [...list];
         this.taskCache[updatedTask.id] = updatedTask;
       } catch (err) {
         console.error("Lỗi cập nhật task:", err);
@@ -141,10 +134,7 @@ export const useTaskStore = defineStore("task", {
 
     addTask(projectId, task) {
       const list = this.tasksByProject[projectId] || [];
-      this.tasksByProject = {
-        ...this.tasksByProject,
-        [projectId]: [...list, task],
-      };
+      this.tasksByProject[projectId] = [...list, task];
       this.taskCache[task.id] = task;
     },
 
@@ -154,7 +144,6 @@ export const useTaskStore = defineStore("task", {
       if (this.taskCache[id]) {
         return this.taskCache[id].title || "Không có tiêu đề";
       }
-
       try {
         const task = await TaskService.getTaskById(id);
         if (task) {
@@ -171,7 +160,6 @@ export const useTaskStore = defineStore("task", {
       } catch (err) {
         console.error("Lỗi khi lấy task theo ID:", err);
       }
-
       return "Công việc";
     },
 
@@ -183,6 +171,18 @@ export const useTaskStore = defineStore("task", {
     },
     setAssigneeFilter(userId) {
       this.assigneeFilter = userId;
+    },
+
+    async addSubtask(taskId, subtaskData) {
+      try {
+        const subtask = await TaskService.create(subtaskData);
+        if (!this.taskCache[taskId].subtasks) this.taskCache[taskId].subtasks = [];
+        this.taskCache[taskId].subtasks.push(subtask);
+        return subtask;
+      } catch (err) {
+        console.error("Lỗi tạo subtask:", err);
+        return null;
+      }
     },
   },
 });

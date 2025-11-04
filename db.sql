@@ -79,7 +79,6 @@ CREATE TABLE task_quantity_progress (
     FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
 
-
 -- TASK ASSIGNEES
 DROP TABLE IF EXISTS task_assignees;
 CREATE TABLE task_assignees (
@@ -152,21 +151,6 @@ CREATE TABLE file_versions (
 	deleted_at TIMESTAMP NULL,
     FOREIGN KEY (file_id) REFERENCES files(id),
     UNIQUE (file_id, version_number)
-);
-
--- TIME LOGS
-DROP TABLE IF EXISTS time_logs;
-CREATE TABLE time_logs (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    task_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
-    hours DECIMAL(5,2) NOT NULL,
-    log_date DATE NOT NULL,
-    note TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- VISUAL ANNOTATIONS (comment trực quan)
