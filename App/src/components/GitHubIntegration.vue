@@ -48,24 +48,35 @@
           <!-- Bảng 1 -->
           <div class="table-block">
             <h4>Danh sách repository từ GitHub</h4>
-            <el-button
-              size="small"
-              type="primary"
-              plain
-              @click="loadAvailableRepos"
-              style="margin-bottom: 8px"
-            >
-              Tải repo từ GitHub
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              plain
-              @click="unlinkInstall"
-              style="margin-bottom: 8px; margin-left: 0"
-            >
-              Hủy kết nối
-            </el-button>
+            <div class="button-col">
+              <el-button
+                size="small"
+                type="primary"
+                plain
+                @click="connectGitHub"
+                style="margin-bottom: 8px"
+              >
+                Mở trang cài đặt GitHub App
+              </el-button>
+              <el-button
+                size="small"
+                type="success"
+                plain
+                @click="loadAvailableRepos"
+                style="margin-bottom: 8px"
+              >
+                Tải repo từ GitHub
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                plain
+                @click="unlinkInstall"
+                style="margin-bottom: 8px"
+              >
+                Hủy kết nối
+              </el-button>
+            </div>
 
             <el-table
               v-if="availableRepos.length"
@@ -105,7 +116,7 @@
 
           <!-- Bảng 2 -->
           <div class="table-block">
-            <h4>Repo đã gắn với project</h4>
+            <h4>Repo</h4>
             <el-table
               v-if="projectRepos.length"
               :data="projectRepos"
@@ -114,12 +125,20 @@
               @row-click="onRepoClick"
             >
               <el-table-column prop="full_name" label="Repository" />
-              <el-table-column prop="html_url" label="URL">
+              <el-table-column label="URL" width="280">
                 <template #default="{ row }">
-                  <a :href="row.html_url" target="_blank">{{ row.html_url }}</a>
+                  <a :href="row.html_url" target="_blank" @click.stop>
+                    Truy cập GitHub
+                  </a>
+                </template>
+              </el-table-column>
+              <el-table-column label="Hoạt động" width="160">
+                <template #default="{ row }">
+                  {{ row.lastCommitDate ? timeAgo(row.lastCommitDate) : "–" }}
                 </template>
               </el-table-column>
             </el-table>
+
             <el-empty
               v-else
               description="Chưa có repository nào được gắn với project"
@@ -145,21 +164,12 @@
     </el-dialog>
 
     <!-- Dialog hiển thị Explorer -->
-    <el-dialog
-      v-model="explorerVisible"
-      title="Khám phá Repository"
-      width="80%"
-      top="5vh"
-      destroy-on-close
-    >
+    <el-dialog v-model="explorerVisible" width="80%" top="5vh" destroy-on-close>
       <RepoExplorer
         v-if="activeRepo && installation && installation.installation_id"
         :repo="activeRepo"
         :installationId="installation.installation_id"
       />
-      <template #footer>
-        <el-button @click="explorerVisible = false">Đóng</el-button>
-      </template>
     </el-dialog>
   </div>
 </template>
@@ -167,7 +177,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { useRoleStore } from "@/stores/roleStore";
 import GitHubService from "@/services/GitHub.service.js";
 import RepoExplorer from "@/components/RepoExplorer.vue";
@@ -195,6 +205,19 @@ const onRepoClick = (row) => {
 const canManageIntegration = computed(() =>
   ["owner", "manager"].includes(role.value)
 );
+
+const timeAgo = (isoString) => {
+  if (!isoString) return "–";
+  const date = new Date(isoString);
+  const diff = (Date.now() - date.getTime()) / 1000;
+
+  if (diff < 60) return "Vừa xong";
+  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)} ngày trước`;
+
+  return date.toLocaleDateString("vi-VN");
+};
 
 const connectGitHub = () => GitHubService.connectApp(projectId);
 const onSelectionChange = (selection) => (selectedRepos.value = selection);
@@ -229,6 +252,32 @@ const fetchInstallation = async () => {
 const fetchProjectRepos = async () => {
   try {
     projectRepos.value = await GitHubService.getProjectRepos(projectId);
+
+    if (installation.value?.installation_id && projectRepos.value.length) {
+      const promises = projectRepos.value.map(async (repo) => {
+        try {
+          const [owner, repoName] = repo.full_name.split("/");
+          const commits = await GitHubService.listRecentCommits(
+            installation.value.installation_id,
+            owner,
+            repoName
+          );
+
+          if (commits.length > 0) {
+            repo.lastCommitDate = commits[0].commit.author.date;
+            repo.lastCommitMessage = commits[0].commit.message;
+          } else {
+            repo.lastCommitDate = null;
+            repo.lastCommitMessage = "Chưa có commit";
+          }
+        } catch {
+          repo.lastCommitDate = null;
+          repo.lastCommitMessage = "Không tải được commit";
+        }
+      });
+
+      await Promise.all(promises);
+    }
   } catch {
     ElMessage.error("Không tải được danh sách repo của project.");
   }
@@ -251,14 +300,30 @@ const loadAvailableRepos = async () => {
 
 const unlinkInstall = async () => {
   try {
+    await ElMessageBox.confirm(
+      "Bạn có chắc chắn muốn hủy kết nối GitHub App khỏi dự án này không?<br/>" +
+        "<b>Tất cả các repository đã liên kết sẽ bị ngắt kết nối.</b>",
+      "Xác nhận hủy kết nối",
+      {
+        confirmButtonText: "Xác nhận",
+        cancelButtonText: "Hủy",
+        type: "warning",
+        dangerouslyUseHTMLString: true,
+      }
+    );
+
     await GitHubService.unlinkInstallation(projectId);
     installation.value = null;
     projectRepos.value = [];
     ElMessage.success("Đã hủy kết nối GitHub App!");
   } catch (err) {
-    ElMessage.error(
-      "Lỗi khi hủy kết nối: " + (err.response?.data?.message || err.message)
-    );
+    if (err !== "cancel") {
+      ElMessage.error(
+        "Lỗi khi hủy kết nối: " + (err.response?.data?.message || err.message)
+      );
+    } else {
+      ElMessage.info("Đã hủy thao tác.");
+    }
   }
 };
 
@@ -362,5 +427,8 @@ onMounted(async () => {
 .not-connected .el-button {
   font-weight: 500;
   margin: 5px;
+}
+.button-col {
+  flex-direction: row;
 }
 </style>

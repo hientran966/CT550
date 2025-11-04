@@ -1,14 +1,19 @@
 <template>
   <div class="repo-explorer">
-    <el-card style="border: 0; box-shadow: none;">
+    <el-card style="border: 0; box-shadow: none">
       <template #header>
-        <div class="flex justify-between items-center">
+        <div class="repo-header">
           <span>{{ repo.full_name }}</span>
+          <div>
+            <el-button type="primary" size="small" plain @click="openOnGitHub">
+              Mở trên GitHub
+            </el-button>
+          </div>
         </div>
       </template>
 
       <!-- Files -->
-      <el-table :data="files" border @row-click="onFileClick">
+      <el-table :data="files" border @row-click="onFileClick" max-height="250">
         <el-table-column prop="name" label="Tên" />
         <el-table-column prop="type" label="Loại" width="120" />
       </el-table>
@@ -95,11 +100,63 @@ const timeAgo = (isoString) => {
   return date.toLocaleDateString("vi-VN");
 };
 
+const openOnGitHub = () => {
+  if (props.repo?.html_url) {
+    window.open(props.repo.html_url, "_blank");
+  } else {
+    ElMessage.warning("Không tìm thấy URL GitHub của repo này!");
+  }
+};
+
 onMounted(loadData);
 </script>
 
 <style scoped>
 .repo-explorer {
-  padding: 20px;
+  padding: 10px;
+}
+
+.repo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.repo-header span {
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.el-table {
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.el-table th {
+  background-color: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+}
+
+h4 {
+  margin-top: 24px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.el-button {
+  transition: all 0.2s;
+}
+
+.el-button:hover {
+  background-color: #ecf5ff;
+  border-color: #409eff;
+  color: #409eff;
 }
 </style>

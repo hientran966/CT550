@@ -159,7 +159,7 @@ class GitHubService {
     return res.data;
   }
 
-  static async listRecentCommits(installationId, owner, repo, limit = 10) {
+  static async listRecentCommits(installationId, owner, repo, limit = 4) {
     const token = await getInstallationAccessToken(installationId);
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${limit}`,
