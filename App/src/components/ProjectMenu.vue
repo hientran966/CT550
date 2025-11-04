@@ -18,6 +18,11 @@
       <el-icon><PieChart /></el-icon>
       <span>Báo cáo</span>
     </el-menu-item>
+
+    <el-menu-item index="github">
+      <el-icon><PieChart /></el-icon>
+      <span>Báo cáo</span>
+    </el-menu-item>
     
     <el-sub-menu index="file">
       <template #title>

@@ -1,4 +1,4 @@
-const GitHubService = require("../services/github.service");
+const GitHubService = require("../services/Github.service");
 
 class GitHubController {
   async callback(req, res) {

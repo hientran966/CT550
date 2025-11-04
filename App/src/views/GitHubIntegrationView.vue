@@ -84,7 +84,7 @@ import GitHubService from "@/services/GitHub.service.js";
 import axios from "axios";
 
 const route = useRoute();
-const projectId = route.query.project || 1;
+const projectId = route.params.id;
 
 const installation = ref(null);
 const repos = ref([]);

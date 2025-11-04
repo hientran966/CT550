@@ -1,5 +1,5 @@
 const express = require("express");
-const GitHubController = require("../controllers/github.controller.js");
+const GitHubController = require("../controllers/Github.controller.js");
 
 const router = express.Router();
 

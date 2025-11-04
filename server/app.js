@@ -14,7 +14,8 @@ const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const chatRouter = require("./app/routes/Chat.route")
 const chatbotRouter = require("./app/routes/Chatbot.route");
-const githubRoutes = require("./app/routes/github.route.js");
+const githubRoutes = require("./app/routes/Github.route.js");
+const githubWebhookRouter = require("./app/routes/GithubWebhook.route.js");
 
 const app = express();
 
@@ -44,6 +45,8 @@ app.get("/github/callback", (req, res, next) => {
   next();
 });
 app.use("/github", githubRoutes);
+
+app.use("/github", githubWebhookRouter);
 
 //handle 404
 app.use((req, res, next) => {
