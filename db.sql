@@ -282,10 +282,30 @@ CREATE TABLE github_installations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   installation_id BIGINT UNIQUE,
   account_login VARCHAR(255),
-  project_id BIGINT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS project_installations;
+CREATE TABLE project_installations (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  project_id BIGINT NOT NULL,
+  installation_id BIGINT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY unique_project (project_id),
-  FOREIGN KEY (project_id) REFERENCES projects(id)
+  FOREIGN KEY (project_id) REFERENCES projects(id),
+  FOREIGN KEY (installation_id) REFERENCES github_installations(installation_id),
+  UNIQUE KEY unique_project_installation (project_id, installation_id)
+);
+
+DROP TABLE IF EXISTS project_repositories;
+CREATE TABLE project_repositories (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  project_id BIGINT NOT NULL,
+  repo_id BIGINT NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  html_url VARCHAR(255),
+  is_private BOOLEAN,
+  FOREIGN KEY (project_id) REFERENCES projects(id),
+  UNIQUE KEY unique_project_repo (project_id, repo_id)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

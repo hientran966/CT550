@@ -14,8 +14,8 @@ const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const chatRouter = require("./app/routes/Chat.route")
 const chatbotRouter = require("./app/routes/Chatbot.route");
-const githubRoutes = require("./app/routes/Github.route.js");
-const githubWebhookRouter = require("./app/routes/GithubWebhook.route.js");
+const githubRoutes = require("./app/routes/Github.route");
+const githubWebhookRouter = require("./app/routes/GithubWebhook.route");
 
 const app = express();
 

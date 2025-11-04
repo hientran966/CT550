@@ -20,8 +20,8 @@
     </el-menu-item>
 
     <el-menu-item index="github">
-      <el-icon><PieChart /></el-icon>
-      <span>Báo cáo</span>
+      <el-icon><Collection /></el-icon>
+      <span>Repos</span>
     </el-menu-item>
     
     <el-sub-menu index="file">
@@ -51,7 +51,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { Files, Guide, Menu, PieChart, ChatSquare } from "@element-plus/icons-vue";
+import { Files, Guide, Menu, PieChart, ChatSquare, Collection } from "@element-plus/icons-vue";
 import ChatService from "@/services/Chat.service";
 
 const props = defineProps({

@@ -27,6 +27,7 @@
 
         <Timeline v-else-if="activeView === 'timeline'" :project-id="projectId" />
         <Report v-else-if="activeView === 'report'" :project-id="projectId" />
+        <GitHubIntegration v-else-if="activeView === 'github'" />
 
         <FileList
           v-else-if="activeView === 'file-all'"
@@ -79,6 +80,7 @@ import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
 import Timeline from "@/components/Timeline.vue";
 import Report from "@/components/Report.vue";
+import GitHubIntegration from "@/components/GitHubIntegration.vue";
 import FileList from "@/components/FileList.vue";
 import Chat from "@/components/Chat.vue";
 import TaskForm from "@/components/TaskForm.vue";

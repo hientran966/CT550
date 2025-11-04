@@ -8,27 +8,54 @@ export default {
     window.open(installUrl, "_blank");
   },
 
-  async saveManualInstallation(installationId, projectId) {
-    const res = await axios.post(`${API_BASE}/save-installation`, {
-      installation_id: installationId,
-      project_id: projectId,
-    });
+  async linkInstallation(projectId, installationId) {
+    const res = await axios.post(
+      `${API_BASE}/project/${projectId}/link/${installationId}`
+    );
     return res.data;
   },
 
   async getInstallationByProject(projectId) {
-    const res = await axios.get(`${API_BASE}/project/${projectId}`);
-    return res.data;
-  },
-
-  async getRepos(installationId) {
-    const res = await axios.get(`${API_BASE}/installations/${installationId}/repos`);
-    return res.data;
-  },
-
-  async getFile(installationId, owner, repo, path) {
     const res = await axios.get(
-      `${API_BASE}/installations/${installationId}/repos/${owner}/${repo}/file/${path}`
+      `${API_BASE}/project/${projectId}/installation`
+    );
+    return res.data;
+  },
+
+  async listReposByInstallation(installationId) {
+    const res = await axios.get(
+      `${API_BASE}/installations/${installationId}/repos`
+    );
+    return res.data;
+  },
+
+  async saveProjectRepos(projectId, repos) {
+    const res = await axios.post(`${API_BASE}/project/${projectId}/repos`, {
+      repos,
+    });
+    return res.data;
+  },
+
+  async getProjectRepos(projectId) {
+    const res = await axios.get(`${API_BASE}/project/${projectId}/repos`);
+    return res.data;
+  },
+
+  async unlinkInstallation(projectId) {
+    const res = await axios.delete(`${API_BASE}/project/${projectId}/unlink`);
+    return res.data;
+  },
+
+  async listRepoFiles(installationId, owner, repo, path = "") {
+    const res = await axios.get(
+      `${API_BASE}/installations/${installationId}/repos/${owner}/${repo}/tree/${path}`
+    );
+    return res.data;
+  },
+
+  async listRecentCommits(installationId, owner, repo) {
+    const res = await axios.get(
+      `${API_BASE}/installations/${installationId}/repos/${owner}/${repo}/commits`
     );
     return res.data;
   },
