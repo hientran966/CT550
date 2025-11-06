@@ -18,51 +18,49 @@ class TaskService {
       status: payload.status ?? "todo",
       priority: payload.priority ?? "medium",
       progress_type: payload.progress_type ?? "manual",
-      progress_value: payload.progress_value ?? 0,
       start_date: payload.start_date ?? null,
       due_date: payload.due_date ?? null,
       created_by: payload.created_by ?? null,
     };
   }
 
-  async recalculateParentProgress(conn, parentTaskId) {
+  /** ===================== TÍNH LẠI TIẾN ĐỘ CHA ===================== **/
+  async recalculateParentProgress(conn, parentTaskId, actorId = null) {
     const [parentRows] = await conn.execute(
-      `SELECT id, progress_type FROM tasks WHERE id = ? AND deleted_at IS NULL`,
+      `SELECT id, title, project_id, progress_type FROM tasks WHERE id = ? AND deleted_at IS NULL`,
       [parentTaskId]
     );
     const parent = parentRows[0];
     if (!parent || parent.progress_type !== "subtask") return;
 
+    // Lấy danh sách task con
     const [subs] = await conn.execute(
-      `SELECT id, status, progress_value, progress_type
-       FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
+      `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
       [parentTaskId]
     );
 
     if (!subs.length) {
       await conn.execute(
-        `UPDATE tasks SET progress_value = 0, updated_at = NOW() WHERE id = ?`,
-        [parentTaskId]
+        `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
+         VALUES (?, 'subtask', 0, ?, ?)`,
+        [parentTaskId, actorId ?? 0, "Không có subtask nào."]
       );
       return;
     }
 
-    let totalProgress = 0;
-    let count = subs.length;
+    const doneCount = subs.filter((s) => s.status === "done").length;
+    const avgProgress = (doneCount / subs.length) * 100;
 
-    for (const s of subs) {
-      if (s.progress_type === "manual") {
-        totalProgress += s.progress_value || 0;
-      } else {
-        totalProgress += s.status === "done" ? 100 : 0;
-      }
-    }
-
-    const avgProgress = totalProgress / count;
-
+    // Ghi log tiến độ cha
     await conn.execute(
-      `UPDATE tasks SET progress_value = ?, updated_at = NOW() WHERE id = ?`,
-      [avgProgress, parentTaskId]
+      `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
+       VALUES (?, 'subtask', ?, ?, ?)`,
+      [
+        parentTaskId,
+        avgProgress,
+        actorId ?? 0,
+        `Tự động tính lại từ ${subs.length} subtask (${doneCount} hoàn thành).`,
+      ]
     );
   }
 
@@ -74,8 +72,8 @@ class TaskService {
       await connection.beginTransaction();
 
       const [result] = await connection.execute(
-        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, parent_task_id, progress_type, progress_value, total_quantity, completed_quantity, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, parent_task_id, progress_type, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -83,11 +81,8 @@ class TaskService {
           task.due_date,
           task.created_by,
           task.project_id,
-          payload.parent_task_id ?? null,
-          payload.progress_type ?? "manual",
-          payload.progress_value ?? 0,
-          payload.total_quantity ?? null,
-          payload.completed_quantity ?? null,
+          task.parent_task_id,
+          task.progress_type,
           payload.status ?? "todo",
         ]
       );
@@ -95,13 +90,25 @@ class TaskService {
       const taskId = result.insertId;
       const newTask = { id: taskId, ...task };
 
+      // Nếu là task con → cập nhật tiến độ cha
       if (payload.parent_task_id) {
         await this.recalculateParentProgress(
           connection,
-          payload.parent_task_id
+          payload.parent_task_id,
+          task.created_by
         );
       }
 
+      // Nếu là task theo số lượng → tạo record progress
+      if (task.progress_type === "quantity") {
+        await connection.execute(
+          `INSERT INTO task_quantity_progress (task_id, total_quantity, unit)
+           VALUES (?, ?, ?)`,
+          [taskId, payload.total_quantity ?? 1, payload.unit ?? null]
+        );
+      }
+
+      // Gán người thực hiện
       if (Array.isArray(payload.members) && payload.members.length > 0) {
         for (const userId of payload.members) {
           await this.assignmentService.create(
@@ -113,6 +120,7 @@ class TaskService {
 
       await connection.commit();
 
+      // Gửi socket
       const members = await this.memberService.getByProjectId(task.project_id);
       if (members?.length > 0) {
         for (const member of members) {
@@ -154,14 +162,12 @@ class TaskService {
     `;
 
     const params = [];
-
     if (filter.project_id) {
       sql += " AND t.project_id = ?";
       params.push(filter.project_id);
     }
     if (filter.parent_task_id !== undefined) {
-      if (filter.parent_task_id === null)
-        sql += " AND t.parent_task_id IS NULL";
+      if (filter.parent_task_id === null) sql += " AND t.parent_task_id IS NULL";
       else {
         sql += " AND t.parent_task_id = ?";
         params.push(filter.parent_task_id);
@@ -194,7 +200,7 @@ class TaskService {
         };
       } else if (row.progress_type === "subtask") {
         const [subs] = await this.mysql.execute(
-          `SELECT id, title, status, progress_value FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
+          `SELECT id, title, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
           [row.id]
         );
         row.subtasks = subs;
@@ -218,7 +224,7 @@ class TaskService {
         `SELECT progress FROM progress_logs WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`,
         [id]
       );
-      task.latest_progress = logRows[0]?.progress ?? task.progress_value;
+      task.latest_progress = logRows[0]?.progress ?? 0;
     } else if (task.progress_type === "quantity") {
       const [rowsQ] = await this.mysql.execute(
         `SELECT total_quantity, completed_quantity, unit 
@@ -235,7 +241,7 @@ class TaskService {
       task.quantity_progress = q;
     } else if (task.progress_type === "subtask") {
       const [subs] = await this.mysql.execute(
-        `SELECT id, title, status, progress_value FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
+        `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
         [id]
       );
       const doneCount = subs.filter((s) => s.status === "done").length;
@@ -275,7 +281,7 @@ class TaskService {
         );
 
       if (oldTask.parent_task_id) {
-        await this.recalculateParentProgress(conn, oldTask.parent_task_id);
+        await this.recalculateParentProgress(conn, oldTask.parent_task_id, data.updated_by ?? null);
       }
 
       await conn.commit();
@@ -288,7 +294,7 @@ class TaskService {
     }
   }
 
-  /** ===================== DELETE / RESTORE ===================== **/
+  /** ===================== DELETE ===================== **/
   async delete(id) {
     const connection = await this.mysql.getConnection();
     try {
@@ -358,9 +364,8 @@ class TaskService {
     try {
       await connection.beginTransaction();
 
-      // Lấy thông tin task
       const [rows] = await connection.execute(
-        `SELECT id, title, project_id, progress_type, parent_task_id, total_quantity, completed_quantity
+        `SELECT id, title, project_id, progress_type, parent_task_id
          FROM tasks WHERE id = ? AND deleted_at IS NULL`,
         [taskId]
       );
@@ -369,30 +374,20 @@ class TaskService {
 
       let progressPercent = 0;
 
-      // ================= MANUAL =================
+      // Manual
       if (task.progress_type === "manual") {
         const value = Number(progressData?.progress_value ?? 0);
         progressPercent = Math.max(0, Math.min(100, value));
-
-        // Ghi log
         await connection.execute(
           `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
            VALUES (?, 'manual', ?, ?, ?)`,
           [taskId, progressPercent, loggedBy, comment]
         );
-
-        // Cập nhật tasks
-        await connection.execute(
-          `UPDATE tasks SET progress_value = ?, updated_at = NOW() WHERE id = ?`,
-          [progressPercent, taskId]
-        );
       }
 
-      // ================= QUANTITY =================
+      // Quantity
       else if (task.progress_type === "quantity") {
         const { total_quantity, completed_quantity, unit } = progressData;
-
-        // Cập nhật hoặc insert task_quantity_progress
         await connection.execute(
           `INSERT INTO task_quantity_progress (task_id, total_quantity, completed_quantity, unit)
            VALUES (?, ?, ?, ?)
@@ -405,13 +400,6 @@ class TaskService {
             ? Math.min((completed_quantity / total_quantity) * 100, 100)
             : 0;
 
-        // Cập nhật task
-        await connection.execute(
-          `UPDATE tasks SET progress_value = ?, total_quantity = ?, completed_quantity = ?, updated_at = NOW() WHERE id = ?`,
-          [progressPercent, total_quantity, completed_quantity, taskId]
-        );
-
-        // Ghi log
         await connection.execute(
           `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
            VALUES (?, 'quantity', ?, ?, ?)`,
@@ -419,9 +407,8 @@ class TaskService {
         );
       }
 
-      // ================= SUBTASK =================
+      // Subtask
       else if (task.progress_type === "subtask") {
-        // Lấy danh sách subtask
         const [subs] = await connection.execute(
           `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
           [taskId]
@@ -432,26 +419,19 @@ class TaskService {
         progressPercent = progress;
 
         await connection.execute(
-          `UPDATE tasks SET progress_value = ?, updated_at = NOW() WHERE id = ?`,
-          [progressPercent, taskId]
-        );
-
-        // Ghi log
-        await connection.execute(
           `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
            VALUES (?, 'subtask', ?, ?, ?)`,
           [taskId, progressPercent, loggedBy, comment]
         );
       }
 
-      // ================== UPDATE TASK CHA (nếu có) ==================
+      // Cập nhật cha nếu có
       if (task.parent_task_id) {
-        await this.recalculateParentProgress(connection, task.parent_task_id);
+        await this.recalculateParentProgress(connection, task.parent_task_id, loggedBy);
       }
 
       await connection.commit();
 
-      // ================== GỬI THÔNG BÁO SOCKET ==================
       const members = await this.memberService.getByProjectId(task.project_id);
       for (const member of members) {
         sendToUser(member.user_id, "task_progress_logged", {

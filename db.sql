@@ -56,7 +56,6 @@ CREATE TABLE tasks (
     status ENUM('todo', 'in_progress', 'review', 'done') DEFAULT 'todo',
     priority ENUM('low','medium','high') DEFAULT 'medium',
     progress_type ENUM('manual', 'quantity', 'subtask') DEFAULT 'manual',
-    progress_value DECIMAL(5,2) DEFAULT 0,
     start_date DATE,
     due_date DATE,
     created_by BIGINT,

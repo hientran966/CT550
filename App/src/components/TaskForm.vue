@@ -7,12 +7,7 @@
     :close-on-click-modal="false"
     :destroy-on-close="true"
   >
-    <el-form
-      :model="form"
-      :rules="rules"
-      ref="taskForm"
-      label-width="120px"
-    >
+    <el-form :model="form" :rules="rules" ref="taskForm" label-width="120px">
       <el-form-item label="Tiêu đề" prop="title">
         <el-input v-model="form.title" autocomplete="off" />
       </el-form-item>
@@ -31,7 +26,7 @@
           v-model="form.start_date"
           type="date"
           placeholder="Chọn ngày bắt đầu"
-          style="width: 100%;"
+          style="width: 100%"
         />
       </el-form-item>
 
@@ -40,15 +35,48 @@
           v-model="form.due_date"
           type="date"
           placeholder="Chọn ngày kết thúc"
-          style="width: 100%;"
+          style="width: 100%"
         />
       </el-form-item>
+
+      <el-form-item label="Cách tính tiến độ" prop="progress_type">
+        <el-select
+          v-model="form.progress_type"
+          placeholder="Chọn loại"
+          style="width: 100%"
+        >
+          <el-option label="Nhập thủ công (%)" value="manual" />
+          <el-option label="Theo số lượng" value="quantity" />
+          <el-option label="Theo công việc con" value="subtask" />
+        </el-select>
+      </el-form-item>
+
+      <template v-if="form.progress_type === 'quantity'">
+        <el-form-item label="Số lượng">
+          <div
+            style="display: flex; align-items: center; gap: 8px; width: 100%"
+          >
+            <el-input-number
+              v-model="form.total_quantity"
+              :min="1"
+              :controls="false"
+              placeholder="Số lượng"
+              style="flex: 2"
+            />
+            <el-input
+              v-model="form.unit"
+              placeholder="Đơn vị"
+              style="flex: 1"
+            />
+          </div>
+        </el-form-item>
+      </template>
 
       <el-form-item label="Ưu tiên" prop="priority">
         <el-select
           v-model="form.priority"
           placeholder="Chọn ưu tiên"
-          style="width: 100%;"
+          style="width: 100%"
         >
           <el-option label="Cao" value="high" />
           <el-option label="Trung Bình" value="medium" />
@@ -61,7 +89,7 @@
           v-model="form.assignees"
           multiple
           placeholder="Chọn người được giao"
-          style="width: 100%;"
+          style="width: 100%"
         >
           <el-option
             v-for="user in users"
@@ -97,6 +125,9 @@ interface TaskForm {
   description?: string;
   start_date?: string;
   due_date?: string;
+  progress_type: "manual" | "quantity" | "subtask";
+  total_quantity?: number;
+  unit?: string;
   priority: "low" | "medium" | "high";
   assignees: number[];
 }
@@ -124,33 +155,15 @@ const form = reactive<TaskForm>({
   description: "",
   start_date: "",
   due_date: "",
+  progress_type: "manual",
+  total_quantity: null,
+  unit: null,
   priority: "medium",
   assignees: [],
 });
 
 const rules = {
   title: [{ required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" }],
-  start_date: [
-    { required: true, message: "Ngày bắt đầu là bắt buộc", trigger: "change" },
-  ],
-  due_date: [
-    { required: true, message: "Ngày kết thúc là bắt buộc", trigger: "change" },
-    {
-      validator: (rule: any, value: string, callback: any) => {
-        if (!value) {
-          return callback(new Error("Ngày kết thúc là bắt buộc"));
-        }
-        if (form.start_date && new Date(value) < new Date(form.start_date)) {
-          return callback(new Error("Ngày kết thúc phải sau ngày bắt đầu"));
-        }
-        callback();
-      },
-      trigger: "change",
-    },
-  ],
-  priority: [
-    { required: true, message: "Ưu tiên là bắt buộc", trigger: "change" },
-  ],
 };
 
 async function fetchMembers() {
@@ -162,7 +175,6 @@ async function fetchMembers() {
       id: m.user_id,
       name: m.name,
     }));
-
   } catch (error) {
     console.error("Lỗi khi lấy danh sách thành viên:", error);
     ElMessage.error("Không thể tải danh sách thành viên");
@@ -177,7 +189,8 @@ function pad(n: number) {
 
 function toSQLDate(value: DateOrString): string | null {
   if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return value;
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return null;
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -188,6 +201,9 @@ function resetForm() {
   form.description = "";
   form.start_date = "";
   form.due_date = "";
+  form.progress_type = "manual";
+  form.total_quantity = null;
+  form.unit = null;
   form.priority = "medium";
   form.assignees = [];
 }
@@ -214,6 +230,10 @@ async function submitForm() {
       description: form.description,
       start_date: toSQLDate(form.start_date),
       due_date: toSQLDate(form.due_date),
+      progress_type: form.progress_type,
+      total_quantity:
+        form.progress_type === "quantity" ? form.total_quantity : null,
+      unit: form.progress_type === "quantity" ? form.unit : null,
       priority: form.priority,
       created_by: user.id,
       members: form.assignees,
@@ -230,5 +250,4 @@ async function submitForm() {
     ElMessage.error("Lỗi tạo công việc");
   }
 }
-
 </script>

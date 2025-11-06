@@ -2,9 +2,11 @@
   "name": "fullstack-app",
   "version": "1.0.0",
   "scripts": {
-    "start": "concurrently \"npm run dev --prefix App\" \"npm start --prefix Server\""
+    "start": "concurrently \"npm run dev --prefix App\" \"npm start --prefix Server\" \"npm run ngrok\"",
+    "ngrok": "wait-on http://localhost:3000 && ngrok http 3000"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "wait-on": "^7.2.0"
   }
 }

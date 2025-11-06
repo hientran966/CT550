@@ -69,18 +69,35 @@ export const useTaskStore = defineStore("task", {
       try {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-        // MANUAL hoặc QUANTITY: progress
+        // === Cập nhật tiến độ ===
         if (updatedTask.changedField === "progress") {
-          await TaskService.progressLog(updatedTask.id, {
-            progress:
-              updatedTask.progress_type === "manual"
-                ? updatedTask.latest_progress
-                : updatedTask.completed_quantity,
-            total_quantity: updatedTask.total_quantity,
-            loggedBy: user.id,
-          });
-        } 
-        // ASSIGNEE
+          const payload = { loggedBy: user.id };
+
+          if (updatedTask.progress_type === "manual") {
+            payload.progress_value = updatedTask.latest_progress ?? 0;
+          } else if (updatedTask.progress_type === "quantity") {
+            payload.total_quantity = updatedTask.total_quantity ?? 0;
+            payload.completed_quantity = updatedTask.completed_quantity ?? 0;
+            payload.unit = updatedTask.unit ?? null;
+          }
+
+          await TaskService.progressLog(updatedTask.id, payload);
+
+          const task = this.taskCache[updatedTask.id];
+          if (task) {
+            task.total_quantity = payload.total_quantity ?? task.total_quantity;
+            task.completed_quantity =
+              payload.completed_quantity ?? task.completed_quantity;
+            task.unit = payload.unit ?? task.unit;
+            if (task.total_quantity > 0) {
+              task.latest_progress = Math.round(
+                (task.completed_quantity / task.total_quantity) * 100
+              );
+            }
+          }
+        }
+
+        // === Cập nhật người phụ trách ===
         else if (updatedTask.changedField === "assignee") {
           await TaskService.deleteAssign(updatedTask.id);
           for (const userId of updatedTask.assignees) {
@@ -91,19 +108,24 @@ export const useTaskStore = defineStore("task", {
               project_id: projectId,
             });
           }
-        } 
-        // STATUS / SUBTASK
+        }
+
+        // === Trường hợp khác (status, title, priority, etc...) ===
         else {
           await TaskService.updateTask(updatedTask.id, updatedTask);
         }
 
+        // === Cập nhật store local ===
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === updatedTask.id);
         if (idx !== -1) list[idx] = { ...list[idx], ...updatedTask };
         else list.push(updatedTask);
 
         this.tasksByProject[projectId] = [...list];
-        this.taskCache[updatedTask.id] = updatedTask;
+        this.taskCache[updatedTask.id] = {
+          ...this.taskCache[updatedTask.id],
+          ...updatedTask,
+        };
       } catch (err) {
         console.error("Lỗi cập nhật task:", err);
       }
@@ -118,7 +140,10 @@ export const useTaskStore = defineStore("task", {
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === task.id);
         if (idx !== -1) list[idx].status = task.status;
-        this.tasksByProject = { ...this.tasksByProject, [projectId]: [...list] };
+        this.tasksByProject = {
+          ...this.tasksByProject,
+          [projectId]: [...list],
+        };
       } catch (err) {
         console.error("Lỗi cập nhật status:", err);
       }
@@ -176,7 +201,8 @@ export const useTaskStore = defineStore("task", {
     async addSubtask(taskId, subtaskData) {
       try {
         const subtask = await TaskService.create(subtaskData);
-        if (!this.taskCache[taskId].subtasks) this.taskCache[taskId].subtasks = [];
+        if (!this.taskCache[taskId].subtasks)
+          this.taskCache[taskId].subtasks = [];
         this.taskCache[taskId].subtasks.push(subtask);
         return subtask;
       } catch (err) {
