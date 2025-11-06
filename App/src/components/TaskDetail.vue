@@ -78,7 +78,7 @@
                     </div>
 
                     <el-button
-                      v-if="canEdit"
+                      v-if="canEdit || (canUpdate && row.key === 'progress')"
                       size="small"
                       type="info"
                       @click="startEdit(row.key)"
@@ -167,6 +167,7 @@
                           v-model="editCache.total_quantity"
                           :min="editCache.completed_quantity || 1"
                           :controls="false"
+                          :disabled="!canEdit"
                           size="small"
                           style="width: 80px"
                         />
@@ -242,7 +243,7 @@
 
             <!-- File Upload -->
             <el-button
-              v-if="canUpload"
+              v-if="canEdit"
               style="margin-top: 16px"
               plain
               :icon="Upload"
@@ -342,7 +343,7 @@ const task = ref({});
 const members = ref([]);
 const newComment = ref("");
 const canEdit = ref(false);
-const canUpload = ref(false);
+const canUpdate = ref(false);
 
 const taskStore = useTaskStore();
 const fileStore = useFileStore();
@@ -374,21 +375,28 @@ const handleClose = () => (visible.value = false);
 async function checkRole() {
   try {
     canEdit.value = await roleStore.canEditTask(props.taskId, props.projectId);
-    canUpload.value = await roleStore.canUploadFileToTask(
+    canUpdate.value = await roleStore.canUpdateProgress(
       props.taskId,
       props.projectId
     );
   } catch {
-    canEdit.value = canUpload.value = false;
+    canEdit.value = canUpdate.value = false;
   }
 }
 
 // EDIT TASK
 const startEdit = (key) => {
-  if (!canEdit.value)
-    return ElMessage.warning("Bạn không có quyền chỉnh sửa task này");
+  if (!(canEdit.value || (canUpdate.value && key === "progress")))
+    return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
   editRow.value = key;
   editCache.value = { ...task.value };
+
+  if (key === "progress" && task.value.progress_type === "quantity") {
+    const qp = task.value.quantity_progress || {};
+    editCache.value.completed_quantity = qp.completed_quantity ?? 0;
+    editCache.value.total_quantity = qp.total_quantity ?? 0;
+    editCache.value.unit = qp.unit ?? task.value.unit ?? "";
+  }
 };
 
 const cancelEdit = () => {
@@ -397,7 +405,8 @@ const cancelEdit = () => {
 };
 
 const saveEdit = async (key) => {
-  if (!canEdit.value) return ElMessage.warning("Bạn không có quyền chỉnh sửa");
+  if (!(canEdit.value || (canUpdate.value && key === "progress")))
+    return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
 
   const updatedTask = { ...task.value, ...editCache.value, changedField: key };
 
@@ -440,7 +449,7 @@ const addSubtask = async () => {
 
 // UPLOAD
 const onUpload = () => {
-  if (!canUpload.value)
+  if (!canEdit.value)
     return ElMessage.warning("Bạn không có quyền upload file cho task này");
   uploadRef.value = true;
 };

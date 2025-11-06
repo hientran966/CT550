@@ -206,7 +206,7 @@ async function checkRoles() {
   const resultDelete = {};
 
   for (const task of props.tasks) {
-    const canChange = await roleStore.canChangeTaskStatus(
+    const canChange = await roleStore.canEditTask(
       task.id,
       props.projectId
     );

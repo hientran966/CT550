@@ -78,12 +78,12 @@ export const useRoleStore = defineStore('role', () => {
   // ---------- PERMISSIONS ----------
   async function canEditTask(taskId, projectId) {
     const t = await fetchTaskRole(taskId, projectId);
-    return ['owner', 'manager'].includes(t.projectRole) || t.isAssigned;
+    return ['owner', 'manager'].includes(t.projectRole);
   }
 
-  async function canChangeTaskStatus(taskId, projectId) {
+  async function canUpdateProgress(taskId, projectId) {
     const t = await fetchTaskRole(taskId, projectId);
-    return ['owner', 'manager'].includes(t.projectRole);
+    return ['owner', 'manager'].includes(t.projectRole) || t.isAssigned;
   }
 
   async function canManageMembers(projectId) {
@@ -130,7 +130,7 @@ export const useRoleStore = defineStore('role', () => {
     fetchTaskRole,
     fetchFileRole,
     canEditTask,
-    canChangeTaskStatus,
+    canUpdateProgress,
     canManageMembers,
     canUploadFileToTask,
     canUpdateFileVersion,

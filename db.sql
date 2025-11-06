@@ -71,8 +71,8 @@ DROP TABLE IF EXISTS task_quantity_progress;
 CREATE TABLE task_quantity_progress (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     task_id BIGINT NOT NULL,
-    total_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
-    completed_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    total_quantity BIGINT NOT NULL DEFAULT 0,
+    completed_quantity BIGINT NOT NULL DEFAULT 0,
     unit VARCHAR(50) DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES tasks(id)
