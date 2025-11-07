@@ -158,7 +158,7 @@ class TaskService {
           WHERE ta.task_id = t.id AND ta.deleted_at IS NULL
         ) AS assignees
       FROM tasks t
-      WHERE t.deleted_at IS NULL
+      WHERE t.deleted_at IS NULL AND t.parent_task_id IS NULL
     `;
 
     const params = [];
@@ -167,7 +167,8 @@ class TaskService {
       params.push(filter.project_id);
     }
     if (filter.parent_task_id !== undefined) {
-      if (filter.parent_task_id === null) sql += " AND t.parent_task_id IS NULL";
+      if (filter.parent_task_id === null)
+        sql += " AND t.parent_task_id IS NULL";
       else {
         sql += " AND t.parent_task_id = ?";
         params.push(filter.parent_task_id);
@@ -266,11 +267,14 @@ class TaskService {
       const oldTask = oldRows[0];
       if (!oldTask) throw new Error("Task not found");
 
+      const safeData = { ...data };
+      delete safeData.updated_by;
+
       const fields = [];
       const params = [];
-      for (const key in data) {
+      for (const key in safeData) {
         fields.push(`${key} = ?`);
-        params.push(data[key]);
+        params.push(safeData[key]);
       }
       params.push(id);
 
@@ -281,7 +285,11 @@ class TaskService {
         );
 
       if (oldTask.parent_task_id) {
-        await this.recalculateParentProgress(conn, oldTask.parent_task_id, data.updated_by ?? null);
+        await this.recalculateParentProgress(
+          conn,
+          oldTask.parent_task_id,
+          data.updated_by ?? null
+        );
       }
 
       await conn.commit();
@@ -295,7 +303,7 @@ class TaskService {
   }
 
   /** ===================== DELETE ===================== **/
-  async delete(id) {
+  async delete(id, actorId) {
     const connection = await this.mysql.getConnection();
     try {
       await connection.beginTransaction();
@@ -314,7 +322,11 @@ class TaskService {
       ]);
 
       if (task.parent_task_id) {
-        await this.recalculateParentProgress(connection, task.parent_task_id);
+        await this.recalculateParentProgress(
+          connection,
+          task.parent_task_id,
+          actorId
+        );
       }
 
       await connection.commit();
@@ -427,14 +439,18 @@ class TaskService {
 
       // Cập nhật cha nếu có
       if (task.parent_task_id) {
-        await this.recalculateParentProgress(connection, task.parent_task_id, loggedBy);
+        await this.recalculateParentProgress(
+          connection,
+          task.parent_task_id,
+          loggedBy
+        );
       }
 
       await connection.commit();
 
       const members = await this.memberService.getByProjectId(task.project_id);
       for (const member of members) {
-        sendToUser(member.user_id, "task_progress_logged", {
+        sendToUser(member.user_id, "task_updated", {
           task_id: task.id,
           project_id: task.project_id,
           progress_type: task.progress_type,

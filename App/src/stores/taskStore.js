@@ -133,9 +133,11 @@ export const useTaskStore = defineStore("task", {
 
     async updateStatus(projectId, task) {
       try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
         await TaskService.updateTask(task.id, {
           status: task.status,
           project_id: projectId,
+          updated_by: user.id,
         });
         const list = this.tasksByProject[projectId] || [];
         const idx = list.findIndex((t) => t.id === task.id);
@@ -151,7 +153,8 @@ export const useTaskStore = defineStore("task", {
 
     async deleteTask(taskId) {
       try {
-        await TaskService.deleteTask(taskId);
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        await TaskService.deleteTask(taskId, user.id);
       } catch (err) {
         console.error("Lỗi xóa task:", err);
       }
@@ -200,7 +203,7 @@ export const useTaskStore = defineStore("task", {
 
     async addSubtask(taskId, subtaskData) {
       try {
-        const subtask = await TaskService.create(subtaskData);
+        const subtask = await TaskService.createTask(subtaskData);
         if (!this.taskCache[taskId].subtasks)
           this.taskCache[taskId].subtasks = [];
         this.taskCache[taskId].subtasks.push(subtask);

@@ -296,14 +296,6 @@ async function loadMembers(projects) {
   projectMembers.value = membersMap;
 }
 
-function getManagerAvatar(id) {
-  return managerAvatars.value[id] || defaultAvatar;
-}
-
-function getManagerName(id) {
-  return managerNames.value[id] || "Đang tải...";
-}
-
 // ------------------ LOAD DỮ LIỆU ------------------
 watch(
   () => props.projects,

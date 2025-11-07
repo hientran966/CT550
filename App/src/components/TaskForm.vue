@@ -12,14 +12,77 @@
         <el-input v-model="form.title" autocomplete="off" />
       </el-form-item>
 
-      <el-form-item label="Mô tả" prop="description">
-        <el-input
-          type="textarea"
-          v-model="form.description"
-          :rows="3"
-          autocomplete="off"
-        />
-      </el-form-item>
+      <template v-if="!isSubTask">
+        <el-form-item label="Mô tả" prop="description">
+          <el-input
+            type="textarea"
+            v-model="form.description"
+            :rows="3"
+            autocomplete="off"
+          />
+        </el-form-item>
+
+        <el-form-item label="Cách tính tiến độ" prop="progress_type">
+          <el-select
+            v-model="form.progress_type"
+            placeholder="Chọn loại"
+            style="width: 100%"
+          >
+            <el-option label="Nhập thủ công (%)" value="manual" />
+            <el-option label="Theo số lượng" value="quantity" />
+            <el-option label="Theo công việc con" value="subtask" />
+          </el-select>
+        </el-form-item>
+
+        <template v-if="form.progress_type === 'quantity'">
+          <el-form-item label="Số lượng">
+            <div
+              style="display: flex; align-items: center; gap: 8px; width: 100%"
+            >
+              <el-input-number
+                v-model="form.total_quantity"
+                :min="1"
+                :controls="false"
+                placeholder="Số lượng"
+                style="flex: 2"
+              />
+              <el-input
+                v-model="form.unit"
+                placeholder="Đơn vị"
+                style="flex: 1"
+              />
+            </div>
+          </el-form-item>
+        </template>
+
+        <el-form-item label="Ưu tiên" prop="priority">
+          <el-select
+            v-model="form.priority"
+            placeholder="Chọn ưu tiên"
+            style="width: 100%"
+          >
+            <el-option label="Cao" value="high" />
+            <el-option label="Trung Bình" value="medium" />
+            <el-option label="Thấp" value="low" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="Người được giao" prop="assignees">
+          <el-select
+            v-model="form.assignees"
+            multiple
+            placeholder="Chọn người được giao"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in users"
+              :key="user.id"
+              :label="user.name"
+              :value="user.id"
+            />
+          </el-select>
+        </el-form-item>
+      </template>
 
       <el-form-item label="Ngày bắt đầu" prop="start_date">
         <el-date-picker
@@ -37,67 +100,6 @@
           placeholder="Chọn ngày kết thúc"
           style="width: 100%"
         />
-      </el-form-item>
-
-      <el-form-item label="Cách tính tiến độ" prop="progress_type">
-        <el-select
-          v-model="form.progress_type"
-          placeholder="Chọn loại"
-          style="width: 100%"
-        >
-          <el-option label="Nhập thủ công (%)" value="manual" />
-          <el-option label="Theo số lượng" value="quantity" />
-          <el-option label="Theo công việc con" value="subtask" />
-        </el-select>
-      </el-form-item>
-
-      <template v-if="form.progress_type === 'quantity'">
-        <el-form-item label="Số lượng">
-          <div
-            style="display: flex; align-items: center; gap: 8px; width: 100%"
-          >
-            <el-input-number
-              v-model="form.total_quantity"
-              :min="1"
-              :controls="false"
-              placeholder="Số lượng"
-              style="flex: 2"
-            />
-            <el-input
-              v-model="form.unit"
-              placeholder="Đơn vị"
-              style="flex: 1"
-            />
-          </div>
-        </el-form-item>
-      </template>
-
-      <el-form-item label="Ưu tiên" prop="priority">
-        <el-select
-          v-model="form.priority"
-          placeholder="Chọn ưu tiên"
-          style="width: 100%"
-        >
-          <el-option label="Cao" value="high" />
-          <el-option label="Trung Bình" value="medium" />
-          <el-option label="Thấp" value="low" />
-        </el-select>
-      </el-form-item>
-
-      <el-form-item label="Người được giao" prop="assignees">
-        <el-select
-          v-model="form.assignees"
-          multiple
-          placeholder="Chọn người được giao"
-          style="width: 100%"
-        >
-          <el-option
-            v-for="user in users"
-            :key="user.id"
-            :label="user.name"
-            :value="user.id"
-          />
-        </el-select>
       </el-form-item>
     </el-form>
 
@@ -135,6 +137,7 @@ interface TaskForm {
 const props = defineProps<{
   modelValue: boolean;
   projectId: number;
+  parentId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -146,6 +149,7 @@ const visible = computed({
   get: () => props.modelValue,
   set: (val: boolean) => emit("update:modelValue", val),
 });
+const isSubTask = computed(() => !!props.parentId);
 
 const taskForm = ref();
 const users = ref<User[]>([]);
@@ -224,7 +228,7 @@ async function submitForm() {
 
     const user = JSON.parse(localStorage.getItem("user"));
 
-    const payload = {
+    const payload: any = {
       project_id: props.projectId,
       title: form.title,
       description: form.description,
@@ -238,6 +242,10 @@ async function submitForm() {
       created_by: user.id,
       members: form.assignees,
     };
+
+    if (props.parentId) {
+      payload.parent_task_id = props.parentId;
+    }
 
     await TaskService.createTask(payload);
 

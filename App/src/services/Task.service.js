@@ -17,8 +17,8 @@ class TaskService {
         return (await this.api.put(`/${id}`, data)).data;
     }
 
-    async deleteTask(id) {
-        return (await this.api.delete(`/${id}`)).data;
+    async deleteTask(id, actorId) {
+        return (await this.api.delete(`/${id}?actor_id=${actorId}`)).data;
     }
 
     async getAllTasks() {

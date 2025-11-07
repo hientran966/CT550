@@ -213,7 +213,16 @@
             </el-table>
             <!-- SUBTASK TABLE -->
             <template v-if="task.progress_type === 'subtask'">
-              <el-divider>Subtasks</el-divider>
+              <div>
+                <p>Subtask</p>
+                <el-button
+                  type="primary"
+                  size="small"
+                  style="margin-top: 8px"
+                  :icon="Plus"
+                  @click="addSubtask"
+                />
+              </div>
               <el-table :data="task.subtasks || []" border style="width: 100%">
                 <el-table-column prop="title" label="Tiêu đề" />
                 <el-table-column prop="start_date" label="Ngày bắt đầu" />
@@ -232,13 +241,12 @@
                   </template>
                 </el-table-column>
               </el-table>
-              <el-button
-                type="primary"
-                size="small"
-                style="margin-top: 8px"
-                @click="addSubtask"
-                >Thêm Subtask</el-button
-              >
+              <TaskForm
+                v-model="formRef"
+                :project-id="props.projectId"
+                :parent-id="props.taskId"
+                @task-added="() => taskStore.loadTasks(projectId)"
+              />
             </template>
 
             <!-- File Upload -->
@@ -311,10 +319,12 @@
 <script setup>
 import { computed, ref, onMounted, watch, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
-import { Check, Close, EditPen, Upload } from "@element-plus/icons-vue";
+import { getSocket } from "@/plugins/socket";
+import { Check, Close, EditPen, Upload, Plus } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 
 import UploadDialog from "./UploadDialog.vue";
+import TaskForm from "./TaskForm.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
 
@@ -336,7 +346,10 @@ const visible = computed({
   set: (val) => emit("update:modelValue", val),
 });
 
+let socket;
+
 const uploadRef = ref(false);
+const formRef = ref(false);
 const editRow = ref(null);
 const editCache = ref({});
 const task = ref({});
@@ -429,22 +442,14 @@ const saveEdit = async (key) => {
 
 // SUBTASK
 const updateSubtaskStatus = async (subtask) => {
-  await taskStore.updateTask(props.projectId, {
-    ...subtask,
-    changedField: "status",
+  await taskStore.updateStatus(props.projectId, {
+    ...subtask
   });
   await loadData();
 };
 
 const addSubtask = async () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const newSub = await taskStore.addSubtask(task.value.id, {
-    title: "Subtask mới",
-    project_id: props.projectId,
-    parent_task_id: task.value.id,
-    created_by: user.id,
-  });
-  if (newSub) task.value.subtasks.push(newSub);
+  formRef.value = true;
 };
 
 // UPLOAD
@@ -495,6 +500,13 @@ onMounted(async () => {
   await loadData();
   await loadMembers();
   await checkRole();
+
+  socket = getSocket();
+  if (!socket) return;
+
+  socket.on("task_updated", async (event) => {
+    await loadData();
+  });
 });
 watch(
   () => visible.value,

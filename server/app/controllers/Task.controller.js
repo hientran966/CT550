@@ -30,6 +30,20 @@ const customMethods = {
         }
     },
 
+    // Xóa
+    delete: async (req, res, next) => {
+        try {
+            const service = new TaskService(MySQL.pool);
+            await service.delete(req.params.id, req.query.actor_id);
+            return res.send({ message: "Xóa thành công" });
+        } catch (error) {
+            console.error(error);
+            return next(
+                new ApiError(500, error.message || messages.deleteError || "Đã xảy ra lỗi khi xóa")
+            );
+        }
+    },
+
     // filter theo project
     findByProject: async (req, res, next) => {
         try {
