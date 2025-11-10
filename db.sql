@@ -75,7 +75,8 @@ CREATE TABLE task_quantity_progress (
     completed_quantity BIGINT NOT NULL DEFAULT 0,
     unit VARCHAR(50) DEFAULT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES tasks(id)
+    UNIQUE KEY unique_task (task_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
 -- TASK ASSIGNEES

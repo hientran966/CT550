@@ -1,62 +1,73 @@
-import axios from "axios";
+import createApiClient from "./api.service";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/github";
+class GithubService {
+  constructor(baseUrl = "/api/github") {
+    this.api = createApiClient(baseUrl);
+  }
 
-export default {
   connectApp(projectId) {
     const installUrl = `https://github.com/apps/pmb2111798/installations/new?state=${projectId}`;
     window.open(installUrl, "_blank");
-  },
+  }
 
   async linkInstallation(projectId, installationId) {
-    const res = await axios.post(
-      `${API_BASE}/project/${projectId}/link/${installationId}`
-    );
-    return res.data;
-  },
+    return (
+      await this.api.post(`/project/${projectId}/link/${installationId}`)
+    ).data;
+  }
 
   async getInstallationByProject(projectId) {
-    const res = await axios.get(
-      `${API_BASE}/project/${projectId}/installation`
-    );
-    return res.data;
-  },
+    return (await this.api.get(`/project/${projectId}/installation`)).data;
+  }
 
   async listReposByInstallation(installationId) {
-    const res = await axios.get(
-      `${API_BASE}/installations/${installationId}/repos`
-    );
-    return res.data;
-  },
+    return (await this.api.get(`/installations/${installationId}/repos`)).data;
+  }
 
   async saveProjectRepos(projectId, repos) {
-    const res = await axios.post(`${API_BASE}/project/${projectId}/repos`, {
-      repos,
-    });
-    return res.data;
-  },
+    return (await this.api.post(`/project/${projectId}/repos`, { repos })).data;
+  }
 
   async getProjectRepos(projectId) {
-    const res = await axios.get(`${API_BASE}/project/${projectId}/repos`);
-    return res.data;
-  },
+    return (await this.api.get(`/project/${projectId}/repos`)).data;
+  }
 
   async unlinkInstallation(projectId) {
-    const res = await axios.delete(`${API_BASE}/project/${projectId}/unlink`);
-    return res.data;
-  },
+    return (await this.api.delete(`/project/${projectId}/unlink`)).data;
+  }
 
   async listRepoFiles(installationId, owner, repo, path = "") {
-    const res = await axios.get(
-      `${API_BASE}/installations/${installationId}/repos/${owner}/${repo}/tree/${path}`
-    );
-    return res.data;
-  },
+    return (
+      await this.api.get(
+        `/installations/${installationId}/repos/${owner}/${repo}/tree/${path}`
+      )
+    ).data;
+  }
 
   async listRecentCommits(installationId, owner, repo) {
-    const res = await axios.get(
-      `${API_BASE}/installations/${installationId}/repos/${owner}/${repo}/commits`
-    );
-    return res.data;
-  },
-};
+    return (
+      await this.api.get(
+        `/installations/${installationId}/repos/${owner}/${repo}/commits`
+      )
+    ).data;
+  }
+
+  async listBranches(installationId, owner, repo) {
+    return (
+      await this.api.get(
+        `/installations/${installationId}/repos/${owner}/${repo}/branches`
+      )
+    ).data;
+  }
+
+  async listPullRequests(installationId, owner, repo, state = "all") {
+    return (
+      await this.api.get(
+        `/installations/${installationId}/repos/${owner}/${repo}/pulls`,
+        { params: { state } }
+      )
+    ).data;
+  }
+}
+
+export default new GithubService();

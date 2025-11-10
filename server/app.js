@@ -40,13 +40,13 @@ app.use("/api/file", fileRouter);
 app.use("/api/chat", chatRouter)
 app.use("/api/ask", chatbotRouter);
 
-app.get("/github/callback", (req, res, next) => {
+app.get("/api/github/callback", (req, res, next) => {
   res.setHeader("ngrok-skip-browser-warning", "true");
   next();
 });
-app.use("/github", githubRoutes);
+app.use("/api/github", githubRoutes);
 
-app.use("/github", githubWebhookRouter);
+app.use("/api/github", githubWebhookRouter);
 
 //handle 404
 app.use((req, res, next) => {

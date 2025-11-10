@@ -42,4 +42,17 @@ router.get(
   GitHubController.listRecentCommits
 );
 
+// Danh sách branch của repo
+router.get(
+  "/installations/:installationId/repos/:owner/:repo/branches",
+  GitHubController.listBranches
+);
+
+// Danh sách Pull Request của repo
+router.get(
+  "/installations/:installationId/repos/:owner/:repo/pulls",
+  GitHubController.listPullRequests
+);
+
+
 module.exports = router;

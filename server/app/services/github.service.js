@@ -167,6 +167,42 @@ class GitHubService {
     );
     return res.data;
   }
+
+  // ================== BRANCHES ==================
+  static async listBranches(installationId, owner, repo) {
+    const token = await getInstallationAccessToken(installationId);
+    const res = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/branches`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return res.data.map((b) => ({
+      name: b.name,
+      protected: b.protected,
+      commitSha: b.commit.sha,
+      url: b.commit.html_url,
+    }));
+  }
+
+  // ================== PULL REQUESTS ==================
+  static async listPullRequests(installationId, owner, repo, state = "all") {
+    const token = await getInstallationAccessToken(installationId);
+    const res = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=${state}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return res.data.map((pr) => ({
+      id: pr.id,
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      html_url: pr.html_url,
+      user: pr.user?.login,
+      avatar_url: pr.user?.avatar_url,
+      created_at: pr.created_at,
+      updated_at: pr.updated_at,
+      merged_at: pr.merged_at,
+    }));
+  }
 }
 
 module.exports = GitHubService;

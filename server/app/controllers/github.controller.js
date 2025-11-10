@@ -87,6 +87,30 @@ class GitHubController {
     );
     res.json(commits);
   }
+
+  // list branches
+  async listBranches(req, res) {
+    const { installationId, owner, repo } = req.params;
+    const branches = await GitHubService.listBranches(
+      installationId,
+      owner,
+      repo
+    );
+    res.json(branches);
+  }
+
+  // list pull requests
+  async listPullRequests(req, res) {
+    const { installationId, owner, repo } = req.params;
+    const state = req.query.state || "all";
+    const pulls = await GitHubService.listPullRequests(
+      installationId,
+      owner,
+      repo,
+      state
+    );
+    res.json(pulls);
+  }
 }
 
 module.exports = new GitHubController();
