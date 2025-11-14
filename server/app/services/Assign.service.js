@@ -41,17 +41,19 @@ class AssignmentService {
 
             const newAssignment = { id: result.insertId, ...assignment };
 
-            await notificationService.create(
-                {
-                    actor_id: payload.actor_id,
-                    recipient_id: assignment.user_id,
-                    type: "task_assigned",
-                    reference_type: "task",
-                    reference_id: assignment.task_id,
-                    project_id: payload.project_id,
-                },
-                conn
-            );
+            if (payload.actor_id !== assignment.user_id) {
+                await notificationService.create(
+                    {
+                        actor_id: payload.actor_id,
+                        recipient_id: assignment.user_id,
+                        type: "task_assigned",
+                        reference_type: "task",
+                        reference_id: assignment.task_id,
+                        project_id: payload.project_id,
+                    },
+                    conn
+                );
+            }
 
             if (payload.project_id) {
                 sendToProject(payload.project_id, "task_updated", {

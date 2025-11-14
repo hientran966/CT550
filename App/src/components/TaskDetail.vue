@@ -514,6 +514,8 @@ watch(
     if (val) {
       await loadData();
       await checkRole();
+      editRow.value = null;
+      editCache.value = {};
     }
   }
 );

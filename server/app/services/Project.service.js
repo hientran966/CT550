@@ -231,7 +231,7 @@ class ProjectService {
       COUNT(*) AS total_tasks,
       SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done_tasks
      FROM tasks 
-     WHERE project_id = ? AND deleted_at IS NULL`,
+     WHERE project_id = ? AND parent_task_id IS NULL AND deleted_at IS NULL`,
       [projectId]
     );
 
@@ -287,26 +287,58 @@ class ProjectService {
 
     const [members] = await this.mysql.execute(
       `SELECT u.id, u.name 
-     FROM project_members pm 
-     JOIN users u ON pm.user_id = u.id
-     WHERE pm.project_id = ? AND pm.deleted_at IS NULL AND pm.status = 'accepted'`,
+      FROM project_members pm 
+      JOIN users u ON pm.user_id = u.id
+      WHERE pm.project_id = ? 
+        AND pm.deleted_at IS NULL 
+        AND pm.status = 'accepted'`,
       [projectId]
     );
 
-    const [timeLogs] = await this.mysql.execute(
-      `SELECT user_id, SUM(hours) AS total_hours 
-     FROM time_logs 
-     WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL
-     GROUP BY user_id`,
+    const totalTasks = taskStats.total_tasks;
+
+    const [assignedCounts] = await this.mysql.execute(
+      `SELECT ta.user_id, COUNT(*) AS count
+      FROM task_assignees ta
+      JOIN tasks t ON ta.task_id = t.id
+      WHERE t.project_id = ? 
+        AND ta.deleted_at IS NULL
+        AND t.deleted_at IS NULL
+      GROUP BY ta.user_id`,
       [projectId]
     );
 
-    const hoursByUser = members.map((m) => {
-      const log = timeLogs.find((t) => t.user_id === m.id);
-      return {
-        name: m.name,
-        total_hours: log ? parseFloat(log.total_hours) : 0,
-      };
+    const [[nonAssign]] = await this.mysql.execute(
+      `SELECT COUNT(*) AS count
+      FROM tasks t
+      LEFT JOIN task_assignees ta 
+          ON ta.task_id = t.id AND ta.deleted_at IS NULL
+      WHERE t.project_id = ? 
+        AND t.parent_task_id IS NULL
+        AND t.deleted_at IS NULL
+        AND ta.id IS NULL`,
+      [projectId]
+    );
+
+    const workloadMap = {};
+    assignedCounts.forEach((row) => {
+      workloadMap[row.user_id] = row.count;
+    });
+
+    const workload = members.map((m) => ({
+      name: m.name,
+      assigned_tasks: workloadMap[m.id] || 0,
+      workload_percent:
+        totalTasks > 0
+          ? Math.round(((workloadMap[m.id] || 0) / totalTasks) * 100)
+          : 0,
+    }));
+
+    workload.push({
+      name: "non_assign",
+      assigned_tasks: nonAssign.count,
+      workload_percent:
+        totalTasks > 0 ? Math.round((nonAssign.count / totalTasks) * 100) : 0,
     });
 
     const [tasks] = await this.mysql.execute(
@@ -318,7 +350,7 @@ class ProjectService {
     const startDate = project.start_date
       ? new Date(project.start_date)
       : new Date();
-      
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -336,7 +368,7 @@ class ProjectService {
     if (taskIds.length > 0) {
       const [progressRows] = await this.mysql.execute(
         `
-      SELECT task_id, DATE(CONVERT_TZ(created_at, '+00:00', '+07:00')) AS date, progress
+      SELECT task_id, DATE(DATE_ADD(created_at, INTERVAL 7 HOUR)) AS date, progress
       FROM (
         SELECT 
           task_id,
@@ -390,7 +422,7 @@ class ProjectService {
       total_hours: parseFloat(timeSum.total_hours),
       task_status: taskStatus,
       priority: priority,
-      hours_by_user: hoursByUser,
+      workload,
       progress_trend,
     };
   }

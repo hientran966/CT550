@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-container">
     <el-row :gutter="16" class="kpi-row">
-      <el-col :span="6" v-for="item in kpi" :key="item.label">
+      <el-col :span="8" v-for="item in kpi" :key="item.label">
         <el-card class="kpi-card">
           <div class="kpi-value">{{ item.value }}</div>
           <div class="kpi-label">{{ item.label }}</div>
@@ -43,9 +43,49 @@
       <el-col :span="24">
         <el-card>
           <h3>Thành viên dự án</h3>
-          <el-table :data="members" style="width: 100%">
-            <el-table-column prop="name" label="Tên thành viên" />
-            <el-table-column prop="total_hours" label="Tổng giờ làm" />
+          <el-table
+            :data="workloadByUser"
+            :row-class-name="workloadRowClass"
+            style="width: 100%"
+          >
+            <el-table-column label="Tên thành viên">
+              <template #default="{ row }">
+                <el-tooltip
+                  v-if="getWorkloadTooltip(row)"
+                  :content="getWorkloadTooltip(row)"
+                  placement="top"
+                >
+                  <div class="full-row">{{ row.name }}</div>
+                </el-tooltip>
+                <div v-else class="full-row">{{ row.name }}</div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="% Workload">
+              <template #default="{ row }">
+                <el-tooltip
+                  v-if="getWorkloadTooltip(row)"
+                  :content="getWorkloadTooltip(row)"
+                  placement="top"
+                >
+                  <div class="full-row">{{ row.workload_percent }}</div>
+                </el-tooltip>
+                <div v-else class="full-row">{{ row.workload_percent }}</div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="Số lượng Task">
+              <template #default="{ row }">
+                <el-tooltip
+                  v-if="getWorkloadTooltip(row)"
+                  :content="getWorkloadTooltip(row)"
+                  placement="top"
+                >
+                  <div class="full-row">{{ row.assigned_tasks }}</div>
+                </el-tooltip>
+                <div v-else class="full-row">{{ row.assigned_tasks }}</div>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -88,7 +128,7 @@ const props = defineProps({
 });
 
 const project = ref(null);
-const members = ref([]);
+const workloadByUser = ref([]);
 const kpi = ref([
   { label: "Tổng số Task", value: 0 },
   { label: "Hoàn thành", value: "0%" },
@@ -98,7 +138,6 @@ const kpi = ref([
 
 const taskStatusOption = ref({});
 const progressTrendOption = ref({});
-const hoursByUserOption = ref({});
 const priorityOption = ref({});
 
 async function loadDashboardData(projectId) {
@@ -107,7 +146,12 @@ async function loadDashboardData(projectId) {
     console.log(data);
 
     project.value = data.project;
-    members.value = data.hours_by_user;
+    workloadByUser.value = data.workload
+      .map((w) => ({
+        ...w,
+        name: w.name === "non_assign" ? "Chưa được giao" : w.name,
+      }))
+      .sort((a, b) => b.workload_percent - a.workload_percent);
 
     const STATUS_COLOR_MAP = {
       "Đang Chờ": "#ffb300", // vàng
@@ -141,7 +185,6 @@ async function loadDashboardData(projectId) {
       { label: "Tổng số Task", value: data.total_tasks },
       { label: "Hoàn thành", value: `${data.completion_rate}%` },
       { label: "Số thành viên", value: data.member_count },
-      { label: "Tổng giờ làm", value: data.total_hours },
     ];
 
     taskStatusOption.value = {
@@ -184,32 +227,6 @@ async function loadDashboardData(projectId) {
       ],
     };
 
-    hoursByUserOption.value = {
-      color: ["#1976d2"],
-      title: {
-        text: "Giờ làm",
-        left: "center",
-        textStyle: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
-      },
-      tooltip: { trigger: "axis" },
-      xAxis: {
-        type: "category",
-        data: data.hours_by_user.map((u) => u.name),
-        axisLabel: { fontFamily: 'Arial, "Helvetica Neue", sans-serif' },
-      },
-      yAxis: { type: "value" },
-      series: [
-        {
-          data: data.hours_by_user.map((u) => u.total_hours),
-          type: "bar",
-          label: {
-            show: true,
-            fontFamily: 'Arial, "Helvetica Neue", sans-serif',
-          },
-        },
-      ],
-    };
-
     progressTrendOption.value = {
       color: ["#388e3c"],
       title: {
@@ -246,6 +263,30 @@ async function loadDashboardData(projectId) {
     console.error(err);
     ElMessage.error("Không thể tải dữ liệu báo cáo");
   }
+}
+
+function workloadRowClass({ row }) {
+  const wp = row.workload_percent;
+  const n = row.name;
+
+  if (!row.assigned_tasks || row.assigned_tasks === 0) {
+    return "";
+  }
+
+  if (n === "Chưa được giao") {
+    return "workload-info";
+  }
+  if (wp >= 70) return "workload-red";
+  if (wp >= 50) return "workload-yellow";
+
+  return "";
+}
+
+function getWorkloadTooltip(row) {
+  const wp = row.workload_percent;
+  if (wp >= 70) return "Workload cao: cần cân nhắc phân bổ lại nhiệm vụ";
+  if (wp >= 50) return "Workload trung bình: theo dõi tiến độ";
+  return "";
 }
 
 onMounted(async () => {
@@ -291,5 +332,17 @@ onMounted(async () => {
 .kpi-label {
   font-size: 14px;
   color: #666;
+}
+
+:deep(.el-table .workload-red) {
+  --el-table-tr-bg-color: var(--el-color-danger-light-9);
+}
+
+:deep(.el-table .workload-yellow) {
+  --el-table-tr-bg-color: var(--el-color-warning-light-9);
+}
+
+:deep(.el-table .workload-info) {
+  opacity: 0.7;
 }
 </style>
