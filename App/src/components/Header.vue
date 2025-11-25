@@ -2,8 +2,10 @@
   <el-header class="task-header" height="100px">
     <!-- Tiêu đề -->
     <div style="height: 40px; display: flex; flex-direction: row; width: 100%;">
-      <el-button text style="margin-top: 10px;">
-        <el-icon size="large"><Fold /></el-icon>
+      <el-button v-if="props.page === 'task'" text style="margin-top: 10px;" @click="onToggle">
+        <el-icon size="large">
+          <component :is="isExpanded ? Expand : Fold" />
+        </el-icon>
       </el-button>
       <el-divider direction="vertical" />
       <h3 class="page-title">{{ pageTitle }}</h3>
@@ -128,7 +130,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, More, Fold } from "@element-plus/icons-vue";
+import { Plus, Search, Filter, More, Fold, Expand } from "@element-plus/icons-vue";
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useRoleStore } from "@/stores/roleStore";
@@ -140,10 +142,11 @@ const props = defineProps({
   page: { type: String, required: true },
   projectId: { type: Number, required: false },
 });
-const emit = defineEmits(["add", "member-click"]);
+const emit = defineEmits(["add", "member-click", "toggle-menu"]);
 
 // ----------- STATE -----------
 const search = ref("");
+const isExpanded = ref(true);
 const drawerVisible = ref(false);
 const filters = ref({
   priority: "",
@@ -228,6 +231,12 @@ function resetFilter() {
     taskStore.setPriorityFilter(null);
     taskStore.setAssigneeFilter(null);
   }
+}
+
+// ----------- EVENTS -----------
+function onToggle() {
+  isExpanded.value = !isExpanded.value;
+  emit("toggle-menu");
 }
 
 // ----------- LIFECYCLE -----------

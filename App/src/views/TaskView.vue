@@ -3,16 +3,20 @@
     <ProjectMenu
       :active-view="activeView"
       :project-id="projectId"
+      :is-expanded="isExpanded"
       @update:view="activeView = $event"
       @select-channel="selectedChannel = $event"
+      @chat-add="chatModal = true"
     />
 
     <div class="main-content">
       <Header
         :page="'task'"
         :project-id="projectId"
+        :is-expanded="isExpanded"
         @add="onAdd"
         @member-click="openMemberList"
+        @toggle-menu="isExpanded = !isExpanded"
       />
 
       <div class="content-body">
@@ -21,11 +25,14 @@
           :tasks="taskStore.filteredTasksByProject(projectId)"
           :project-id="projectId"
           @open-detail="openTaskDetail"
-          @update-task-status="t => taskStore.updateStatus(projectId, t)"
-          @update-task="t => taskStore.updateTask(projectId, t)"
+          @update-task-status="(t) => taskStore.updateStatus(projectId, t)"
+          @update-task="(t) => taskStore.updateTask(projectId, t)"
         />
 
-        <Timeline v-else-if="activeView === 'timeline'" :project-id="projectId" />
+        <Timeline
+          v-else-if="activeView === 'timeline'"
+          :project-id="projectId"
+        />
         <Report v-else-if="activeView === 'report'" :project-id="projectId" />
         <GitHubIntegration v-else-if="activeView === 'github'" />
 
@@ -52,6 +59,11 @@
     v-model="formRef"
     :project-id="projectId"
     @task-added="() => taskStore.loadTasks(projectId)"
+  />
+  <ChannelForm
+    v-model="chatModal"
+    :project-id="projectId"
+    @channel-added="() => {}"
   />
   <MemberList
     v-model="memberRef"
@@ -84,6 +96,7 @@ import GitHubIntegration from "@/components/GitHubIntegration.vue";
 import FileList from "@/components/FileList.vue";
 import Chat from "@/components/Chat.vue";
 import TaskForm from "@/components/TaskForm.vue";
+import ChannelForm from "@/components/ChannelForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
 import Chatbot from "@/components/Chatbot.vue";
@@ -101,6 +114,8 @@ const formRef = ref(false);
 const memberRef = ref(false);
 const selectedTask = ref(null);
 const detailVisible = ref(false);
+const chatModal = ref(false);
+const isExpanded = ref(true);
 
 const onAdd = () => (formRef.value = true);
 const openMemberList = () => (memberRef.value = true);
@@ -111,7 +126,9 @@ function openTaskDetail(task) {
 }
 
 function openTaskDetailById(taskId) {
-  const task = taskStore.getTasksByProject(projectId)?.find((t) => t.id === taskId);
+  const task = taskStore
+    .getTasksByProject(projectId)
+    ?.find((t) => t.id === taskId);
   if (task) {
     selectedTask.value = task;
     detailVisible.value = true;

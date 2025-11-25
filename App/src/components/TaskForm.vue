@@ -110,51 +110,32 @@
   </el-dialog>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import TaskService from "@/services/Task.service";
 import MemberService from "@/services/Member.service";
 import AccountService from "@/services/Account.service";
 
-interface User {
-  id: number;
-  name: string;
-}
+const props = defineProps({
+  modelValue: Boolean,
+  projectId: Number,
+  parentId: Number,
+});
 
-interface TaskForm {
-  title: string;
-  description?: string;
-  start_date?: string;
-  due_date?: string;
-  progress_type: "manual" | "quantity" | "subtask";
-  total_quantity?: number;
-  unit?: string;
-  priority: "low" | "medium" | "high";
-  assignees: number[];
-}
-
-const props = defineProps<{
-  modelValue: boolean;
-  projectId: number;
-  parentId?: number;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:modelValue", value: boolean): void;
-  (e: "task-added"): void;
-}>();
+const emit = defineEmits(["update:modelValue", "task-added"]);
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val: boolean) => emit("update:modelValue", val),
+  set: (val) => emit("update:modelValue", val),
 });
+
 const isSubTask = computed(() => !!props.parentId);
 
 const taskForm = ref();
-const users = ref<User[]>([]);
+const users = ref([]);
 
-const form = reactive<TaskForm>({
+const form = reactive({
   title: "",
   description: "",
   start_date: "",
@@ -185,18 +166,20 @@ async function fetchMembers() {
   }
 }
 
-type DateOrString = Date | string | undefined | null;
-
-function pad(n: number) {
+function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-function toSQLDate(value: DateOrString): string | null {
+function toSQLDate(value) {
   if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
+  }
+
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return null;
+
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
@@ -223,20 +206,20 @@ onMounted(() => {
 
 async function submitForm() {
   if (!taskForm.value) return;
+
   try {
     await taskForm.value.validate();
 
     const user = JSON.parse(localStorage.getItem("user"));
 
-    const payload: any = {
+    const payload = {
       project_id: props.projectId,
       title: form.title,
       description: form.description,
       start_date: toSQLDate(form.start_date),
       due_date: toSQLDate(form.due_date),
       progress_type: form.progress_type,
-      total_quantity:
-        form.progress_type === "quantity" ? form.total_quantity : null,
+      total_quantity: form.progress_type === "quantity" ? form.total_quantity : null,
       unit: form.progress_type === "quantity" ? form.unit : null,
       priority: form.priority,
       created_by: user.id,
@@ -259,3 +242,4 @@ async function submitForm() {
   }
 }
 </script>
+

@@ -22,6 +22,8 @@ class ChatService {
   //channel
   async create(payload, connection = null) {
     const chat = await this.extractChatData(payload);
+    const members = Array.isArray(payload.members) ? payload.members : [];
+
     const shouldRelease = !connection;
     const conn = connection || (await this.mysql.getConnection());
 
@@ -30,7 +32,7 @@ class ChatService {
 
       const [result] = await conn.execute(
         `INSERT INTO chat_channels (project_id, name, description, type, created_by)
-         VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)`,
         [
           chat.project_id,
           chat.name,
@@ -40,10 +42,24 @@ class ChatService {
         ]
       );
 
-      const newChat = { id: result.insertId, ...chat };
+      const channelId = result.insertId;
+
+      if (members.length > 0) {
+        const values = members.map((uid) => [channelId, uid]);
+        await conn.query(
+          `INSERT INTO chat_channel_members (channel_id, user_id)
+         VALUES ?`,
+          [values]
+        );
+      }
 
       if (!connection) await conn.commit();
-      return newChat;
+
+      return {
+        id: channelId,
+        ...chat,
+        members,
+      };
     } catch (error) {
       if (!connection) await conn.rollback();
       throw error;

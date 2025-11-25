@@ -151,7 +151,11 @@ async function loadDashboardData(projectId) {
         ...w,
         name: w.name === "non_assign" ? "Chưa được giao" : w.name,
       }))
-      .sort((a, b) => b.workload_percent - a.workload_percent);
+      .sort((a, b) => {
+        if (a.name === "Chưa được giao") return -1;
+        if (b.name === "Chưa được giao") return 1;
+        return b.workload_percent - a.workload_percent;
+      });
 
     const STATUS_COLOR_MAP = {
       "Đang Chờ": "#ffb300", // vàng

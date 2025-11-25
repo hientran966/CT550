@@ -1,6 +1,7 @@
 <template>
   <el-menu
     :default-active="activeView"
+    :collapse="isExpanded"
     class="el-menu-vertical-demo"
     @select="handleSelect"
   >
@@ -36,7 +37,7 @@
     <el-sub-menu index="chat">
       <template #title>
         <el-icon><ChatSquare /></el-icon>
-        <span>Chat</span>
+        <span>Kênh thảo luận</span>
       </template>
       <el-menu-item
         v-for="ch in channels"
@@ -45,6 +46,7 @@
       >
         {{ ch.name }}
       </el-menu-item>
+      <el-menu-item index="chat-add">Thêm kênh mới</el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
@@ -55,21 +57,29 @@ import { Files, Guide, Menu, PieChart, ChatSquare, Collection } from "@element-p
 import ChatService from "@/services/Chat.service";
 
 const props = defineProps({
-  activeView: { type: String, required: true },
-  projectId: { type: Number, required: true },
+  activeView: String,
+  projectId: Number,
+  isExpanded: Boolean
 });
-const emit = defineEmits(["update:view", "select-channel"]);
+const emit = defineEmits(["update:view", "select-channel", "chat-add"]);
 
 const channels = ref([]);
+const lastKey = ref(props.activeView);
 
 function handleSelect(key) {
+  if (key === "chat-add") {
+    emit("chat-add");
+    return;
+  }
+
   if (key.startsWith("chat-")) {
     const id = Number(key.replace("chat-", ""));
     emit("update:view", "chat");
     emit("select-channel", id);
-  } else {
-    emit("update:view", key);
+    return;
   }
+
+  emit("update:view", key);
 }
 
 onMounted(async () => {
