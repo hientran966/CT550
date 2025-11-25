@@ -39,7 +39,7 @@ class AccountService {
 
     const auth = await this.extractAuthData(payload);
     const connection = await this.mysql.getConnection();
-
+ 
     try {
       await connection.beginTransaction();
 
@@ -105,13 +105,13 @@ class AccountService {
     const params = [];
     for (const key in update) {
       if (key === "id") continue;
-      if (key === "Password") continue;
+      if (key === "password") continue;
       fields.push(`${key} = ?`);
       params.push(update[key]);
     }
-    if (payload.Password) {
-      fields.push("Password = ?");
-      params.push(await bcrypt.hash(payload.Password, 10));
+    if (payload.password) {
+      fields.push("password_hash = ?");
+      params.push(await bcrypt.hash(payload.password, 10));
       fields.push("updated_at = ?");
       params.push(new Date());
     }

@@ -45,30 +45,20 @@
       <!-- Đã có installation -->
       <div v-else class="connected-section">
         <div class="repo-section">
-          <!-- Bảng 1 -->
           <div class="table-block">
-            <h4>Danh sách repository từ GitHub</h4>
+            <h4>Repository</h4>
             <div class="button-col">
-              <el-button
-                size="small"
-                type="primary"
-                plain
-                @click="connectGitHub"
-                style="margin-bottom: 8px"
-              >
-                Mở trang cài đặt GitHub App
-              </el-button>
               <el-button
                 size="small"
                 type="success"
                 plain
-                @click="loadAvailableRepos"
+                @click="repoDialogVisible = true"
                 style="margin-bottom: 8px"
               >
-                Tải repo từ GitHub
+                Mở danh sách repository
               </el-button>
               <el-button
-                type="danger"
+                type="danger" 
                 size="small"
                 plain
                 @click="unlinkInstall"
@@ -77,46 +67,6 @@
                 Hủy kết nối
               </el-button>
             </div>
-
-            <el-table
-              v-if="availableRepos.length"
-              :data="availableRepos"
-              border
-              height="180"
-              @selection-change="onSelectionChange"
-            >
-              <el-table-column type="selection" width="50" />
-              <el-table-column prop="full_name" label="Repository" />
-              <el-table-column label="Private" width="120">
-                <template #default="{ row }">
-                  <el-tag :type="row.private ? 'danger' : 'success'">
-                    {{ row.private ? "Private" : "Public" }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
-
-            <el-empty
-              v-else
-              description="Chưa tải repository nào từ GitHub"
-              :image-size="100"
-              class="empty-box"
-            />
-
-            <div style="margin-top: 10px; text-align: right">
-              <el-button
-                type="primary"
-                @click="saveSelectedRepos"
-                :disabled="!selectedRepos.length"
-              >
-                Lưu repo đã chọn
-              </el-button>
-            </div>
-          </div>
-
-          <!-- Bảng 2 -->
-          <div class="table-block">
-            <h4>Repo</h4>
             <el-table
               v-if="projectRepos.length"
               :data="projectRepos"
@@ -150,7 +100,6 @@
       </div>
     </div>
 
-    <!-- Hộp thoại nhập installation thủ công -->
     <el-dialog
       title="Nhập Installation ID"
       v-model="dialogVisible"
@@ -163,7 +112,6 @@
       </template>
     </el-dialog>
 
-    <!-- Dialog hiển thị Explorer -->
     <el-dialog v-model="explorerVisible" width="80%" top="5vh" destroy-on-close>
       <RepoExplorer
         v-if="activeRepo && installation && installation.installation_id"
@@ -171,6 +119,13 @@
         :installationId="installation.installation_id"
       />
     </el-dialog>
+    <RepoSelectDialog
+      v-model="repoDialogVisible"
+      :installationId="installation?.installation_id"
+      :currentProjectRepos="projectRepos"
+      :project-id="projectId"
+      @save="saveSelectedRepos"
+    />
   </div>
 </template>
 
@@ -181,6 +136,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { useRoleStore } from "@/stores/roleStore";
 import GitHubService from "@/services/GitHub.service.js";
 import RepoExplorer from "@/components/RepoExplorer.vue";
+import RepoSelectDialog from "@/components/RepoSelectDialog.vue";
 
 const route = useRoute();
 const projectId = route.params.id;
@@ -190,12 +146,11 @@ const role = ref("viewer");
 
 const installation = ref(null);
 const projectRepos = ref([]);
-const availableRepos = ref([]);
-const selectedRepos = ref([]);
 const dialogVisible = ref(false);
 const manualInstallId = ref("");
 const activeRepo = ref(null);
 const explorerVisible = ref(false);
+const repoDialogVisible = ref(false);
 
 const onRepoClick = (row) => {
   activeRepo.value = row;
@@ -220,7 +175,6 @@ const timeAgo = (isoString) => {
 };
 
 const connectGitHub = () => GitHubService.connectApp(projectId);
-const onSelectionChange = (selection) => (selectedRepos.value = selection);
 
 const saveManualInstall = async () => {
   if (!manualInstallId.value)
@@ -283,21 +237,6 @@ const fetchProjectRepos = async () => {
   }
 };
 
-const loadAvailableRepos = async () => {
-  if (!installation.value) return;
-  try {
-    availableRepos.value = await GitHubService.listReposByInstallation(
-      installation.value.installation_id
-    );
-    console.log(availableRepos.value);
-    ElMessage.success("Đã tải danh sách repo từ GitHub!");
-  } catch (err) {
-    ElMessage.error(
-      "Lỗi tải repo từ GitHub: " + (err.response?.data?.message || err.message)
-    );
-  }
-};
-
 const unlinkInstall = async () => {
   try {
     await ElMessageBox.confirm(
@@ -327,10 +266,10 @@ const unlinkInstall = async () => {
   }
 };
 
-const saveSelectedRepos = async () => {
+const saveSelectedRepos = async (repos) => {
   try {
-    await GitHubService.saveProjectRepos(projectId, selectedRepos.value);
-    ElMessage.success("Đã lưu danh sách repo cho project!");
+    await GitHubService.saveProjectRepos(projectId, repos);
+    ElMessage.success("Đã lưu danh sách repo!");
     await fetchProjectRepos();
   } catch (err) {
     ElMessage.error(
