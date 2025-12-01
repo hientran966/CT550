@@ -151,7 +151,7 @@ class ChatService {
 
   async getMembers(channel_id) {
     const [rows] = await this.mysql.execute(
-      `SELECT u.id, u.name, u.email
+      `SELECT u.id AS user_id, u.name, u.email
        FROM chat_channel_members ccm
        JOIN users u ON u.id = ccm.user_id
        WHERE ccm.channel_id = ? AND ccm.deleted_at IS NULL`,

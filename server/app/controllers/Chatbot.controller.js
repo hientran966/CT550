@@ -41,11 +41,7 @@ exports.handleAsk = async function (req, res) {
         break;
 
       case "get_report":
-        if (typeof projectService.getReport === "function") {
-          data = await projectService.getReport(projectId);
-        } else {
-          data = { message: "Chưa có hàm getReport trong ProjectService." };
-        }
+        data = await projectService.report(projectId);
         break;
 
       case "get_task":

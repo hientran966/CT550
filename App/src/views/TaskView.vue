@@ -14,6 +14,7 @@
         :page="'task'"
         :project-id="projectId"
         :is-expanded="isExpanded"
+        :members="members"
         @add="onAdd"
         @member-click="openMemberList"
         @toggle-menu="isExpanded = !isExpanded"
@@ -66,7 +67,7 @@
     @channel-added="() => {}"
   />
   <MemberList
-    v-model="memberRef"
+    v-model="memberListRef"
     :project_id="projectId"
     @member-updated="() => taskStore.loadTasks(projectId)"
   />
@@ -87,6 +88,8 @@
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useTaskStore } from "@/stores/taskStore";
+import MemberService from "@/services/Member.service";
+import ChatService from "@/services/Chat.service";
 import ProjectMenu from "@/components/ProjectMenu.vue";
 import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
@@ -111,14 +114,25 @@ const taskStore = useTaskStore();
 const activeView = ref("kanban");
 const selectedChannel = ref(null);
 const formRef = ref(false);
-const memberRef = ref(false);
+const members = ref([]);
+const memberListRef = ref(false);
 const selectedTask = ref(null);
 const detailVisible = ref(false);
 const chatModal = ref(false);
 const isExpanded = ref(true);
 
 const onAdd = () => (formRef.value = true);
-const openMemberList = () => (memberRef.value = true);
+const openMemberList = () => (memberListRef.value = true);
+
+async function loadMembers() {
+  if (activeView.value == 'chat') {
+    const res  = await ChatService.getChannelMembers(selectedChannel.value);
+    members.value = Array.isArray(res) ? res : [];
+    return;
+  }
+  const res = await MemberService.getByProjectId(projectId);
+  members.value = Array.isArray(res) ? res : [];
+}
 
 function openTaskDetail(task) {
   selectedTask.value = task;
@@ -137,11 +151,19 @@ function openTaskDetailById(taskId) {
 
 onMounted(() => {
   taskStore.loadTasks(projectId);
+  loadMembers();
+
   if (route.query.task) openTaskDetailById(Number(route.query.task));
 });
 
 watch(
   () => route.query.task,
   (newVal) => newVal && openTaskDetailById(Number(newVal))
+);
+watch(
+  [activeView, selectedChannel],
+  async () => {
+    await loadMembers();
+  }
 );
 </script>

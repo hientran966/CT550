@@ -13,7 +13,7 @@
   <div v-if="showDropdown" class="mention-dropdown">
     <div
       v-for="(user, idx) in filteredUsers"
-      :key="user.id"
+      :key="user.user_id"
       :class="['mention-item', { active: idx === activeIndex }]"
       @click="chooseUser(user)"
     >
@@ -57,7 +57,7 @@ function onInput(val) {
 }
 
 function chooseUser(user) {
-  content.value = content.value.replace(/@(\w*)$/, `@[${user.name}](${user.id}) `);
+  content.value = content.value.replace(/@(\w*)$/, `@[${user.name}]`);
   emit("mention", user);
   showDropdown.value = false;
 }

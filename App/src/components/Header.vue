@@ -141,6 +141,7 @@ import AvatarGroup from "./AvatarGroup.vue";
 const props = defineProps({
   page: { type: String, required: true },
   projectId: { type: Number, required: false },
+  members: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["add", "member-click", "toggle-menu"]);
 
@@ -177,25 +178,10 @@ const pageTitle = computed(() =>
 );
 
 // ----------- MEMBERS -----------
-const memberIds = ref([]);
-const namesMap = ref({});
-async function loadMembers() {
-  if (props.page !== "task" || !props.projectId) return;
-  try {
-    const members = await MemberService.getByProjectId(props.projectId);
-    if (!Array.isArray(members)) return;
-    memberIds.value = members.map((m) => m.user_id);
-    namesMap.value = members.reduce((map, m) => {
-      if (m.user_id != null) map[m.user_id] = m.name || "Người dùng";
-      return map;
-    }, {});
-  } catch (err) {
-    console.error("Lỗi tải danh sách thành viên:", err);
-  }
-}
-function memberClick() {
-  emit("member-click");
-}
+const memberIds = computed(() => props.members.map(m => m.user_id));
+const namesMap = computed(() =>
+  Object.fromEntries(props.members.map(m => [m.user_id, m.name || "Người dùng"]))
+);
 
 // ----------- ROLE CHECK -----------
 const canAdd = ref(false);
@@ -241,15 +227,14 @@ function onToggle() {
 
 // ----------- LIFECYCLE -----------
 onMounted(async () => {
-  loadMembers();
   if (!projectStore.projects?.length && props.projectId) {
     projectStore.fetchProjects?.();
   }
   await checkRole();
+  console.log("load",props.members)
 });
 
 watch(() => props.projectId, async () => {
-  await loadMembers();
   await checkRole();
 });
 

@@ -1,7 +1,7 @@
 <template>
   <el-menu
     :default-active="activeView"
-    :collapse="isExpanded"
+    :collapse="!isExpanded"
     class="el-menu-vertical-demo"
     @select="handleSelect"
   >
@@ -12,17 +12,17 @@
 
     <el-menu-item index="timeline">
       <el-icon><Guide /></el-icon>
-      <span>Timeline</span>
+      <span>Lịch</span>
     </el-menu-item>
 
     <el-menu-item index="report">
       <el-icon><PieChart /></el-icon>
-      <span>Báo cáo</span>
+      <span>Thông tin</span>
     </el-menu-item>
 
     <el-menu-item index="github">
       <el-icon><Collection /></el-icon>
-      <span>Repos</span>
+      <span>Code</span>
     </el-menu-item>
     
     <el-sub-menu index="file">
