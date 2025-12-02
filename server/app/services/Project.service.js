@@ -247,13 +247,6 @@ class ProjectService {
       [projectId]
     );
 
-    const [[timeSum]] = await this.mysql.execute(
-      `SELECT IFNULL(SUM(hours),0) AS total_hours
-     FROM time_logs 
-     WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?) AND deleted_at IS NULL`,
-      [projectId]
-    );
-
     const [taskStatusRows] = await this.mysql.execute(
       `SELECT status, COUNT(*) AS count 
      FROM tasks 
@@ -419,7 +412,6 @@ class ProjectService {
       total_tasks: taskStats.total_tasks,
       completion_rate: completionRate,
       member_count: memberCount.count,
-      total_hours: parseFloat(timeSum.total_hours),
       task_status: taskStatus,
       priority: priority,
       workload,

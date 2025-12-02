@@ -72,14 +72,7 @@ export const useTaskStore = defineStore("task", {
         // === Cập nhật tiến độ ===
         if (updatedTask.changedField === "progress") {
           const payload = { loggedBy: user.id };
-
-          if (updatedTask.progress_type === "manual") {
-            payload.progress_value = updatedTask.latest_progress ?? 0;
-          } else if (updatedTask.progress_type === "quantity") {
-            payload.total_quantity = updatedTask.total_quantity ?? 0;
-            payload.completed_quantity = updatedTask.completed_quantity ?? 0;
-            payload.unit = updatedTask.unit ?? null;
-          }
+          payload.progress_value = updatedTask.latest_progress ?? 0;
 
           await TaskService.progressLog(updatedTask.id, payload);
 

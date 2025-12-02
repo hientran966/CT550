@@ -53,16 +53,7 @@
 
                     <!-- PROGRESS -->
                     <span v-else-if="row.key === 'progress'">
-                      <!-- Manual -->
-                      <span v-if="task.progress_type === 'manual'"
-                        >{{ task.latest_progress ?? 0 }}%</span
-                      >
-                      <!-- Quantity -->
-                      <span v-else-if="task.progress_type === 'quantity'">
-                        {{ task.quantity_progress?.completed_quantity || 0 }}/{{
-                          task.quantity_progress?.total_quantity || 0
-                        }}
-                      </span>
+                      <span>{{ task.latest_progress ?? 0 }}%</span>
                     </span>
 
                     <!-- ASSIGNEE -->
@@ -118,7 +109,6 @@
                         placeholder="Bắt đầu"
                         size="small"
                       />
-                      →
                       <el-date-picker
                         v-model="editCache.due_date"
                         type="date"
@@ -129,8 +119,7 @@
 
                     <el-select
                       v-else-if="
-                        row.key === 'progress' &&
-                        task.progress_type === 'manual'
+                        row.key === 'progress'
                       "
                       v-model="editCache.latest_progress"
                       placeholder="Tiến độ"
@@ -145,37 +134,6 @@
                         :value="n"
                       />
                     </el-select>
-
-                    <!-- PROGRESS TYPE: quantity -->
-                    <template
-                      v-else-if="
-                        row.key === 'progress' &&
-                        task.progress_type === 'quantity'
-                      "
-                    >
-                      <div style="display: flex; align-items: center; gap: 4px">
-                        <el-input-number
-                          v-model="editCache.completed_quantity"
-                          :min="0"
-                          :max="editCache.total_quantity || 100"
-                          :controls="false"
-                          size="small"
-                          style="width: 80px"
-                        />
-                        <span>/</span>
-                        <el-input-number
-                          v-model="editCache.total_quantity"
-                          :min="editCache.completed_quantity || 1"
-                          :controls="false"
-                          :disabled="!canEdit"
-                          size="small"
-                          style="width: 80px"
-                        />
-                        <span v-if="task.unit" style="margin-left: 4px">{{
-                          task.unit
-                        }}</span>
-                      </div>
-                    </template>
 
                     <div v-else-if="row.key === 'assignee'">
                       <el-select
@@ -212,7 +170,7 @@
               </el-table-column>
             </el-table>
             <!-- SUBTASK TABLE -->
-            <template v-if="task.progress_type === 'subtask'">
+            <template>
               <div>
                 <p>Subtask</p>
                 <el-button
@@ -223,7 +181,7 @@
                   @click="addSubtask"
                 />
               </div>
-              <el-table :data="task.subtasks || []" border style="width: 100%">
+              <el-table v-if="task.subtasks?.length" :data="task.subtasks || []" border style="width: 100%">
                 <el-table-column prop="title" label="Tiêu đề" />
                 <el-table-column prop="start_date" label="Ngày bắt đầu" />
                 <el-table-column prop="due_date" label="Ngày kết thúc" />
@@ -317,7 +275,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch, onUnmounted } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { getSocket } from "@/plugins/socket";
 import { Check, Close, EditPen, Upload, Plus } from "@element-plus/icons-vue";
@@ -373,9 +331,7 @@ const comments = computed(() => getCommentsByTask.value(task.value.id) || []);
 const tableData = computed(() => [
   { key: "priority", label: "Ưu tiên" },
   { key: "date", label: "Thời gian" },
-  ...(task.value.progress_type !== "subtask"
-    ? [{ key: "progress", label: "Tiến độ (%)" }]
-    : []),
+  { key: "progress", label: "Tiến độ (%)" },
   { key: "assignee", label: "Người được giao" },
 ]);
 
@@ -403,13 +359,6 @@ const startEdit = (key) => {
     return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
   editRow.value = key;
   editCache.value = { ...task.value };
-
-  if (key === "progress" && task.value.progress_type === "quantity") {
-    const qp = task.value.quantity_progress || {};
-    editCache.value.completed_quantity = qp.completed_quantity ?? 0;
-    editCache.value.total_quantity = qp.total_quantity ?? 0;
-    editCache.value.unit = qp.unit ?? task.value.unit ?? "";
-  }
 };
 
 const cancelEdit = () => {
@@ -422,19 +371,7 @@ const saveEdit = async (key) => {
     return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
 
   const updatedTask = { ...task.value, ...editCache.value, changedField: key };
-
-  if (key === "progress" && task.value.progress_type === "quantity") {
-    await taskStore.updateTask(props.projectId, {
-      ...task.value,
-      changedField: "progress",
-      progress_type: "quantity",
-      completed_quantity: editCache.value.completed_quantity,
-      total_quantity: editCache.value.total_quantity,
-      unit: task.value.unit,
-    });
-  } else {
-    await taskStore.updateTask(props.projectId, updatedTask);
-  }
+  await taskStore.updateTask(props.projectId, updatedTask);
 
   editRow.value = null;
   ElMessage.success("Đã lưu thay đổi");

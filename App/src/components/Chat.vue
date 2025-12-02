@@ -3,14 +3,14 @@
     <!-- Danh sách tin nhắn -->
     <el-scrollbar class="chat-messages" ref="scrollbarRef">
       <div v-for="msg in messages" :key="msg.id" class="message-item">
-        <el-row :gutter="8">
-          <el-col :span="1" class="avatar-col">
+        <div class="message-row">
+          <div class="avatar-col">
             <el-avatar :size="40" :src="msg.sender_avatar">
               {{ msg.sender_name?.[0]?.toUpperCase() }}
             </el-avatar>
-          </el-col>
+          </div>
 
-          <el-col :span="23" class="content-col">
+          <div class="content-col">
             <div class="message-header">
               <span class="sender-name">{{ msg.sender_name }}</span>
               <span class="time">{{ formatTime(msg.created_at) }}</span>
@@ -28,8 +28,8 @@
                 />
               </div>
             </div>
-          </el-col>
-        </el-row>
+          </div>
+        </div>
       </div>
     </el-scrollbar>
 
@@ -107,7 +107,7 @@ onMounted(async () => {
   scrollToBottom();
 
   socket.on("chat_message", handleIncomingMessage);
-  console.log(messages)
+  console.log(messages);
 });
 
 onBeforeUnmount(() => {
@@ -193,7 +193,10 @@ function formatTime(dateStr) {
       const date = new Date(year, month - 1, day, hour, minute);
       if (isNaN(date.getTime())) return dateStr;
 
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
 
     const date = new Date(dateStr);
@@ -213,6 +216,33 @@ function formatTime(dateStr) {
   border: 1px solid #eee;
   border-radius: 10px;
   background: #fff;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.avatar-col {
+  flex: 0 0 40px; 
+}
+
+.content-col {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .message-row {
+    gap: 6px;
+  }
+  .avatar-col {
+    flex: 0 0 32px;
+  }
+  .sender-name {
+    font-size: 14px;
+  }
 }
 
 .chat-messages {

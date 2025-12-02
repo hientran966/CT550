@@ -17,7 +17,6 @@ class TaskService {
       description: payload.description ?? null,
       status: payload.status ?? "todo",
       priority: payload.priority ?? "medium",
-      progress_type: payload.progress_type ?? "manual",
       start_date: payload.start_date ?? null,
       due_date: payload.due_date ?? null,
       created_by: payload.created_by ?? null,
@@ -27,11 +26,10 @@ class TaskService {
   /** ===================== TÍNH LẠI TIẾN ĐỘ CHA ===================== **/
   async recalculateParentProgress(conn, parentTaskId, actorId = null) {
     const [parentRows] = await conn.execute(
-      `SELECT id, title, project_id, progress_type FROM tasks WHERE id = ? AND deleted_at IS NULL`,
+      `SELECT id, title, project_id FROM tasks WHERE id = ? AND deleted_at IS NULL`,
       [parentTaskId]
     );
     const parent = parentRows[0];
-    if (!parent || parent.progress_type !== "subtask") return;
 
     // Lấy danh sách task con
     const [subs] = await conn.execute(
@@ -41,9 +39,9 @@ class TaskService {
 
     if (!subs.length) {
       await conn.execute(
-        `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
-         VALUES (?, 'subtask', 0, ?, ?)`,
-        [parentTaskId, actorId ?? 0, "Không có subtask nào."]
+        `INSERT INTO progress_logs (task_id, progress, updated_by)
+         VALUES (?, 0, ?)`,
+        [parentTaskId, actorId ?? 0]
       );
       return;
     }
@@ -53,13 +51,12 @@ class TaskService {
 
     // Ghi log tiến độ cha
     await conn.execute(
-      `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
-       VALUES (?, 'subtask', ?, ?, ?)`,
+      `INSERT INTO progress_logs (task_id, progress, updated_by)
+       VALUES (?, ?, ?)`,
       [
         parentTaskId,
         avgProgress,
         actorId ?? 0,
-        `Tự động tính lại từ ${subs.length} subtask (${doneCount} hoàn thành).`,
       ]
     );
   }
@@ -72,8 +69,8 @@ class TaskService {
       await connection.beginTransaction();
 
       const [result] = await connection.execute(
-        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, parent_task_id, progress_type, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, parent_task_id, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -82,7 +79,6 @@ class TaskService {
           task.created_by,
           task.project_id,
           task.parent_task_id,
-          task.progress_type,
           payload.status ?? "todo",
         ]
       );
@@ -96,15 +92,6 @@ class TaskService {
           connection,
           payload.parent_task_id,
           task.created_by
-        );
-      }
-
-      // Nếu là task theo số lượng → tạo record progress
-      if (task.progress_type === "quantity") {
-        await connection.execute(
-          `INSERT INTO task_quantity_progress (task_id, total_quantity, unit)
-           VALUES (?, ?, ?)`,
-          [taskId, payload.total_quantity ?? 1, payload.unit ?? null]
         );
       }
 
@@ -188,22 +175,11 @@ class TaskService {
     const [rows] = await this.mysql.execute(sql, params);
 
     for (const row of rows) {
-      if (row.progress_type === "quantity") {
-        const [q] = await this.mysql.execute(
-          `SELECT total_quantity, completed_quantity, unit 
-           FROM task_quantity_progress WHERE task_id = ?`,
-          [row.id]
-        );
-        row.quantity_progress = q[0] || {
-          total_quantity: 0,
-          completed_quantity: 0,
-          unit: null,
-        };
-      } else if (row.progress_type === "subtask") {
-        const [subs] = await this.mysql.execute(
-          `SELECT id, title, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
-          [row.id]
-        );
+      const [subs] = await this.mysql.execute(
+        `SELECT id, title, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
+        [row.id]
+      );
+      if (subs.length > 0) {
         row.subtasks = subs;
       }
     }
@@ -219,37 +195,11 @@ class TaskService {
     );
     const task = rows[0];
     if (!task) return null;
-
-    if (task.progress_type === "manual") {
-      const [logRows] = await this.mysql.execute(
-        `SELECT progress FROM progress_logs WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`,
-        [id]
-      );
-      task.latest_progress = logRows[0]?.progress ?? 0;
-    } else if (task.progress_type === "quantity") {
-      const [rowsQ] = await this.mysql.execute(
-        `SELECT total_quantity, completed_quantity, unit 
-         FROM task_quantity_progress WHERE task_id = ?`,
-        [id]
-      );
-      const q = rowsQ[0] || {
-        total_quantity: 0,
-        completed_quantity: 0,
-        unit: null,
-      };
-      task.latest_progress =
-        (q.completed_quantity / (q.total_quantity || 1)) * 100;
-      task.quantity_progress = q;
-    } else if (task.progress_type === "subtask") {
-      const [subs] = await this.mysql.execute(
-        `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
-        [id]
-      );
-      const doneCount = subs.filter((s) => s.status === "done").length;
-      const progress = subs.length > 0 ? (doneCount / subs.length) * 100 : 0;
-      task.latest_progress = progress;
-      task.subtasks = subs;
-    }
+    const [logRows] = await this.mysql.execute(
+      `SELECT progress FROM progress_logs WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`,
+      [id]
+    );
+    task.latest_progress = logRows[0]?.progress ?? 0;
 
     return task;
   }
@@ -377,7 +327,7 @@ class TaskService {
       await connection.beginTransaction();
 
       const [rows] = await connection.execute(
-        `SELECT id, title, project_id, progress_type, parent_task_id
+        `SELECT id, title, project_id, parent_task_id
          FROM tasks WHERE id = ? AND deleted_at IS NULL`,
         [taskId]
       );
@@ -385,66 +335,13 @@ class TaskService {
       if (!task) throw new Error("Task not found");
 
       let progressPercent = 0;
-
-      // Manual
-      if (task.progress_type === "manual") {
-        const value = Number(progressData?.progress_value ?? 0);
-        progressPercent = Math.max(0, Math.min(100, value));
-        await connection.execute(
-          `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
-           VALUES (?, 'manual', ?, ?, ?)`,
-          [taskId, progressPercent, loggedBy, comment]
-        );
-      }
-
-      // Quantity
-      else if (task.progress_type === "quantity") {
-        const { total_quantity, completed_quantity, unit } = progressData;
-        await connection.execute(
-          `INSERT INTO task_quantity_progress (task_id, total_quantity, completed_quantity, unit)
-           VALUES (?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE total_quantity = VALUES(total_quantity), completed_quantity = VALUES(completed_quantity), unit = VALUES(unit)`,
-          [taskId, total_quantity, completed_quantity, unit ?? null]
-        );
-
-        progressPercent =
-          total_quantity > 0
-            ? Math.min((completed_quantity / total_quantity) * 100, 100)
-            : 0;
-
-        await connection.execute(
-          `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
-           VALUES (?, 'quantity', ?, ?, ?)`,
-          [taskId, progressPercent, loggedBy, comment]
-        );
-      }
-
-      // Subtask
-      else if (task.progress_type === "subtask") {
-        const [subs] = await connection.execute(
-          `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
-          [taskId]
-        );
-
-        const doneCount = subs.filter((s) => s.status === "done").length;
-        const progress = subs.length > 0 ? (doneCount / subs.length) * 100 : 0;
-        progressPercent = progress;
-
-        await connection.execute(
-          `INSERT INTO progress_logs (task_id, progress_type, progress, updated_by, comment)
-           VALUES (?, 'subtask', ?, ?, ?)`,
-          [taskId, progressPercent, loggedBy, comment]
-        );
-      }
-
-      // Cập nhật cha nếu có
-      if (task.parent_task_id) {
-        await this.recalculateParentProgress(
-          connection,
-          task.parent_task_id,
-          loggedBy
-        );
-      }
+      const value = Number(progressData?.progress_value ?? 0);
+      progressPercent = Math.max(0, Math.min(100, value));
+      await connection.execute(
+        `INSERT INTO progress_logs (task_id, progress, updated_by)
+          VALUES (?, ?, ?)`,
+        [taskId, progressPercent, loggedBy]
+      );
 
       await connection.commit();
 
@@ -453,7 +350,6 @@ class TaskService {
         sendToUser(member.user_id, "task_updated", {
           task_id: task.id,
           project_id: task.project_id,
-          progress_type: task.progress_type,
           progress_value: progressPercent,
           message: `Tiến độ của task "${task.title}" vừa được cập nhật: ${progressPercent.toFixed(
             1
@@ -463,7 +359,6 @@ class TaskService {
 
       return {
         task_id: taskId,
-        progress_type: task.progress_type,
         progress_value: progressPercent,
         logged_by: loggedBy,
       };

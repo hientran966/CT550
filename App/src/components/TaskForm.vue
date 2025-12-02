@@ -22,39 +22,6 @@
           />
         </el-form-item>
 
-        <el-form-item label="Cách tính tiến độ" prop="progress_type">
-          <el-select
-            v-model="form.progress_type"
-            placeholder="Chọn loại"
-            style="width: 100%"
-          >
-            <el-option label="Nhập thủ công (%)" value="manual" />
-            <el-option label="Theo số lượng" value="quantity" />
-            <el-option label="Theo công việc con" value="subtask" />
-          </el-select>
-        </el-form-item>
-
-        <template v-if="form.progress_type === 'quantity'">
-          <el-form-item label="Số lượng">
-            <div
-              style="display: flex; align-items: center; gap: 8px; width: 100%"
-            >
-              <el-input-number
-                v-model="form.total_quantity"
-                :min="1"
-                :controls="false"
-                placeholder="Số lượng"
-                style="flex: 2"
-              />
-              <el-input
-                v-model="form.unit"
-                placeholder="Đơn vị"
-                style="flex: 1"
-              />
-            </div>
-          </el-form-item>
-        </template>
-
         <el-form-item label="Ưu tiên" prop="priority">
           <el-select
             v-model="form.priority"
@@ -140,9 +107,7 @@ const form = reactive({
   description: "",
   start_date: "",
   due_date: "",
-  progress_type: "manual",
   total_quantity: null,
-  unit: null,
   priority: "medium",
   assignees: [],
 });
@@ -188,9 +153,7 @@ function resetForm() {
   form.description = "";
   form.start_date = "";
   form.due_date = "";
-  form.progress_type = "manual";
   form.total_quantity = null;
-  form.unit = null;
   form.priority = "medium";
   form.assignees = [];
 }
@@ -218,9 +181,6 @@ async function submitForm() {
       description: form.description,
       start_date: toSQLDate(form.start_date),
       due_date: toSQLDate(form.due_date),
-      progress_type: form.progress_type,
-      total_quantity: form.progress_type === "quantity" ? form.total_quantity : null,
-      unit: form.progress_type === "quantity" ? form.unit : null,
       priority: form.priority,
       created_by: user.id,
       members: form.assignees,
