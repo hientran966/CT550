@@ -132,6 +132,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { getSocket } from "@/plugins/socket";
 import GithubService from "@/services/GitHub.service";
 
 const props = defineProps({
@@ -242,7 +243,38 @@ const timeAgo = (isoString) => {
   return date.toLocaleDateString("vi-VN");
 };
 
-onMounted(loadBranches);
+onMounted(() => {
+  loadBranches();
+
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("git_push", (data) => {
+    console.log("📌 Git PUSH received:", data);
+    if (activeTab.value === "commits") {
+      loadCommits();
+    }
+  });
+
+  socket.on("git_commit", (commit) => {
+    console.log("📌 Git COMMIT received:", commit);
+    if (activeTab.value === "commits") {
+      loadCommits();
+    }
+  });
+
+  socket.on("git_event", (event) => {
+    console.log("📌 Git EVENT received:", event);
+
+    if (event.type === "pull_request" && activeTab.value === "pulls") {
+      loadPulls();
+    }
+
+    if (event.type === "issue") {
+      console.log("Issue event detected");
+    }
+  });
+});
 </script>
 
 <style scoped>

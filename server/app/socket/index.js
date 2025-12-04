@@ -84,8 +84,23 @@ async function sendToProject(projectId, event, payload) {
     }
 }
 
+async function sendGitPushToProject(projectId, payload) {
+    return sendToProject(projectId, "git_push", payload);
+}
+
+async function sendGitCommitToProject(projectId, payload) {
+    return sendToProject(projectId, "git_commit", payload);
+}
+
+async function sendGitEventToProject(projectId, payload) {
+    return sendToProject(projectId, "git_event", payload);
+}
+
 module.exports = initSocket;
 module.exports.sendToUser = sendToUser;
 module.exports.broadcast = broadcast;
 module.exports.sendMessageToChannel = sendMessageToChannel;
 module.exports.sendToProject = sendToProject;
+module.exports.sendGitPushToProject = sendGitPushToProject;
+module.exports.sendGitCommitToProject = sendGitCommitToProject;
+module.exports.sendGitEventToProject = sendGitEventToProject;
