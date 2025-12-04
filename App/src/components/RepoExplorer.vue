@@ -250,22 +250,18 @@ onMounted(() => {
   if (!socket) return;
 
   socket.on("git_push", (data) => {
-    console.log("📌 Git PUSH received:", data);
     if (activeTab.value === "commits") {
       loadCommits();
     }
   });
 
   socket.on("git_commit", (commit) => {
-    console.log("📌 Git COMMIT received:", commit);
     if (activeTab.value === "commits") {
       loadCommits();
     }
   });
 
   socket.on("git_event", (event) => {
-    console.log("📌 Git EVENT received:", event);
-
     if (event.type === "pull_request" && activeTab.value === "pulls") {
       loadPulls();
     }

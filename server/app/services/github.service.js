@@ -22,6 +22,14 @@ class GitHubService {
     const conn = await MySQL.pool.getConnection();
     try {
       await conn.beginTransaction();
+      const [exists] = await conn.query(
+        "SELECT installation_id FROM project_installations WHERE project_id = ?",
+        [projectId]
+      );
+
+      if (exists.length) {
+        throw new Error("This project already has an installation linked.");
+      }
 
       const [checkInstall] = await conn.query(
         "SELECT id FROM github_installations WHERE installation_id = ?",

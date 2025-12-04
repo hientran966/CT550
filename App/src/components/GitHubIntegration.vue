@@ -1,6 +1,5 @@
 <template>
   <div class="github-integration">
-    <!-- Nếu không có quyền -->
     <div v-if="!canManageIntegration" class="no-permission section-box">
       <h4>Repo đã gắn với project</h4>
       <el-table
@@ -24,9 +23,7 @@
       />
     </div>
 
-    <!-- Nếu có quyền -->
     <div v-else class="integration-container section-box">
-      <!-- Chưa kết nối -->
       <div v-if="!installation" class="not-connected">
         <p>Chưa kết nối GitHub App với dự án này.</p>
         <el-button type="primary" @click="connectGitHub">
@@ -42,7 +39,6 @@
         </el-button>
       </div>
 
-      <!-- Đã có installation -->
       <div v-else class="connected-section">
         <div class="repo-section">
           <div class="table-block">
@@ -134,6 +130,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRoleStore } from "@/stores/roleStore";
+import { getSocket } from "@/plugins/socket";
 import GitHubService from "@/services/GitHub.service.js";
 import RepoExplorer from "@/components/RepoExplorer.vue";
 import RepoSelectDialog from "@/components/RepoSelectDialog.vue";
@@ -282,6 +279,18 @@ onMounted(async () => {
   const projectRole = await roleStore.fetchProjectRole(projectId);
   role.value = projectRole.role;
   await fetchInstallation();
+
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("git_push", () => {
+    fetchProjectRepos();
+  });
+
+
+  socket.on("git_commit", () => {
+    fetchProjectRepos();
+  });
 });
 </script>
 
