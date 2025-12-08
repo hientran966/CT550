@@ -39,15 +39,6 @@ async function handleWebhook(req, res) {
 
     const projectIds = rows.map((r) => r.project_id);
 
-    console.log(
-      "webhook catch",
-      event,
-      payload.action,
-      payload.installation?.account?.login,
-      repoFullName,
-      projectIds
-    );
-
     for (const projectId of projectIds) {
       if (event === "push") {
         const pushData = {

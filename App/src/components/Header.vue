@@ -28,6 +28,16 @@
         >
           <strong>Thêm mới</strong>
         </el-button>
+        <AiTaskGen v-model:visible="aiGenVisible" @generate="emit('ai-gen', $event)">
+          <template #trigger>
+            <el-button
+              type="primary"
+              :icon="MagicStick"
+              plain
+              @click="aiGenVisible = true"
+            />
+          </template>
+        </AiTaskGen>
       </div>
 
       <!-- Bên phải -->
@@ -110,19 +120,6 @@
           style="margin-right: 8px; cursor: pointer;"
           @click="memberClick"
         />
-
-        <!-- Menu thêm -->
-        <el-dropdown v-if="props.page === 'task'">
-          <el-button circle>
-            <el-icon><More /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>Thành viên</el-dropdown-item>
-              <el-dropdown-item>Cài đặt</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </div>
     </div>
   </el-header>
@@ -130,12 +127,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, More, Fold, Expand } from "@element-plus/icons-vue";
+import { Plus, Search, Filter, MagicStick, Fold, Expand } from "@element-plus/icons-vue";
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useRoleStore } from "@/stores/roleStore";
 import MemberService from "@/services/Member.service";
 import AvatarGroup from "./AvatarGroup.vue";
+import AiTaskGen from "./TaskGenForm.vue"; 
 
 // ----------- PROPS & EMIT -----------
 const props = defineProps({
@@ -143,12 +141,13 @@ const props = defineProps({
   projectId: { type: Number, required: false },
   members: { type: Array, default: () => [] },
 });
-const emit = defineEmits(["add", "member-click", "toggle-menu"]);
+const emit = defineEmits(["add", "ai-gen", "member-click", "toggle-menu"]);
 
 // ----------- STATE -----------
 const search = ref("");
 const isExpanded = ref(true);
 const drawerVisible = ref(false);
+const aiGenVisible = ref(false);
 const filters = ref({
   priority: "",
   assignees: null,

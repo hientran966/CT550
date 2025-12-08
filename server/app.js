@@ -13,7 +13,7 @@ const commentRouter = require("./app/routes/Comment.route");
 const notificationRouter = require("./app/routes/Notification.route");
 const fileRouter = require("./app/routes/File.route");
 const chatRouter = require("./app/routes/Chat.route")
-const chatbotRouter = require("./app/routes/Chatbot.route");
+const ollamaRouter = require("./app/routes/Ollama.route");
 const githubRoutes = require("./app/routes/Github.route");
 const githubWebhookRouter = require("./app/routes/GithubWebhook.route");
 
@@ -38,7 +38,7 @@ app.use("/api/comments", commentRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/file", fileRouter);
 app.use("/api/chat", chatRouter)
-app.use("/api/ask", chatbotRouter);
+app.use("/api/ai", ollamaRouter);
 
 app.get("/api/github/callback", (req, res, next) => {
   res.setHeader("ngrok-skip-browser-warning", "true");

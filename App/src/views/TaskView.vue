@@ -16,6 +16,7 @@
         :is-expanded="isExpanded"
         :members="members"
         @add="onAdd"
+        @ai-gen="handleAIGen"
         @member-click="openMemberList"
         @toggle-menu="isExpanded = !isExpanded"
       />
@@ -88,8 +89,11 @@
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useTaskStore } from "@/stores/taskStore";
+
 import MemberService from "@/services/Member.service";
 import ChatService from "@/services/Chat.service";
+import OllamaService from "@/services/Ollama.service";
+
 import ProjectMenu from "@/components/ProjectMenu.vue";
 import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
@@ -102,7 +106,6 @@ import TaskForm from "@/components/TaskForm.vue";
 import ChannelForm from "@/components/ChannelForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
-import Chatbot from "@/components/Chatbot.vue";
 
 const route = useRoute();
 const projectId = Number(route.params.id);
@@ -148,6 +151,17 @@ function openTaskDetailById(taskId) {
     detailVisible.value = true;
   }
 }
+
+function handleAIGen(count) {
+  OllamaService.generateTasks({
+    projectId,
+    userId: userId,
+    taskCount: count
+  }).then(() => {
+    taskStore.loadTasks(projectId);
+  });
+}
+
 
 onMounted(() => {
   taskStore.loadTasks(projectId);

@@ -125,11 +125,24 @@ class ProjectService {
   }
 
   async findById(id) {
-    const [rows] = await this.mysql.execute(
+    const [projectRows] = await this.mysql.execute(
       "SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL",
       [id]
     );
-    return rows[0] || null;
+
+    if (!projectRows.length) return null;
+    const project = projectRows[0];
+
+    const [tasks] = await this.mysql.execute(
+      `SELECT * 
+      FROM tasks 
+      WHERE project_id = ? AND deleted_at IS NULL
+      ORDER BY parent_task_id ASC, id ASC`,
+      [id]
+    );
+
+    project.tasks = tasks;
+    return project;
   }
 
   async update(id, payload) {
