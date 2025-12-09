@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import NotificationService from "@/services/Notification.service";
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
+import ChatService from "@/services/Chat.service";
 
 export const useNotificationStore = defineStore("noti", {
   state: () => ({
@@ -24,17 +25,19 @@ export const useNotificationStore = defineStore("noti", {
         const projectStore = useProjectStore();
         const taskStore = useTaskStore();
 
-        this.notifications = await Promise.all(data.map(async (noti) => {
-          let title = "Thông báo";
+        this.notifications = await Promise.all(
+          data.map(async (noti) => {
+            let title = "Thông báo";
 
-          if (noti.reference_type === "project") {
-            title = await projectStore.getNameById(noti.reference_id);
-          } else if (noti.reference_type === "task") {
-            title = await taskStore.getNameById(noti.reference_id);
-          }
+            if (noti.reference_type === "project") {
+              title = await projectStore.getNameById(noti.reference_id);
+            } else if (noti.reference_type === "task") {
+              title = await taskStore.getNameById(noti.reference_id);
+            }
 
-          return { ...noti, title };
-        }));
+            return { ...noti, title };
+          })
+        );
 
         await this.fetchNewCount();
       } catch (err) {
@@ -61,9 +64,9 @@ export const useNotificationStore = defineStore("noti", {
 
       let title = "Thông báo";
       if (payload.reference_type === "project") {
-        title = projectStore.getNameById(payload.reference_id);
+        title = await projectStore.getNameById(payload.reference_id);
       } else if (payload.reference_type === "task") {
-        title = taskStore.getNameById(payload.reference_id);
+        title = await taskStore.getNameById(payload.reference_id);
       }
 
       this.notifications.unshift({ ...payload, title });
@@ -81,11 +84,15 @@ export const useNotificationStore = defineStore("noti", {
     async getReferenceByNoti(noti) {
       try {
         if (!noti?.reference_type || !noti?.reference_id) return null;
+        console.log("Lấy reference cho noti:", noti);
 
         if (noti.reference_type === "project") {
           const projectStore = useProjectStore();
-          if (!projectStore.projects?.length) await projectStore.fetchProjects();
-          return projectStore.projects.find(p => p.id === noti.reference_id);
+          if (!projectStore.projects?.length)
+            await projectStore.fetchProjects();
+          return projectStore.projects.find(
+            (p) => p.id === noti.reference_id
+          );
         }
 
         if (noti.reference_type === "task") {
@@ -96,12 +103,25 @@ export const useNotificationStore = defineStore("noti", {
           }
           return task;
         }
+
+        if (noti.reference_type === "chat_message") {
+          const channel = await ChatService.getChannelById(
+            noti.reference_id
+          );
+          console.log("Lấy reference chat_message:", channel);
+          if (!channel) return null;
+
+          return {
+            channel_id: channel.id,
+            project_id: channel.project_id,
+          };
+        }
+
         return null;
       } catch (err) {
         console.error("Lỗi lấy reference:", err);
         return null;
       }
-    }
+    },
   },
-
 });

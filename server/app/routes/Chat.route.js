@@ -5,6 +5,7 @@ const upload = require("../middlewares/upload.middleware");
 
 // --- Channel ---
 router.post("/", chatController.create);
+router.get("/:id", chatController.getById);
 router.get("/project/:project_id", chatController.findByProject);
 router.put("/:id", chatController.update);
 router.delete("/:id", chatController.delete);

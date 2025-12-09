@@ -24,6 +24,17 @@ const customMethods = {
     }
   },
 
+  getById: async (req, res, next) => {
+    try {
+      const service = new ChatService(MySQL.pool);
+      const channel = await service.findById(req.params.id);
+      if (!channel) return next(new ApiError(404, "Kênh chat không tồn tại"));
+      res.send(channel);
+    } catch (error) {
+      next(new ApiError(500, error.message || "Lỗi khi lấy kênh chat theo ID"));
+    }
+  },
+
   findByProject: async (req, res, next) => {
     try {
       const service = new ChatService(MySQL.pool);

@@ -120,6 +120,20 @@
           style="margin-right: 8px; cursor: pointer;"
           @click="memberClick"
         />
+        <el-dropdown>
+          <el-button circle style="border:none;">
+            <el-icon><MoreFilled /></el-icon>
+          </el-button>
+
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="confirmDeleteProject">
+                <el-icon style="margin-right:6px;"><Delete /></el-icon>
+                Xóa dự án
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
   </el-header>
@@ -127,11 +141,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, MagicStick, Fold, Expand } from "@element-plus/icons-vue";
+import { Plus, Search, Filter, MagicStick, Fold, Expand, MoreFilled, Delete } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useRoleStore } from "@/stores/roleStore";
-import MemberService from "@/services/Member.service";
+
 import AvatarGroup from "./AvatarGroup.vue";
 import AiTaskGen from "./TaskGenForm.vue"; 
 
@@ -222,6 +238,24 @@ function resetFilter() {
 function onToggle() {
   isExpanded.value = !isExpanded.value;
   emit("toggle-menu");
+}
+
+async function confirmDeleteProject() {
+  try {
+    await ElMessageBox.confirm(
+      "Bạn có chắc muốn xóa dự án này? Thao tác không thể hoàn tác.",
+      "Xác nhận",
+      {
+        confirmButtonText: "Xóa",
+        cancelButtonText: "Hủy",
+        type: "danger",
+      }
+    );
+
+    emit("delete-project", props.projectId);
+  } catch {
+
+  }
 }
 
 // ----------- LIFECYCLE -----------

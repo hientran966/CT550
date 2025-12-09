@@ -10,6 +10,10 @@ class ChatService {
         return (await this.api.post("/", data)).data;
     }
 
+    async getChannelById(id) {
+        return (await this.api.get(`/${id}`)).data;
+    }
+
     async getChannelsByProject(projectId) {
         return (await this.api.get(`/project/${projectId}`)).data;
     }

@@ -164,6 +164,11 @@ class ChatService {
   async addMessage(payload) {
     const { channel_id, sender_id, parent_id, content } = payload;
 
+    const [channelRows] = await this.mysql.execute(
+      `SELECT project_id FROM chat_channels WHERE id = ? AND deleted_at IS NULL`,
+      [channel_id]
+    );
+
     const [result] = await this.mysql.execute(
       `INSERT INTO chat_messages (channel_id, sender_id, parent_id, content)
        VALUES (?, ?, ?, ?)`,
@@ -197,7 +202,7 @@ class ChatService {
         actor_id: sender_id,
         type: "chat_message",
         reference_type: "chat_message",
-        reference_id: messageId,
+        reference_id: channel_id,
         message: `Tin nhắn mới trong kênh`,
       });
     }
@@ -403,7 +408,7 @@ class ChatService {
             actor_id: sender_id,
             type: "chat_message",
             reference_type: "chat_message",
-            reference_id: messageId,
+            reference_id: channel_id,
             message: `Tin nhắn mới trong kênh`,
           })
         );

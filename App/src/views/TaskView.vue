@@ -16,6 +16,7 @@
         :is-expanded="isExpanded"
         :members="members"
         @add="onAdd"
+        @delete-project="onDeleteProject"
         @ai-gen="handleAIGen"
         @member-click="openMemberList"
         @toggle-menu="isExpanded = !isExpanded"
@@ -87,7 +88,8 @@
 
 <script setup>
 import { ref, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import { useTaskStore } from "@/stores/taskStore";
 
 import MemberService from "@/services/Member.service";
@@ -106,8 +108,10 @@ import TaskForm from "@/components/TaskForm.vue";
 import ChannelForm from "@/components/ChannelForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
+import ProjectService from "@/services/Project.service";
 
 const route = useRoute();
+const router = useRouter();
 const projectId = Number(route.params.id);
 const user = JSON.parse(localStorage.getItem("user") || "{}");
 const userId = user?.id || null;
@@ -152,6 +156,15 @@ function openTaskDetailById(taskId) {
   }
 }
 
+function removeQueryParam(param) {
+  const newQuery = { ...route.query };
+  delete newQuery[param];
+
+  router.replace({
+    query: newQuery
+  });
+}
+
 function handleAIGen(count) {
   OllamaService.generateTasks({
     projectId,
@@ -162,17 +175,47 @@ function handleAIGen(count) {
   });
 }
 
+async function onDeleteProject(projectId) {
+  try {
+    const res = await ProjectService.deleteProject(projectId);
+    ElMessage.success("Xóa project thành công");
+
+    router.push("/projects");
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 
 onMounted(() => {
   taskStore.loadTasks(projectId);
   loadMembers();
 
-  if (route.query.task) openTaskDetailById(Number(route.query.task));
+  if (route.query.task) {
+    openTaskDetailById(Number(route.query.task));
+    removeQueryParam("task");
+  }
+  if (route.query.channel) {
+    activeView.value = "chat";
+    selectedChannel.value = Number(route.query.channel);
+
+    removeQueryParam("channel");
+  }
 });
 
 watch(
   () => route.query.task,
   (newVal) => newVal && openTaskDetailById(Number(newVal))
+);
+watch(
+  () => route.query.channel,
+  (newVal) => {
+    if (newVal) {
+      activeView.value = "chat";
+      selectedChannel.value = Number(newVal);
+      removeQueryParam("channel");
+    }
+  }
 );
 watch(
   [activeView, selectedChannel],

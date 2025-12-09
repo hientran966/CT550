@@ -138,6 +138,14 @@ const openNotification = async (noti) => {
       return;
     }
 
+    if (noti.reference_type === "chat_message" && ref) {
+      router.push({
+        path: `/projects/${ref.project_id}`,
+        query: { channel: ref.channel_id }
+      });
+      return;
+    }
+
     router.push("/notifications");
   } catch (err) {
     console.error("Lỗi khi mở thông báo:", err);
