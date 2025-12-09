@@ -125,6 +125,11 @@ const openNotification = async (noti) => {
     const ref = await notiStore.getReferenceByNoti(noti);
     console.log("Tham chiếu thông báo:", ref);
 
+    if (noti.type === "project_invite") {
+      router.push({path: `/`});
+      return;
+    }
+
     if (noti.reference_type === "task" && ref) {
       router.push({
         path: `/projects/${ref.project_id}`,

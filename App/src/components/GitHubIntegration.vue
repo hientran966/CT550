@@ -298,7 +298,7 @@ onMounted(async () => {
 .github-integration {
   display: flex;
   flex-direction: column;
-  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   gap: 20px;
   height: calc(100vh - 100px);

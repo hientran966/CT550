@@ -23,7 +23,7 @@
           </template>
           <template v-else>
             <span
-              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              :class="{ 'view-only': !canEditProject(row.id) }"
               @click.stop="startEditing(row, 'name')"
             >
               {{ row.name }}
@@ -46,7 +46,7 @@
           </template>
           <template v-else>
             <span
-              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              :class="{ 'view-only': !canEditProject(row.id) }"
               @click.stop="startEditing(row, 'start_date')"
             >
               {{ formatDate(row.start_date) }}
@@ -69,7 +69,7 @@
           </template>
           <template v-else>
             <span
-              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              :class="{ 'view-only': !canEditProject(row.id) }"
               @click.stop="startEditing(row, 'end_date')"
             >
               {{ formatDate(row.end_date) }}
@@ -102,7 +102,7 @@
             <el-tag
               :type="row.status === 'Đang tiến hành' ? 'primary' : 'success'"
               disable-transitions
-              :class="{ 'disabled-text': !canEditProject(row.id) }"
+              :class="{ 'view-only': !canEditProject(row.id) }"
               @click.stop="startEditing(row, 'status')"
             >
               {{ row.status }}
@@ -328,8 +328,8 @@ watch(
   background: transparent !important;
 }
 
-.disabled-text {
-  opacity: 0.6;
+.view-only {
+  opacity: 0.8;
   cursor: not-allowed;
   pointer-events: none;
 }

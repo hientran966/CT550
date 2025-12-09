@@ -177,7 +177,7 @@ function handleAIGen(count) {
 
 async function onDeleteProject(projectId) {
   try {
-    const res = await ProjectService.deleteProject(projectId);
+    const res = await await ProjectService.deleteProject(projectId, userId);
     ElMessage.success("Xóa project thành công");
 
     router.push("/projects");

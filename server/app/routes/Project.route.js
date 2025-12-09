@@ -10,6 +10,8 @@ router.route("/")
 router.route("/:id")
     .get(project.findOne)
     .put(project.update)
+
+router.route("/:id/:actor_id")
     .delete(project.delete);
 
 router.route("/:id/report")

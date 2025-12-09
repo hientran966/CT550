@@ -33,7 +33,7 @@ export const useProjectStore = defineStore("project", {
 
     async getNameById(id) {
       await this.fetchProjects();
-      const project = this.projects.find(p => p.id === id);
+      const project = await this.projects.find(p => p.id === id);
 
       return project
         ? "Project#" + project.id + " - " + project.name

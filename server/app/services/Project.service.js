@@ -198,13 +198,45 @@ class ProjectService {
     }
   }
 
-  async delete(id) {
-    const deletedDate = new Date().toISOString().slice(0, 19).replace("T", " ");
-    await this.mysql.execute(
-      "UPDATE projects SET deleted_at = ? WHERE id = ?",
-      [deletedDate, id]
-    );
-    return id;
+  async delete(id, actorId) {
+    const connection = await this.mysql.getConnection();
+    const notificationService = this.notificationService;
+
+    try {
+      await connection.beginTransaction();
+
+      const deletedDate = new Date().toISOString().slice(0, 19).replace("T", " ");
+      await connection.execute(
+        "UPDATE projects SET deleted_at = ? WHERE id = ?",
+        [deletedDate, id]
+      );
+
+      const members = await this.memberService.getByProjectId(id);
+
+      for (const member of members) {
+        if (member.user_id === actorId) continue;
+
+        await notificationService.create(
+          {
+            actor_id: actorId,
+            recipient_id: member.user_id,
+            type: "project_updated",
+            reference_type: "project",
+            reference_id: id,
+            message: "Dự án đã bị xóa",
+          },
+          connection
+        );
+      }
+
+      await connection.commit();
+      return id;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async getByUser(userId) {

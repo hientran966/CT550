@@ -120,7 +120,7 @@
           style="margin-right: 8px; cursor: pointer;"
           @click="memberClick"
         />
-        <el-dropdown>
+        <el-dropdown v-if="props.page === 'task'" trigger = "click">
           <el-button circle style="border:none;">
             <el-icon><MoreFilled /></el-icon>
           </el-button>
@@ -238,6 +238,10 @@ function resetFilter() {
 function onToggle() {
   isExpanded.value = !isExpanded.value;
   emit("toggle-menu");
+}
+
+function memberClick() {
+  emit("member-click");
 }
 
 async function confirmDeleteProject() {

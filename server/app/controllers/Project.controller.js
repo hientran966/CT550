@@ -16,6 +16,22 @@ const baseController = createController(ProjectService, {
 });
 
 const customMethods = {
+    delete: async (req, res, next) => {
+        try {
+            const service = new ProjectService(MySQL.pool);
+            const projectId = req.params.id;
+            const actorId = req.params.actor_id;
+
+            await service.delete(projectId, actorId);
+
+            return res.send({ message: "Xóa thành công" });
+        } catch (error) {
+            console.error(error);
+            return next(
+                new ApiError(500, error.message || "Đã xảy ra lỗi khi xóa dự án")
+            );
+        }
+    },
     findByAccountId: async (req, res, next) => {
         try {
             const service = new ProjectService(MySQL.connection);

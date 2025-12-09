@@ -17,8 +17,8 @@ class ProjectService {
         return (await this.api.put(`/${id}`, data)).data;
     }
 
-    async deleteProject(id) {
-        return (await this.api.delete(`/${id}`)).data;
+    async deleteProject(projectId, actorId) {
+        return (await this.api.delete(`/${projectId}/${actorId}`)).data;
     }
 
     async getAllProjects() {
