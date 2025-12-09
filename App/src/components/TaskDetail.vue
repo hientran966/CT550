@@ -232,15 +232,15 @@
               <template #header>
                 <div style="font-weight: 600">Bình luận</div>
               </template>
-              <div class="comment-list">
+              <div class="list">
                 <div
                   v-for="comment in comments"
                   :key="comment.id"
-                  class="comment-item"
+                  class="item"
                 >
-                  <div class="comment-user">{{ comment.user.name }}</div>
-                  <div class="comment-text">{{ comment.content }}</div>
-                  <div class="comment-time">{{ comment.created_at }}</div>
+                  <div class="user-name">{{ comment.user.name }}</div>
+                  <div class="detail-text">{{ comment.content }}</div>
+                  <div class="created-at">{{ comment.created_at }}</div>
                   <el-divider />
                 </div>
               </div>
@@ -259,6 +259,23 @@
                   >Gửi</el-button
                 >
               </template>
+            </el-card>
+            <el-card style="height: 100%; border: 0">
+              <template #header>
+                <div style="font-weight: 600">Hoạt động</div>
+              </template>
+              <div class="list">
+                <div
+                  v-for="activity in activities"
+                  :key="activity.id"
+                  class="item"
+                >
+                  <div class="user-name">{{ activity.user.name }}</div>
+                  <div class="detail-text">{{ activity.detail }}</div>
+                  <div class="created-at">{{ activity.created_at }}</div>
+                  <el-divider />
+                </div>
+              </div>
             </el-card>
           </div>
         </div>
@@ -288,6 +305,7 @@ import FileCard from "./FileCard.vue";
 
 import { useTaskStore } from "@/stores/taskStore";
 import { useFileStore } from "@/stores/fileStore";
+import { useActivityStore } from "@/stores/activityStore";
 import { useCommentStore } from "@/stores/commentStore";
 import { useRoleStore } from "@/stores/roleStore";
 import MemberService from "@/services/Member.service";
@@ -318,14 +336,17 @@ const canUpdate = ref(false);
 
 const taskStore = useTaskStore();
 const fileStore = useFileStore();
+const activityStore = useActivityStore();
 const commentStore = useCommentStore();
 const roleStore = useRoleStore();
 
 const { getTasksByProject } = storeToRefs(taskStore);
 const { getFilesByTask } = storeToRefs(fileStore);
+const { getActivitysByTask } = storeToRefs(activityStore);
 const { getCommentsByTask } = storeToRefs(commentStore);
 
 const files = computed(() => getFilesByTask.value(task.value.id) || []);
+const activities = computed(() => getActivitysByTask.value(task.value.id) || []);
 const comments = computed(() => getCommentsByTask.value(task.value.id) || []);
 
 const tableData = computed(() => [
@@ -413,6 +434,7 @@ const loadData = async () => {
   if (task.value?.id) {
     await Promise.all([
       fileStore.loadFiles(task.value.id),
+      activityStore.loadActivity(task.value.id),
       commentStore.loadComments(task.value.id),
     ]);
   }
@@ -501,23 +523,23 @@ watch(
   margin-top: 12px;
   color: #888;
 }
-.comment-list {
+.list {
   overflow-y: auto;
   margin-bottom: 12px;
   max-height: 270px;
 }
-.comment-item:hover {
+.item:hover {
   background-color: #f5f5f5;
   cursor: pointer;
 }
-.comment-user {
+.user-name {
   font-weight: 500;
 }
-.comment-text {
+.detail-text {
   font-size: 13px;
   color: #555;
 }
-.comment-time {
+.created-at {
   font-size: 12px;
   color: #aaa;
 }
