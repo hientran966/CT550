@@ -92,7 +92,7 @@ export const useTaskStore = defineStore("task", {
 
         // === Cập nhật người phụ trách ===
         else if (updatedTask.changedField === "assignee") {
-          await TaskService.deleteAssign(updatedTask.id);
+          await TaskService.deleteAssign(updatedTask.id, user.id);
           for (const userId of updatedTask.assignees) {
             await AssignService.createAssign({
               task_id: updatedTask.id,

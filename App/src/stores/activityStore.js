@@ -11,7 +11,7 @@ export const useActivityStore = defineStore("activity", {
     async loadActivity(taskId) {
       try {
         const res = await ActivityService.getAllActivity({ task_id: taskId });
-        this.ActivitysByTask[taskId] = (res || []).map((c) => ({
+        this.activitysByTask[taskId] = (res || []).map((c) => ({
           ...c,
           created_at: dayjs(c.created_at).format("DD/MM/YYYY HH:mm"),
         }));
@@ -26,8 +26,8 @@ export const useActivityStore = defineStore("activity", {
         ...res,
         created_at: dayjs(res.created_at).format("DD/MM/YYYY HH:mm"),
       };
-      if (!this.ActivitysByTask[taskId]) this.ActivitysByTask[taskId] = [];
-      this.ActivitysByTask[taskId].unshift(newAct);
+      if (!this.activitysByTask[taskId]) this.activitysByTask[taskId] = [];
+      this.activitysByTask[taskId].unshift(newAct);
     },
   },
 

@@ -68,10 +68,11 @@
               size="small"
               style="margin-top: 8px"
             />
+            <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
           </div>
 
-          <div class="task-footer">
-            <AvatarGroup :user-ids="task.assignees || []" :max="3" :size="28" />
+          <div class="task-footer"  v-if="task.latest_activity">
+            <p>{{ task.latest_activity.detail }}</p>
           </div>
 
           <el-button
@@ -368,6 +369,31 @@ watch(
   background-color: #f5f5f5;
   color: #616161;
   border: 1px solid #e0e0e0;
+}
+
+.task-footer {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #1976d2;
+  background: #eef5ff;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1976d2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.task-footer p {
+  margin: 0;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Column colors */

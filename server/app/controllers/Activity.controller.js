@@ -24,6 +24,16 @@ const customMethods = {
             return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi tạo log hoạt động"));
         }
     },
+    getByTaskId: async (req, res, next) => {
+        try {
+            const service = new ActivityService(MySQL.pool);
+            const taskId = req.params.taskId;
+            const activities = await service.find({ task_id: taskId });
+            res.send(activities);
+        } catch (error) {
+            return next(new ApiError(500, error.message || "Đã xảy ra lỗi khi lấy log hoạt động theo task ID"));
+        }
+    }
 };
 
 module.exports = {

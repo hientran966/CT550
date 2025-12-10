@@ -118,9 +118,7 @@
                     </template>
 
                     <el-select
-                      v-else-if="
-                        row.key === 'progress'
-                      "
+                      v-else-if="row.key === 'progress'"
                       v-model="editCache.latest_progress"
                       placeholder="Tiến độ"
                       size="small"
@@ -181,7 +179,12 @@
                   @click="addSubtask"
                 />
               </div>
-              <el-table v-if="task.subtasks?.length" :data="task.subtasks || []" border style="width: 100%">
+              <el-table
+                v-if="task.subtasks?.length"
+                :data="task.subtasks || []"
+                border
+                style="width: 100%"
+              >
                 <el-table-column prop="title" label="Tiêu đề" />
                 <el-table-column prop="start_date" label="Ngày bắt đầu" />
                 <el-table-column prop="due_date" label="Ngày kết thúc" />
@@ -233,11 +236,7 @@
                 <div style="font-weight: 600">Bình luận</div>
               </template>
               <div class="list">
-                <div
-                  v-for="comment in comments"
-                  :key="comment.id"
-                  class="item"
-                >
+                <div v-for="comment in comments" :key="comment.id" class="item">
                   <div class="user-name">{{ comment.user.name }}</div>
                   <div class="detail-text">{{ comment.content }}</div>
                   <div class="created-at">{{ comment.created_at }}</div>
@@ -297,6 +296,7 @@ import { storeToRefs } from "pinia";
 import { getSocket } from "@/plugins/socket";
 import { Check, Close, EditPen, Upload, Plus } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
+import dayjs from "dayjs";
 
 import UploadDialog from "./UploadDialog.vue";
 import TaskForm from "./TaskForm.vue";
@@ -346,7 +346,9 @@ const { getActivitysByTask } = storeToRefs(activityStore);
 const { getCommentsByTask } = storeToRefs(commentStore);
 
 const files = computed(() => getFilesByTask.value(task.value.id) || []);
-const activities = computed(() => getActivitysByTask.value(task.value.id) || []);
+const activities = computed(
+  () => getActivitysByTask.value(task.value.id) || []
+);
 const comments = computed(() => getCommentsByTask.value(task.value.id) || []);
 
 const tableData = computed(() => [
@@ -359,6 +361,11 @@ const tableData = computed(() => [
 const priorityLabel = (val) =>
   val === "low" ? "Thấp" : val === "medium" ? "Trung Bình" : "Cao";
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
+const toMySQLDate = (d) => {
+  if (!d) return null;
+  return dayjs(d).format("YYYY-MM-DD");
+};
+
 const handleClose = () => (visible.value = false);
 
 // ROLE CHECK
@@ -391,8 +398,47 @@ const saveEdit = async (key) => {
   if (!(canEdit.value || (canUpdate.value && key === "progress")))
     return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
 
-  const updatedTask = { ...task.value, ...editCache.value, changedField: key };
-  await taskStore.updateTask(props.projectId, updatedTask);
+  const payload = {
+    id: task.value.id,
+    updated_by: JSON.parse(localStorage.getItem("user") || "{}").id,
+  };
+
+  if (key === "date") {
+    const updates = {};
+
+    const newStart = toMySQLDate(editCache.value.start_date);
+    const newDue = toMySQLDate(editCache.value.due_date);
+
+    const oldStart = toMySQLDate(task.value.start_date);
+    const oldDue = toMySQLDate(task.value.due_date);
+
+    if (newStart !== oldStart) {
+      updates.start_date = newStart;
+    }
+
+    if (newDue !== oldDue) {
+      updates.due_date = newDue;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      ElMessage.info("Không có thay đổi nào");
+      return cancelEdit();
+    }
+
+    payload.changedField = Object.keys(updates);
+    Object.assign(payload, updates);
+  } else if (key === "assignee") {
+    payload.changedField = key;
+    payload.assignees = editCache.value.assignees;
+  } else if (key === "progress") {
+    payload.changedField = key;
+    payload.latest_progress = editCache.value.latest_progress;
+  } else {
+    payload.changedField = key;
+    payload[key] = editCache.value[key];
+  }
+
+  await taskStore.updateTask(props.projectId, payload);
 
   editRow.value = null;
   ElMessage.success("Đã lưu thay đổi");
@@ -401,7 +447,7 @@ const saveEdit = async (key) => {
 // SUBTASK
 const updateSubtaskStatus = async (subtask) => {
   await taskStore.updateStatus(props.projectId, {
-    ...subtask
+    ...subtask,
   });
   await loadData();
 };

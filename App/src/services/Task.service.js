@@ -34,8 +34,8 @@ class TaskService {
         return (await this.api.post(`/${id}/progress`, data)).data;
     }
 
-    async deleteAssign (id) {
-        return (await this.api.delete(`/assign/${id}`)).data;
+    async deleteAssign (id, actorId) {
+        return (await this.api.delete(`/assign/${id}/${actorId}`)).data;
     }
 
     async getRole(id, user_id) {

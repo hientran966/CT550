@@ -1,5 +1,6 @@
 const AssignmentService = require("./Assign.service");
 const MemberService = require("./Member.service");
+const ActivityService = require("./Activity.service");
 const { sendToUser } = require("../socket/index");
 
 class TaskService {
@@ -7,6 +8,7 @@ class TaskService {
     this.mysql = mysql;
     this.assignmentService = new AssignmentService(mysql);
     this.memberService = new MemberService(mysql);
+    this.activityService = new ActivityService(mysql);
   }
 
   async extractTaskData(payload) {
@@ -53,12 +55,25 @@ class TaskService {
     await conn.execute(
       `INSERT INTO progress_logs (task_id, progress, updated_by)
        VALUES (?, ?, ?)`,
-      [
-        parentTaskId,
-        avgProgress,
-        actorId ?? 0,
-      ]
+      [parentTaskId, avgProgress, actorId ?? 0]
     );
+  }
+
+  formatField(keys) {
+    const FIELD_LABELS = {
+      title: "tiêu đề",
+      description: "mô tả",
+      status: "trạng thái",
+      priority: "ưu tiên",
+      start_date: "ngày bắt đầu",
+      due_date: "hạn chót",
+    };
+
+    if (Array.isArray(keys)) {
+      return keys.map((k) => FIELD_LABELS[k] || k).join(", ");
+    }
+
+    return FIELD_LABELS[keys] || keys;
   }
 
   /** ===================== CREATE TASK ===================== **/
@@ -143,9 +158,22 @@ class TaskService {
           SELECT JSON_ARRAYAGG(ta.user_id)
           FROM task_assignees ta
           WHERE ta.task_id = t.id AND ta.deleted_at IS NULL
-        ) AS assignees
-      FROM tasks t
-      WHERE t.deleted_at IS NULL AND t.parent_task_id IS NULL
+        ) AS assignees,
+        (
+        SELECT JSON_OBJECT(
+          'id', al.id,
+          'actor_id', al.actor_id,
+          'detail', al.detail,
+          'created_at', al.created_at
+        ) AS latest_activity
+        FROM activity_logs al
+        WHERE al.task_id = t.id AND al.deleted_at IS NULL
+        ORDER BY al.created_at DESC
+        LIMIT 1
+      ) AS latest_activity
+
+    FROM tasks t
+    WHERE t.deleted_at IS NULL AND t.parent_task_id IS NULL
     `;
 
     const params = [];
@@ -179,8 +207,14 @@ class TaskService {
         `SELECT id, title, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
         [row.id]
       );
-      if (subs.length > 0) {
-        row.subtasks = subs;
+      if (subs.length > 0) row.subtasks = subs;
+
+      if (typeof row.latest_activity === "string") {
+        try {
+          row.latest_activity = JSON.parse(row.latest_activity);
+        } catch {
+          row.latest_activity = null;
+        }
       }
     }
 
@@ -218,7 +252,9 @@ class TaskService {
       if (!oldTask) throw new Error("Task not found");
 
       const safeData = { ...data };
+      delete safeData.id;
       delete safeData.updated_by;
+      delete safeData.changedField;
 
       const fields = [];
       const params = [];
@@ -241,6 +277,15 @@ class TaskService {
           data.updated_by ?? null
         );
       }
+
+      await this.activityService.create(
+        {
+          task_id: id,
+          actor_id: data.updated_by ?? null,
+          detail: `Đã cập nhật ${this.formatField(data.changedField)}`,
+        },
+        conn
+      );
 
       await conn.commit();
       return { success: true };
@@ -343,6 +388,15 @@ class TaskService {
         [taskId, progressPercent, loggedBy]
       );
 
+      await this.activityService.create(
+        {
+          task_id: taskId,
+          actor_id: loggedBy,
+          detail: `Cập nhật tiến độ: ${progressPercent.toFixed(1)}%`,
+        },
+        connection
+      );
+
       await connection.commit();
 
       const members = await this.memberService.getByProjectId(task.project_id);
@@ -371,11 +425,16 @@ class TaskService {
   }
 
   /** ===================== DELETE ASSIGN ===================== **/
-  async deleteAssign(taskId) {
+  async deleteAssign(taskId, actorId) {
     const [result] = await this.mysql.execute(
       `DELETE FROM task_assignees WHERE task_id = ?`,
       [taskId]
     );
+    await this.activityService.create({
+      task_id: taskId,
+      actor_id: actorId,
+      detail: `Đã cập nhật người thực hiện`,
+    });
     return { affectedRows: result.affectedRows };
   }
 

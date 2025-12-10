@@ -22,7 +22,11 @@ class ActivityService {
     }
 
     async getAllActivity(filter = {}) {
-    return (await this.api.get("/", { params: filter })).data;
+        return (await this.api.get("/", { params: filter })).data;
+    }
+
+    async getActivitiesByTaskId(taskId) {
+        return (await this.api.get(`/task/${taskId}`)).data;
     }
 }
 

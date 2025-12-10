@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const NotificationService = require("./Notification.service");
+const ActivityService = require("./Activity.service");
 const { sendToProject } = require("../socket/index");
 
 class FileService {
@@ -42,6 +43,7 @@ class FileService {
 
     const connection = await this.mysql.getConnection();
     const notificationService = new NotificationService(this.mysql);
+    const activityService = new ActivityService(this.mysql);
 
     try {
       await connection.beginTransaction();
@@ -98,8 +100,6 @@ class FileService {
 
       const versionId = verResult.insertId;
 
-      console.log(ownerId, payload.created_by);
-
       // --- Gửi thông báo ---
       if (ownerId && Number(ownerId) !== Number(payload.created_by)) {
         await notificationService.create(
@@ -145,6 +145,14 @@ class FileService {
             ...fileData,
           },
         });
+      }
+
+      if (payload.task_id) {
+        await activityService.create({
+          task_id: payload.task_id ?? null,
+          actor_id: payload.created_by ?? null,
+          detail: `Tải lên file: ${payload.file_name}`,
+        }, connection);
       }
 
       await connection.commit();

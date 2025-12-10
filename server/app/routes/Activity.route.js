@@ -12,4 +12,7 @@ router.route("/:id")
     .put(logs.update)
     .delete(logs.delete);
 
+router.route("/task/:taskId")
+    .get(logs.getByTaskId);
+
 module.exports = router;
