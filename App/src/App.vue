@@ -50,7 +50,6 @@ watch(isAuthenticated, async (loggedIn) => {
 
       socket = initSocket(user.id);
       socket.on("notification", async (data) => {
-        console.log(data)
         ElNotification({
           title: data.title || "Thông báo mới",
           message: data.message || "Bạn có thông báo mới",

@@ -509,7 +509,22 @@ onMounted(async () => {
   socket = getSocket();
   if (!socket) return;
 
-  socket.on("task_updated", async (event) => {
+  socket.on("task_updated", async () => {
+    await loadData();
+  });
+  socket.on("git_push", async () => {
+   await loadData();
+  });
+
+  socket.on("git_commit", async () => {
+    await loadData();
+  });
+
+  socket.on("git_event", async () => {
+    await loadData();
+  });
+
+  socket.on("activity", async () => {
     await loadData();
   });
 });

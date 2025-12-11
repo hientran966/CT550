@@ -98,6 +98,7 @@ import { Close } from "@element-plus/icons-vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileService from "@/services/File.service";
 import defaultAvatar from "@/assets/default-avatar.png";
+import { getSocket } from "@/plugins/socket";
 
 const props = defineProps({
   projectId: Number,
@@ -275,6 +276,24 @@ onMounted(async () => {
     await checkRoles();
     await loadAvatars();
   }
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("git_push", async () => {
+    await taskStore.loadTasks(props.projectId);
+  });
+
+  socket.on("git_commit", async () => {
+    await taskStore.loadTasks(props.projectId);
+  });
+
+  socket.on("git_event", async () => {
+    await taskStore.loadTasks(props.projectId);
+  });
+
+  socket.on("activity", async (data) => {
+    await taskStore.loadTasks(props.projectId);
+  });
 });
 
 watch(
