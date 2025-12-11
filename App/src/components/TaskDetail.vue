@@ -2,20 +2,102 @@
   <el-dialog
     class="task-detail"
     v-model="visible"
-    :title="task.title"
-    width="60%"
+    width="1000px"
     :before-close="handleClose"
     :close-on-click-modal="false"
   >
+    <template #header>
+      <div class="header-editable">
+        <!-- NORMAL MODE -->
+        <template v-if="editRow !== 'title'">
+          <span class="task-title"># {{ task.id }} - {{ task.title }}</span>
+
+          <el-button
+            v-if="canEdit"
+            link
+            :icon="EditPen"
+            @click="startEditTitle"
+            style="margin-left: 4px"
+          />
+        </template>
+
+        <!-- EDIT MODE -->
+        <template v-else>
+          <el-input
+            v-model="editCache.title"
+            size="small"
+            style="width: 60%"
+          />
+
+          <el-button
+            link
+            type="success"
+            :icon="Check"
+            @click="saveTitle"
+          />
+
+          <el-button
+            link
+            :icon="Close"
+            @click="cancelEdit"
+          />
+        </template>
+      </div>
+    </template>
     <div class="dialog-content">
       <div class="split-layout">
         <!-- Left Panel -->
         <div class="left-panel">
           <div class="panel-scroll">
-            <h3>{{ task.title }}</h3>
-            <p v-if="task.description" style="margin-bottom: 16px">
-              {{ task.description }}
-            </p>
+            <div class="description-block" v-if="task.description">
+              <div class="desc-header">
+                <strong>Mô tả</strong>
+
+                <!-- Edit icon -->
+                <el-button
+                  v-if="canEdit && editRow !== 'description'"
+                  link
+                  :icon="EditPen"
+                  class="desc-edit-btn"
+                  @click="startEditDescription"
+                />
+              </div>
+
+              <!-- VIEW MODE -->
+              <div v-if="editRow !== 'description'" class="desc-content">
+                <p v-if="task.description">{{ task.description }}</p>
+                <p v-else class="desc-empty">Chưa có mô tả...</p>
+              </div>
+
+              <!-- EDIT MODE -->
+              <div v-else class="desc-edit-box">
+                <el-input
+                  type="textarea"
+                  v-model="editCache.description"
+                  rows="4"
+                  placeholder="Nhập mô tả..."
+                />
+
+                <div class="desc-actions">
+                  <el-button
+                    size="small"
+                    type="success"
+                    @click="saveDescription"
+                  >
+                    Lưu
+                  </el-button>
+
+                  <el-button
+                    size="small"
+                    @click="cancelEdit"
+                  >
+                    Hủy
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <hr class="section-divider" />
 
             <!-- Task Info Table -->
             <el-table
@@ -150,6 +232,8 @@
                       </el-select>
                     </div>
 
+                    <br>
+
                     <el-button
                       size="small"
                       type="success"
@@ -231,51 +315,52 @@
         <!-- Right Panel: Comments -->
         <div class="right-panel">
           <div class="panel-scroll" style="padding: 0 !important">
-            <el-card style="height: 100%; border: 0">
-              <template #header>
-                <div style="font-weight: 600">Bình luận</div>
-              </template>
-              <div class="list">
-                <div v-for="comment in comments" :key="comment.id" class="item">
-                  <div class="user-name">{{ comment.user.name }}</div>
-                  <div class="detail-text">{{ comment.content }}</div>
-                  <div class="created-at">{{ comment.created_at }}</div>
-                  <el-divider />
-                </div>
-              </div>
-              <template #footer>
-                <el-input
-                  v-model="newComment"
-                  placeholder="Nhập bình luận..."
-                  type="textarea"
-                  rows="2"
-                  style="margin-bottom: 8px"
-                />
-                <el-button
-                  type="primary"
-                  @click="addComment"
-                  :disabled="!newComment.trim()"
-                  >Gửi</el-button
-                >
-              </template>
-            </el-card>
-            <el-card style="height: 100%; border: 0">
-              <template #header>
-                <div style="font-weight: 600">Hoạt động</div>
-              </template>
-              <div class="list">
-                <div
-                  v-for="activity in activities"
-                  :key="activity.id"
-                  class="item"
-                >
-                  <div class="user-name">{{ activity.user.name }}</div>
-                  <div class="detail-text">{{ activity.detail }}</div>
-                  <div class="created-at">{{ activity.created_at }}</div>
-                  <el-divider />
-                </div>
-              </div>
-            </el-card>
+            <el-tabs v-model="rightTab" style="height: 100%; padding-left: 10px;">
+              <el-tab-pane label="Bình luận" name="comment">
+                <el-card style="height: 100%; border: 0; width: 100%;">
+                  <div class="list">
+                    <div v-for="comment in comments" :key="comment.id" class="item">
+                      <div class="user-name">{{ comment.user.name }}</div>
+                      <div class="detail-text">{{ comment.content }}</div>
+                      <div class="created-at">{{ comment.created_at }}</div>
+                      <el-divider />
+                    </div>
+                  </div>
+                  <template #footer>
+                    <el-input
+                      v-model="newComment"
+                      placeholder="Nhập bình luận..."
+                      type="textarea"
+                      rows="2"
+                      style="margin-bottom: 8px"
+                    />
+                    <el-button
+                      type="primary"
+                      @click="addComment"
+                      :disabled="!newComment.trim()"
+                      >Gửi</el-button
+                    >
+                  </template>
+                </el-card>
+              </el-tab-pane>
+
+              <el-tab-pane label="Hoạt động" name="activity">
+                <el-card style="height: 100%; border: 0; width: 100%;">
+                  <div class="list">
+                    <div
+                      v-for="activity in activities"
+                      :key="activity.id"
+                      class="item"
+                    >
+                      <div class="user-name">{{ activity.user.name }}</div>
+                      <div class="detail-text">{{ activity.detail }}</div>
+                      <div class="created-at">{{ activity.created_at }}</div>
+                      <el-divider />
+                    </div>
+                  </div>
+                </el-card>
+              </el-tab-pane>
+            </el-tabs>
           </div>
         </div>
       </div>
@@ -382,6 +467,51 @@ async function checkRole() {
 }
 
 // EDIT TASK
+const startEditTitle = () => {
+  if (!canEdit.value) return ElMessage.warning("Bạn không có quyền chỉnh sửa tiêu đề");
+  editRow.value = "title";
+  editCache.value = { title: task.value.title };
+};
+
+const saveTitle = async () => {
+  if (!canEdit.value) return;
+
+  const payload = {
+    id: task.value.id,
+    updated_by: JSON.parse(localStorage.getItem("user") || "{}").id,
+    changedField: "title",
+    title: editCache.value.title
+  };
+
+  await taskStore.updateTask(props.projectId, payload);
+
+  editRow.value = null;
+  ElMessage.success("Đã cập nhật tiêu đề");
+};
+
+const startEditDescription = () => {
+  if (!canEdit.value)
+    return ElMessage.warning("Bạn không có quyền chỉnh sửa mô tả");
+  editRow.value = "description";
+  editCache.value = { description: task.value.description };
+};
+
+const saveDescription = async () => {
+  if (!canEdit.value) return;
+
+  const payload = {
+    id: task.value.id,
+    updated_by: JSON.parse(localStorage.getItem("user") || "{}").id,
+    changedField: "description",
+    description: editCache.value.description
+  };
+
+  await taskStore.updateTask(props.projectId, payload);
+
+  editRow.value = null;
+  ElMessage.success("Đã cập nhật mô tả");
+};
+
 const startEdit = (key) => {
   if (!(canEdit.value || (canUpdate.value && key === "progress")))
     return ElMessage.warning("Bạn không có quyền chỉnh sửa mục này");
@@ -542,7 +672,55 @@ watch(
 </script>
 
 <style scoped>
+.header-editable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-title {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.description-block {
+  margin-bottom: 16px;
+}
+
+.desc-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.desc-content {
+  padding: 8px 0;
+  white-space: pre-wrap;
+}
+
+.desc-empty {
+  color: #999;
+  font-style: italic;
+}
+
+.desc-edit-box {
+  margin-top: 8px;
+}
+
+.desc-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.section-divider {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid #eee;
+}
+
 .task-detail :deep(.el-dialog__body) {
+  width: 940px;
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -559,17 +737,22 @@ watch(
   height: 100%;
 }
 .left-panel {
-  flex: 7;
+  width: 620px;
+  min-width: 620px;
+  max-width: 620px;
   overflow-y: auto;
   padding: 12px;
 }
 .right-panel {
-  flex: 3;
-  overflow-y: auto;
-  padding: 0;
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  border-left: 1px solid #eee;
+  overflow: hidden;
 }
 .panel-scroll {
   height: 100%;
+  width: 100%;
   overflow-y: auto;
   padding: 12px;
   box-sizing: border-box;
@@ -587,6 +770,7 @@ watch(
 .list {
   overflow-y: auto;
   margin-bottom: 12px;
+  min-height: 270px;
   max-height: 270px;
 }
 .item:hover {
