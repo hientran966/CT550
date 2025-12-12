@@ -160,6 +160,7 @@ import CommentService from "@/services/Comment.service";
 import FileService from "@/services/File.service";
 import { Close, Crop, Upload } from "@element-plus/icons-vue";
 import { useRoleStore } from "@/stores/roleStore";
+import { useFileStore } from "@/stores/fileStore";
 import UploadDialog from "./UploadDialog.vue";
 
 let socket;
@@ -182,6 +183,7 @@ const activeVisualCommentId = ref(null);
 
 const canUploadVersion = ref(false);
 const roleStore = useRoleStore();
+const fileStore = useFileStore();
 
 const file = computed(() => props.file);
 const currentVersion = computed(() =>
@@ -395,7 +397,8 @@ watch(
 watch(selectedVersionId, (val) => val && loadComments());
 
 onMounted(async () => {
-  loadComments();
+  await loadComments();
+
   canUploadVersion.value = await roleStore.canUpdateFileVersion(
     file.value.id,
     file.value.project_id
@@ -407,6 +410,10 @@ onMounted(async () => {
       const exists = comments.value.some(c => c.id === event.data.id);
       if (!exists) comments.value.unshift(event.data);
     }
+  });
+
+  socket.on("file", async (event) => {
+    await loadComments();
   });
 
   const observer = new ResizeObserver(() => updateCanvasSize());
@@ -481,7 +488,8 @@ onUnmounted(() => {
   z-index: 10;
 }
 .comment-list {
-  max-height: 500px;
+  max-height: 560px;
+  min-height: 560px;
   overflow-y: auto;
   margin-bottom: 12px;
 }

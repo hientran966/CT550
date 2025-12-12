@@ -10,14 +10,14 @@
       <span>Danh sách Task</span>
     </el-menu-item>
 
-    <el-menu-item index="timeline">
-      <el-icon><Calendar /></el-icon>
-      <span>Lịch</span>
-    </el-menu-item>
-
     <el-menu-item index="gantt">
       <el-icon><Guide /></el-icon>
       <span>Gantt</span>
+    </el-menu-item>
+    
+    <el-menu-item index="timeline">
+      <el-icon><Calendar /></el-icon>
+      <span>Lịch</span>
     </el-menu-item>
 
     <el-menu-item index="report">

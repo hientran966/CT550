@@ -308,9 +308,11 @@ watch(
 
 <style scoped>
 .kanban-container {
+  width: 1400px;
   display: flex;
   gap: 16px;
   padding: 16px;
+  overflow-x: scroll;
 }
 
 .kanban-header {

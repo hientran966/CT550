@@ -3,11 +3,11 @@
     <div class="gantt-sidebar">
       <div class="sidebar-header">
         <div class="col-task">Task</div>
-        <div class="col-assignee">Assignees</div>
-        <div class="col-date">Start</div>
-        <div class="col-date">Due</div>
+        <div class="col-assignee">Tham gia</div>
+        <div class="col-date">Bắt đầu</div>
+        <div class="col-date">Hạn chót</div>
       </div>
-      
+
       <div class="sidebar-body">
         <div v-for="task in tasks" :key="task.id" class="sidebar-row">
           <div class="col-task">{{ task.title }}</div>
@@ -22,19 +22,28 @@
 
     <div class="gantt-timeline" ref="timelineRef">
       <div class="timeline-header">
-        <div class="header-months">
-          <div 
-            v-for="(month, index) in calendarData.months" 
-            :key="index"
-            class="month-block"
-            :style="{ width: month.width + 'px' }"
+        <div
+          class="header-dates"
+          :style="{
+            gridTemplateColumns: `repeat(${calendarData.days.length}, ${columnWidth}px)`,
+          }"
+        >
+          <div
+            v-for="(day, index) in calendarData.days"
+            :key="'date-' + index"
+            class="date-block"
           >
-            {{ month.label }}
+            {{ day.dayNumber }}
           </div>
         </div>
-        <div class="header-days">
-          <div 
-            v-for="(day, index) in calendarData.days" 
+        <div
+          class="header-days"
+          :style="{
+            gridTemplateColumns: `repeat(${calendarData.days.length}, ${columnWidth}px)`,
+          }"
+        >
+          <div
+            v-for="(day, index) in calendarData.days"
             :key="index"
             class="day-block"
             :class="{ 'is-weekend': day.isWeekend, 'is-today': day.isToday }"
@@ -42,8 +51,8 @@
             {{ day.label }}
           </div>
         </div>
-        <div 
-          class="today-marker-line" 
+        <div
+          class="today-marker-line"
           :style="{ left: todayPosition + 'px' }"
           v-if="todayPosition >= 0"
         >
@@ -53,21 +62,21 @@
 
       <div class="timeline-body">
         <div class="grid-background">
-          <div 
-            v-for="(day, index) in calendarData.days" 
+          <div
+            v-for="(day, index) in calendarData.days"
             :key="index"
             class="grid-column"
             :class="{ 'is-weekend': day.isWeekend }"
           ></div>
         </div>
 
-        <div v-for="task in tasks" :key="'bar-'+task.id" class="timeline-row">
-          <div 
-            class="task-bar"
-            :style="getBarStyle(task)"
-          >
-            <div class="task-bar-progress" style="width: 40%"></div>
-          </div>
+        <div v-for="task in tasks" :key="'bar-' + task.id" class="timeline-row">
+            <div class="task-bar" :style="getBarStyle(task)">
+                <div class="task-bar-progress" :style="getProgressStyle(task)"></div>
+                <div class="task-bar-label">
+                    {{ task.latest_progress || 0 }}%
+                </div>
+            </div>
         </div>
       </div>
     </div>
@@ -75,15 +84,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import TaskService from '@/services/Task.service';
-import AvatarGroup from './AvatarGroup.vue';
+import { ref, onMounted, computed } from "vue";
+import TaskService from "@/services/Task.service";
+import AvatarGroup from "./AvatarGroup.vue";
 
 const props = defineProps({
   projectId: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const tasks = ref([]);
@@ -94,15 +103,15 @@ const timelineEnd = ref(null);
 const getDaysDiff = (d1, d2) => {
   const date1 = new Date(d1);
   const date2 = new Date(d2);
-  date1.setHours(0,0,0,0);
-  date2.setHours(0,0,0,0);
+  date1.setHours(0, 0, 0, 0);
+  date2.setHours(0, 0, 0, 0);
   return Math.round((date2 - date1) / 86400000);
 };
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '';
+  if (!dateStr) return "";
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString("vi-VN", { day: "numeric", month: "short" });
 };
 
 const calendarData = computed(() => {
@@ -112,24 +121,29 @@ const calendarData = computed(() => {
 
   const days = [];
   const months = [];
-  
   let currentDate = new Date(timelineStart.value);
   const endDate = new Date(timelineEnd.value);
-  
-  let currentMonthLabel = '';
+
+  let currentMonthLabel = "";
   let currentMonthWidth = 0;
+
+  const weekdayVN = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
   while (currentDate <= endDate) {
     const fullDate = new Date(currentDate);
 
     days.push({
-      label: fullDate.toLocaleDateString('en-US', { weekday: 'narrow' }),
+      label: weekdayVN[fullDate.getDay()],
+      dayNumber: fullDate.getDate(),
       date: fullDate,
-      isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
-      isToday: fullDate.toDateString() === new Date().toDateString()
+      isWeekend: fullDate.getDay() === 0 || fullDate.getDay() === 6,
+      isToday: fullDate.toDateString() === new Date().toDateString(),
     });
 
-    const monthLabel = currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const monthLabel = currentDate.toLocaleDateString("vi-VN", {
+      month: "short",
+      year: "numeric",
+    });
 
     if (monthLabel !== currentMonthLabel) {
       if (currentMonthLabel) {
@@ -159,27 +173,44 @@ const todayPosition = computed(() => {
 });
 
 const getBarStyle = (task) => {
-  const start = new Date(task.start_date);
-  const end = new Date(task.due_date);
-  
+  const invalid = !task.start_date || !task.due_date;
+
+  const start = invalid ? new Date(timelineStart.value) : new Date(task.start_date);
+  const end = invalid ? new Date(timelineStart.value) : new Date(task.due_date);
+
   const offsetDays = getDaysDiff(timelineStart.value, start);
   const durationDays = getDaysDiff(start, end) + 1;
 
   return {
     left: `${offsetDays * columnWidth}px`,
-    width: `${durationDays * columnWidth}px`
+    width: `${durationDays * columnWidth}px`,
+    backgroundColor: invalid ? "#ffa94d" : "#5ea2ff",
+    opacity: invalid ? 0.75 : 0.9,
+    border: invalid ? "1px dashed #ff922b" : "none",
+  };
+};
+
+const getProgressStyle = (task) => {
+  const invalid = !task.start_date || !task.due_date;
+
+  return {
+    width: (task.latest_progress || 0) + "%",
+
+    backgroundColor: invalid ? "#ff922b" : "#3b82f6",
+
+    opacity: invalid ? 0.9 : 1,
   };
 };
 
 onMounted(async () => {
   const data = await TaskService.getByProject(props.projectId);
+  tasks.value = data;
 
-  const validTasks = data.filter(t => t.start_date && t.due_date);
-  tasks.value = validTasks;
+  const tasksWithDates = data.filter(t => t.start_date && t.due_date);
 
-  if (validTasks.length > 0) {
-    const starts = validTasks.map(t => new Date(t.start_date));
-    const ends = validTasks.map(t => new Date(t.due_date));
+  if (tasksWithDates.length > 0) {
+    const starts = tasksWithDates.map(t => new Date(t.start_date));
+    const ends = tasksWithDates.map(t => new Date(t.due_date));
 
     timelineStart.value = new Date(Math.min(...starts));
     timelineEnd.value = new Date(Math.max(...ends));
@@ -202,7 +233,8 @@ onMounted(async () => {
 .gantt-container {
   display: flex;
   height: calc(100vh - 100px);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
   font-size: 13px;
   overflow: hidden;
 }
@@ -230,9 +262,27 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 
-.col-task { flex: 1; padding-left: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px;}
-.col-assignee { width: 80px; display: flex; justify-content: center; }
-.col-date { width: 80px; text-align: right; padding-right: 15px; color: #949ba4; }
+.col-task {
+  flex: 1;
+  padding-left: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.col-assignee {
+  width: 80px;
+  display: flex;
+  justify-content: center;
+}
+.col-date {
+  width: 80px;
+  text-align: right;
+  padding-right: 15px;
+  color: #949ba4;
+}
 
 .gantt-timeline {
   flex: 1;
@@ -247,25 +297,25 @@ onMounted(async () => {
   z-index: 10;
 }
 
-.header-months {
-  display: flex;
+.header-dates {
+  display: grid;
   height: 30px;
 }
-.month-block {
-  padding-left: 8px;
+.date-block {
+  width: 40px;
+  text-align: center;
   line-height: 30px;
-  font-weight: 600;
   color: #949ba4;
-  box-sizing: border-box;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .header-days {
-  display: flex;
+  display: grid;
   height: 30px;
 }
 .day-block {
   width: 40px;
-  flex-shrink: 0;
   text-align: center;
   line-height: 30px;
   color: #949ba4;
@@ -279,7 +329,10 @@ onMounted(async () => {
 .grid-background {
   display: flex;
   position: absolute;
-  top: 0; bottom: 0; left: 0; right: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   pointer-events: none;
 }
 .grid-column {
@@ -290,8 +343,6 @@ onMounted(async () => {
 .timeline-row {
   height: 40px;
   position: relative;
-  border-bottom: 1px solid transparent;
-  margin-top: 1px;
 }
 
 .task-bar {
@@ -303,7 +354,7 @@ onMounted(async () => {
   opacity: 0.9;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .task-bar:hover {
@@ -314,6 +365,22 @@ onMounted(async () => {
   height: 100%;
   background-color: #3b82f6;
   border-radius: 4px 0 0 4px;
+}
+
+.task-bar-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .today-marker-line {

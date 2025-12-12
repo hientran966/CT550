@@ -276,7 +276,7 @@
             <el-tabs v-model="rightTab" style="height: 100%; padding-left: 10px;">
               <el-tab-pane label="Bình luận" name="comment">
                 <el-card style="height: 100%; border: 0; width: 100%;">
-                  <div class="list">
+                  <div class="comment-list">
                     <div v-for="comment in comments" :key="comment.id" class="item">
                       <div class="user-name">{{ comment.user.name }}</div>
                       <div class="detail-text">{{ comment.content }}</div>
@@ -304,7 +304,7 @@
 
               <el-tab-pane label="Hoạt động" name="activity">
                 <el-card style="height: 100%; border: 0; width: 100%;">
-                  <div class="list">
+                  <div class="activity-list">
                     <div
                       v-for="activity in activities"
                       :key="activity.id"
@@ -588,6 +588,11 @@ onMounted(async () => {
   socket.on("task_updated", async () => {
     await loadData();
   });
+
+  socket.on("file", async () => {
+    await loadData();
+  });
+
   socket.on("git_push", async () => {
    await loadData();
   });
@@ -713,11 +718,17 @@ watch(
   margin-top: 12px;
   color: #888;
 }
-.list {
+.comment-list {
   overflow-y: auto;
   margin-bottom: 12px;
   min-height: 270px;
   max-height: 270px;
+}
+.activity-list {
+  overflow-y: auto;
+  margin-bottom: 12px;
+  min-height: 380px;
+  max-height: 380px;
 }
 .item:hover {
   background-color: #f5f5f5;

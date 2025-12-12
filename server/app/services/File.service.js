@@ -173,7 +173,7 @@ class FileService {
 
       // Kiểm tra file tồn tại
       const [fileRows] = await connection.execute(
-        "SELECT id FROM files WHERE id = ? AND deleted_at IS NULL",
+        "SELECT id, project_id FROM files WHERE id = ? AND deleted_at IS NULL",
         [fileId]
       );
       if (fileRows.length === 0) {
@@ -202,6 +202,15 @@ class FileService {
       );
 
       await connection.commit();
+
+      if (fileRows.project_id) {
+        sendToProject(fileRows.project_id, "file", {
+          action: "update",
+          data: {
+            ...fileData,
+          },
+        });
+      }
 
       const baseUrl = process.env.BASE_URL || "http://localhost:3000";
       return {
