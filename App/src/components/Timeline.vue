@@ -42,7 +42,7 @@ const props = defineProps({
 
 const tasks = ref([]);
 
-// 👉 Đảm bảo không bị lệch múi giờ
+// Đảm bảo không bị lệch múi giờ
 const currentDate = ref(formatLocalDate(new Date()));
 
 onMounted(async () => {

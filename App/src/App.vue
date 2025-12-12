@@ -104,6 +104,7 @@ onBeforeUnmount(() => {
   background-image: url("@/assets/background.jpg");
   background-size: cover;
   min-height: 100vh;
+  width: calc(100vw - 64px);
 }
 
 .el-main {

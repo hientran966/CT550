@@ -9,7 +9,7 @@
       @chat-add="chatModal = true"
     />
 
-    <div class="main-content">
+    <div class="main-content" :style="{ maxWidth: `calc(100vw - ${isExpanded ? 200 : 64}px)` }">
       <Header
         :page="'task'"
         :project-id="projectId"
@@ -34,6 +34,10 @@
 
         <Timeline
           v-else-if="activeView === 'timeline'"
+          :project-id="projectId"
+        />
+        <TaskGantt
+          v-else-if="activeView === 'gantt'"
           :project-id="projectId"
         />
         <Report v-else-if="activeView === 'report'" :project-id="projectId" />
@@ -79,11 +83,6 @@
     :task-id="selectedTask.id"
     :project-id="projectId"
   />
-  <Chatbot
-    v-if="activeView === 'kanban'"
-    :project-id="projectId"
-    :user-id="userId"
-  />
 </template>
 
 <script setup>
@@ -95,6 +94,7 @@ import { useTaskStore } from "@/stores/taskStore";
 import MemberService from "@/services/Member.service";
 import ChatService from "@/services/Chat.service";
 import OllamaService from "@/services/Ollama.service";
+import ProjectService from "@/services/Project.service";
 
 import ProjectMenu from "@/components/ProjectMenu.vue";
 import Header from "@/components/Header.vue";
@@ -108,7 +108,7 @@ import TaskForm from "@/components/TaskForm.vue";
 import ChannelForm from "@/components/ChannelForm.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
-import ProjectService from "@/services/Project.service";
+import TaskGantt from "@/components/TaskGantt.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -224,3 +224,14 @@ watch(
   }
 );
 </script>
+
+<style scoped>
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 60px);
+  background-color: #f5f6f8;
+  overflow: hidden;
+}
+</style>

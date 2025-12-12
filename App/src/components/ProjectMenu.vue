@@ -11,8 +11,13 @@
     </el-menu-item>
 
     <el-menu-item index="timeline">
-      <el-icon><Guide /></el-icon>
+      <el-icon><Calendar /></el-icon>
       <span>Lịch</span>
+    </el-menu-item>
+
+    <el-menu-item index="gantt">
+      <el-icon><Guide /></el-icon>
+      <span>Gantt</span>
     </el-menu-item>
 
     <el-menu-item index="report">
@@ -53,7 +58,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { Files, Guide, Menu, PieChart, ChatSquare, Collection } from "@element-plus/icons-vue";
+import { Files, Guide, Menu, PieChart, ChatSquare, Collection, Calendar } from "@element-plus/icons-vue";
 import ChatService from "@/services/Chat.service";
 
 const props = defineProps({
