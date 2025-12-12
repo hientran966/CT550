@@ -261,7 +261,7 @@ function columnClass(name) {
       return "column-warning";
     case "Đang Tiến Hành":
       return "column-primary";
-    case "Review":
+    case "Chờ duyệt":
       return "column-info";
     case "Đã Xong":
       return "column-success";

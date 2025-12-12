@@ -168,59 +168,78 @@ class FileService {
 
   async addVersion(fileId, payload) {
     const connection = await this.mysql.getConnection();
+    const activityService = new ActivityService(this.mysql);
+
     try {
       await connection.beginTransaction();
 
-      // Kiểm tra file tồn tại
+      // --- Kiểm tra file tồn tại ---
       const [fileRows] = await connection.execute(
-        "SELECT id, project_id FROM files WHERE id = ? AND deleted_at IS NULL",
+        "SELECT id, file_name, project_id, task_id, created_by FROM files WHERE id = ? AND deleted_at IS NULL",
         [fileId]
       );
+
       if (fileRows.length === 0) {
         throw new Error("File không tồn tại");
       }
 
-      // Lưu file vật lý
-      const file_url = await this.saveFileFromPayload(payload);
-      const fileType = path
-        .extname(payload.file_name)
-        .replace(".", "")
-        .toLowerCase();
+      const fileInfo = fileRows[0];
 
-      // Lấy version hiện tại
+      // --- Lưu file vật lý ---
+      const file_url = await this.saveFileFromPayload(payload);
+      const fileType = path.extname(payload.file_name).replace(".", "").toLowerCase();
+
+      // --- Lấy version hiện tại ---
       const [verCount] = await connection.execute(
         "SELECT COUNT(*) AS count FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
         [fileId]
       );
+
       const version = verCount[0].count + 1;
 
-      // Tạo version mới
+      // --- Tạo version mới ---
       const [verResult] = await connection.execute(
         `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-        VALUES (?, ?, ?, ?, 'Hoạt động')`,
+          VALUES (?, ?, ?, ?, 'Hoạt động')`,
         [fileId, version, file_url, fileType]
       );
 
-      await connection.commit();
-
-      if (fileRows.project_id) {
-        sendToProject(fileRows.project_id, "file", {
-          action: "update",
-          data: {
-            ...fileData,
-          },
-        });
-      }
+      const versionId = verResult.insertId;
 
       const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-      return {
-        id: verResult.insertId,
+
+      const versionData = {
+        id: versionId,
         file_id: fileId,
         version_number: version,
         file_url: `${baseUrl}/${file_url.replace(/\\/g, "/")}`,
         file_type: fileType,
         status: "Hoạt động",
       };
+
+      // --- Gửi socket cập nhật ---
+      if (fileInfo.project_id) {
+        sendToProject(fileInfo.project_id, "file", {
+          action: "update",
+          data: {
+            file_id: fileId,
+            version: versionData,
+          },
+        });
+      }
+
+      // --- Ghi activity vào task ---
+      if (fileInfo.task_id) {
+        await activityService.create({
+          task_id: fileInfo.task_id,
+          actor_id: fileInfo.created_by ?? null,
+          detail: `Thêm phiên bản mới cho file: ${fileInfo.file_name}`,
+        }, connection);
+      }
+
+      await connection.commit();
+
+      return versionData;
     } catch (err) {
       await connection.rollback();
       throw err;
@@ -326,22 +345,22 @@ class FileService {
             SELECT 
                 f.*,
                 (
-                    SELECT JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                            'id', fv.id,
-                            'file_id', fv.file_id,
-                            'version_number', fv.version_number,
-                            'file_url', fv.file_url,
-                            'file_type', fv.file_type,
-                            'status', fv.status
-                        )
-                    )
-                    FROM file_versions fv
-                    WHERE fv.file_id = f.id
-                ) AS versions
-            FROM files f
-            WHERE f.deleted_at IS NULL
-        `;
+                  SELECT JSON_OBJECT(
+                      'id', fv.id,
+                      'file_id', fv.file_id,
+                      'version_number', fv.version_number,
+                      'file_url', fv.file_url,
+                      'file_type', fv.file_type,
+                      'status', fv.status
+                  )
+                  FROM file_versions fv
+                  WHERE fv.file_id = f.id
+                  ORDER BY fv.version_number DESC
+                  LIMIT 1
+                ) AS latest_version
+              FROM files f
+              WHERE f.deleted_at IS NULL
+          `;
 
     const params = [];
 
@@ -372,22 +391,19 @@ class FileService {
     const [rows] = await this.mysql.execute(sql, params);
 
     const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+
     for (const file of rows) {
-      if (typeof file.versions === "string") {
+      if (typeof file.latest_version === "string") {
         try {
-          file.versions = JSON.parse(file.versions);
+          file.latest_version = JSON.parse(file.latest_version);
         } catch (err) {
-          file.versions = [];
+          file.latest_version = null;
         }
       }
 
-      if (Array.isArray(file.versions)) {
-        file.versions = file.versions.map((v) => ({
-          ...v,
-          file_url: v.file_url
-            ? `${baseUrl}/${v.file_url.replace(/\\/g, "/")}`
-            : null,
-        }));
+      if (file.latest_version && file.latest_version.file_url) {
+        file.latest_version.file_url =
+          `${baseUrl}/${file.latest_version.file_url.replace(/\\/g, "/")}`;
       }
     }
     return rows;
@@ -395,9 +411,18 @@ class FileService {
 
   async findVersion(id) {
     const [rows] = await this.mysql.execute(
-      "SELECT * FROM file_versions WHERE file_id = ? AND deleted_at IS NULL",
+      "SELECT * FROM file_versions WHERE file_id = ? AND deleted_at IS NULL ORDER BY version_number ASC",
       [id]
     );
+
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+
+    for (const v of rows) {
+      if (v.file_url) {
+        v.file_url = `${baseUrl}/${v.file_url.replace(/\\/g, "/")}`;
+      }
+    }
+
     return rows;
   }
 

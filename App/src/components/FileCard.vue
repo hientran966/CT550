@@ -40,12 +40,12 @@
     <template #footer>
       <div class="footer-wrapper">
         <el-tag
-          v-if="versionCount > 1"
+          v-if="props.file.latest_version.version_number > 1"
           type="primary"
           size="small"
           effect="plain"
         >
-          V{{ versionCount }}
+          V{{ latestVersion.version_number }}
         </el-tag>
 
         <div class="file-name" :title="file.file_name">
@@ -73,14 +73,8 @@ const props = defineProps({
 const router = useRouter();
 
 const latestVersion = computed(() => {
-  const versions = props.file?.versions;
-  if (!versions?.length) return null;
-  return versions.reduce((a, b) =>
-    a.version_number > b.version_number ? a : b
-  );
+  return props.file?.latest_version || null;
 });
-
-const versionCount = computed(() => props.file?.versions?.length || 0);
 
 const fileType = computed(() => {
   const ext =

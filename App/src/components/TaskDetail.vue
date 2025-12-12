@@ -254,7 +254,7 @@
 
             <!-- File Upload -->
             <el-button
-              v-if="canEdit"
+              v-if="canUpdate"
               style="margin-top: 16px"
               plain
               :icon="Upload"
@@ -368,7 +368,7 @@ const visible = computed({
 let socket;
 
 const uploadRef = ref(false);
-const formRef = ref(false);
+const rightTab = ref("comment");
 const editRow = ref(null);
 const editCache = ref({});
 const task = ref({});

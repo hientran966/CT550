@@ -8,14 +8,14 @@
 
           <div style="display: flex; align-items: center; gap: 8px">
             <el-select
-              v-if="file?.versions?.length"
+              v-if="fileVersions?.length"
               v-model="selectedVersionId"
               placeholder="Chọn phiên bản"
               size="small"
               style="width: 160px"
             >
               <el-option
-                v-for="v in file.versions"
+                v-for="v in fileVersions"
                 :key="v.id"
                 :label="'Version ' + v.version_number"
                 :value="v.id"
@@ -186,8 +186,11 @@ const roleStore = useRoleStore();
 const fileStore = useFileStore();
 
 const file = computed(() => props.file);
+const fileVersions = computed(() =>
+  fileStore.getFileVersions(props.file.id)
+);
 const currentVersion = computed(() =>
-  file.value?.versions?.find((v) => v.id === selectedVersionId.value)
+  fileVersions.value.find(v => v.id === selectedVersionId.value)
 );
 const fileType = computed(() => {
   const ext =
@@ -375,7 +378,7 @@ const showVisual = (comment) => {
   activeVisualCommentId.value = comment.id;
 };
 
-// --- UPLOAD VERSION ---
+// --- VERSION ---
 const handleUploadVersion = async () => {
   if (!canUploadVersion.value) {
     ElMessage.warning("Bạn không có quyền upload file cho task này");
@@ -384,20 +387,25 @@ const handleUploadVersion = async () => {
   uploadRef.value = true;
 };
 
+const initSelectedVersion = () => {
+  if (fileVersions.value.length)
+    selectedVersionId.value = fileVersions.value.at(-1).id;
+  else
+    selectedVersionId.value = null;
+};
+
 // --- WATCH + SOCKET ---
-watch(
-  () => file.value,
-  (newFile) => {
-    if (newFile?.versions?.length)
-      selectedVersionId.value = newFile.versions.at(-1).id;
-    else selectedVersionId.value = null;
-  },
-  { immediate: true }
-);
+watch(fileVersions, () => initSelectedVersion(), { immediate: true });
 watch(selectedVersionId, (val) => val && loadComments());
+watch(() => props.file.id, async (newId) => {
+  if (!newId) return;
+  await fileStore.loadFileVersions(newId);
+  initSelectedVersion();
+});
 
 onMounted(async () => {
-  await loadComments();
+  await fileStore.loadFileVersions(props.file.id);
+  initSelectedVersion();
 
   canUploadVersion.value = await roleStore.canUpdateFileVersion(
     file.value.id,
@@ -412,8 +420,9 @@ onMounted(async () => {
     }
   });
 
-  socket.on("file", async (event) => {
+  socket.on("file", async () => {
     await loadComments();
+    await fileStore.loadFileVersions(props.file.id);
   });
 
   const observer = new ResizeObserver(() => updateCanvasSize());
