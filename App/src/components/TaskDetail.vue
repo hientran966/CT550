@@ -251,48 +251,6 @@
                 </template>
               </el-table-column>
             </el-table>
-            <!-- SUBTASK TABLE -->
-            <template>
-              <div>
-                <p>Subtask</p>
-                <el-button
-                  type="primary"
-                  size="small"
-                  style="margin-top: 8px"
-                  :icon="Plus"
-                  @click="addSubtask"
-                />
-              </div>
-              <el-table
-                v-if="task.subtasks?.length"
-                :data="task.subtasks || []"
-                border
-                style="width: 100%"
-              >
-                <el-table-column prop="title" label="Tiêu đề" />
-                <el-table-column prop="start_date" label="Ngày bắt đầu" />
-                <el-table-column prop="due_date" label="Ngày kết thúc" />
-                <el-table-column prop="status" label="Trạng thái">
-                  <template #default="{ row }">
-                    <el-select
-                      v-model="row.status"
-                      size="small"
-                      @change="updateSubtaskStatus(row)"
-                    >
-                      <el-option label="Đang chờ" value="todo" />
-                      <el-option label="Đang tiến hành" value="in_progress" />
-                      <el-option label="Hoàn thành" value="done" />
-                    </el-select>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <TaskForm
-                v-model="formRef"
-                :project-id="props.projectId"
-                :parent-id="props.taskId"
-                @task-added="() => taskStore.loadTasks(projectId)"
-              />
-            </template>
 
             <!-- File Upload -->
             <el-button
@@ -572,18 +530,6 @@ const saveEdit = async (key) => {
 
   editRow.value = null;
   ElMessage.success("Đã lưu thay đổi");
-};
-
-// SUBTASK
-const updateSubtaskStatus = async (subtask) => {
-  await taskStore.updateStatus(props.projectId, {
-    ...subtask,
-  });
-  await loadData();
-};
-
-const addSubtask = async () => {
-  formRef.value = true;
 };
 
 // UPLOAD

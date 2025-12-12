@@ -149,6 +149,7 @@
     </div>
   </div>
   <UserForm
+    v-if="userLoaded"
     v-model="editModalVisible"
     :user="user"
     @saved="handleUserSaved"
@@ -174,8 +175,9 @@ const router = useRouter();
 const projectStore = useProjectStore();
 const inviteStore = useInviteStore();
 
-const user = ref({ id: "", name: "" });
+const user = ref({ id: "", name: "", email: "", role: "" });
 const avatar = ref("");
+const userLoaded = ref(false);
 const hovering = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(7);
@@ -210,6 +212,7 @@ function statusType(status) {
 }
 
 function openEditModal() {
+  if (!userLoaded.value) return;
   editModalVisible.value = true;
 }
 
@@ -271,6 +274,7 @@ async function uploadAvatar({ file }) {
 async function loadData() {
   try {
     const data = await AccountService.getCurrentUser();
+    console.log("User data loaded:", data);
     Object.assign(user.value, data);
 
     if (user.value.id) {
@@ -283,6 +287,8 @@ async function loadData() {
 
       await Promise.all([projectStore.fetchProjects(), inviteStore.fetchInvites()]);
     }
+
+    userLoaded.value = true;
   } catch (err) {
     console.error("Không lấy được thông tin người dùng:", err);
   }

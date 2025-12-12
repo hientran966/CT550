@@ -2,7 +2,7 @@
   <el-dialog
     :title="'Chỉnh sửa thông tin'"
     v-model="visible"
-    width="450px"
+    width="500px"
     :before-close="handleClose"
     :close-on-click-modal="false"
   >
@@ -31,7 +31,7 @@
       </div>
 
       <!-- Form thông tin -->
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="150px">
         <el-form-item label="Tên người dùng" prop="name">
           <el-input v-model="form.name" placeholder="Tên người dùng" />
         </el-form-item>
@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { UploadFilled } from "@element-plus/icons-vue";
 import AuthService from "@/services/Account.service";
@@ -138,26 +138,23 @@ const visible = computed({
   set: (val) => emit("update:modelValue", val),
 });
 
-watch(
-  () => props.user,
-  (val) => {
-    if (val) {
-      form.id = val.id;
-      form.name = val.name || "";
-      form.email = val.email || "";
-      form.role = val.role || "user";
-      loadAvatar(val.id);
-    }
-  },
-  { immediate: true }
-);
-
 async function loadAvatar(userId) {
   try {
     const res = await FileService.getAvatar(userId);
     avatar.value = res?.file_url || defaultAvatar;
   } catch {
     avatar.value = defaultAvatar;
+  }
+};
+
+function loadUser(user) {
+  if (user) {
+    console.log("Loading user into form:", user);
+    form.id = user.id;
+    form.name = user.name || "";
+    form.email = user.email || "";
+    form.role = user.role || "user";
+    loadAvatar(user.id);
   }
 }
 
@@ -201,6 +198,8 @@ async function uploadAvatar({ file }) {
       ElMessage.success("Cập nhật ảnh đại diện thành công!");
       emit("saved", { ...form });
     }
+
+    visible.value = false;
   } catch (err) {
     console.error("Upload avatar lỗi:", err);
     ElMessage.error("Tải ảnh lên thất bại!");
@@ -221,8 +220,19 @@ async function submit() {
         email: form.email,
         role: form.role,
       });
+
+      const updatedUser = {
+        ...props.user,
+        name: form.name,
+        email: form.email,
+        role: form.role,
+      };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      window.dispatchEvent(new Event("auth-changed"));
+
       ElMessage.success("Cập nhật thành công");
-      emit("saved", { ...form });
+      emit("saved", updatedUser);
       handleClose();
     } catch (err) {
       console.error(err);
@@ -266,6 +276,22 @@ async function submitPassword() {
     passwordLoading.value = false;
   }
 }
+
+watch(
+  () => props.user,
+  (val) => {
+    if (visible.value && val && val.id) {
+      loadUser(val);
+    }
+  },
+  { immediate: false }
+);
+
+onMounted(() => {
+  if (props.user) {
+    loadUser(props.user);
+  }
+});
 </script>
 
 <style scoped>

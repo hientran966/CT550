@@ -14,7 +14,6 @@ class TaskService {
   async extractTaskData(payload) {
     return {
       project_id: payload.project_id,
-      parent_task_id: payload.parent_task_id ?? null,
       title: payload.title,
       description: payload.description ?? null,
       status: payload.status ?? "todo",
@@ -23,40 +22,6 @@ class TaskService {
       due_date: payload.due_date ?? null,
       created_by: payload.created_by ?? null,
     };
-  }
-
-  /** ===================== TÍNH LẠI TIẾN ĐỘ CHA ===================== **/
-  async recalculateParentProgress(conn, parentTaskId, actorId = null) {
-    const [parentRows] = await conn.execute(
-      `SELECT id, title, project_id FROM tasks WHERE id = ? AND deleted_at IS NULL`,
-      [parentTaskId]
-    );
-    const parent = parentRows[0];
-
-    // Lấy danh sách task con
-    const [subs] = await conn.execute(
-      `SELECT id, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
-      [parentTaskId]
-    );
-
-    if (!subs.length) {
-      await conn.execute(
-        `INSERT INTO progress_logs (task_id, progress, updated_by)
-         VALUES (?, 0, ?)`,
-        [parentTaskId, actorId ?? 0]
-      );
-      return;
-    }
-
-    const doneCount = subs.filter((s) => s.status === "done").length;
-    const avgProgress = (doneCount / subs.length) * 100;
-
-    // Ghi log tiến độ cha
-    await conn.execute(
-      `INSERT INTO progress_logs (task_id, progress, updated_by)
-       VALUES (?, ?, ?)`,
-      [parentTaskId, avgProgress, actorId ?? 0]
-    );
   }
 
   formatField(keys) {
@@ -84,8 +49,8 @@ class TaskService {
       await connection.beginTransaction();
 
       const [result] = await connection.execute(
-        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, parent_task_id, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (title, description, start_date, due_date, created_by, project_id, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           task.title,
           task.description,
@@ -93,22 +58,12 @@ class TaskService {
           task.due_date,
           task.created_by,
           task.project_id,
-          task.parent_task_id,
           payload.status ?? "todo",
         ]
       );
 
       const taskId = result.insertId;
       const newTask = { id: taskId, ...task };
-
-      // Nếu là task con → cập nhật tiến độ cha
-      if (payload.parent_task_id) {
-        await this.recalculateParentProgress(
-          connection,
-          payload.parent_task_id,
-          task.created_by
-        );
-      }
 
       // Gán người thực hiện
       if (Array.isArray(payload.members) && payload.members.length > 0) {
@@ -173,21 +128,13 @@ class TaskService {
       ) AS latest_activity
 
     FROM tasks t
-    WHERE t.deleted_at IS NULL AND t.parent_task_id IS NULL
+    WHERE t.deleted_at IS NULL
     `;
 
     const params = [];
     if (filter.project_id) {
       sql += " AND t.project_id = ?";
       params.push(filter.project_id);
-    }
-    if (filter.parent_task_id !== undefined) {
-      if (filter.parent_task_id === null)
-        sql += " AND t.parent_task_id IS NULL";
-      else {
-        sql += " AND t.parent_task_id = ?";
-        params.push(filter.parent_task_id);
-      }
     }
     if (filter.status) {
       sql += " AND t.status = ?";
@@ -203,12 +150,6 @@ class TaskService {
     const [rows] = await this.mysql.execute(sql, params);
 
     for (const row of rows) {
-      const [subs] = await this.mysql.execute(
-        `SELECT id, title, status FROM tasks WHERE parent_task_id = ? AND deleted_at IS NULL`,
-        [row.id]
-      );
-      if (subs.length > 0) row.subtasks = subs;
-
       if (typeof row.latest_activity === "string") {
         try {
           row.latest_activity = JSON.parse(row.latest_activity);
@@ -270,14 +211,6 @@ class TaskService {
           params
         );
 
-      if (oldTask.parent_task_id) {
-        await this.recalculateParentProgress(
-          conn,
-          oldTask.parent_task_id,
-          data.updated_by ?? null
-        );
-      }
-
       await this.activityService.create(
         {
           task_id: id,
@@ -304,7 +237,7 @@ class TaskService {
       await connection.beginTransaction();
 
       const [rows] = await connection.execute(
-        `SELECT id, title, project_id, parent_task_id FROM tasks WHERE id = ? AND deleted_at IS NULL`,
+        `SELECT id, title, project_id FROM tasks WHERE id = ? AND deleted_at IS NULL`,
         [id]
       );
       const task = rows[0];
@@ -315,14 +248,6 @@ class TaskService {
         deletedAt,
         id,
       ]);
-
-      if (task.parent_task_id) {
-        await this.recalculateParentProgress(
-          connection,
-          task.parent_task_id,
-          actorId
-        );
-      }
 
       await connection.commit();
 
@@ -372,7 +297,7 @@ class TaskService {
       await connection.beginTransaction();
 
       const [rows] = await connection.execute(
-        `SELECT id, title, project_id, parent_task_id
+        `SELECT id, title, project_id
          FROM tasks WHERE id = ? AND deleted_at IS NULL`,
         [taskId]
       );

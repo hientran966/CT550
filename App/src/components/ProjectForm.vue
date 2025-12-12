@@ -142,7 +142,7 @@ const newMember = reactive({
 });
 
 const rules = {
-  title: [{ required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" }],
+  name: [{ required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" }],
   start_date: [
     { required: true, message: "Ngày bắt đầu là bắt buộc", trigger: "change" },
   ],

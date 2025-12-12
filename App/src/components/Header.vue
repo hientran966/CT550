@@ -28,7 +28,7 @@
         >
           <strong>Thêm mới</strong>
         </el-button>
-        <AiTaskGen v-model:visible="aiGenVisible" @generate="emit('ai-gen', $event)">
+        <AiTaskGen v-if="props.page === 'task'" v-model:visible="aiGenVisible" @generate="emit('ai-gen', $event)">
           <template #trigger>
             <el-button
               type="primary"
