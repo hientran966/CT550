@@ -176,17 +176,11 @@ const connectGitHub = () => GitHubService.connectApp(projectId);
 const saveManualInstall = async () => {
   if (!manualInstallId.value)
     return ElMessage.warning("Vui lòng nhập Installation ID!");
-  try {
-    await GitHubService.linkInstallation(projectId, manualInstallId.value);
-    ElMessage.success("Đã liên kết installation thành công!");
-    dialogVisible.value = false;
-    await fetchInstallation();
-  } catch (err) {
-    ElMessage.error(
-      "Lỗi khi lưu installation: " +
-        (err.response?.data?.message || err.message)
-    );
-  }
+
+  await GitHubService.linkInstallation(projectId, manualInstallId.value);
+  ElMessage.success("Đã liên kết installation thành công!");
+  dialogVisible.value = false;
+  await fetchInstallation();
 };
 
 const fetchInstallation = async () => {
@@ -264,15 +258,9 @@ const unlinkInstall = async () => {
 };
 
 const saveSelectedRepos = async (repos) => {
-  try {
-    await GitHubService.saveProjectRepos(projectId, repos);
-    ElMessage.success("Đã lưu danh sách repo!");
-    await fetchProjectRepos();
-  } catch (err) {
-    ElMessage.error(
-      "Lỗi lưu repo: " + (err.response?.data?.message || err.message)
-    );
-  }
+  await GitHubService.saveProjectRepos(projectId, repos);
+  ElMessage.success("Đã lưu danh sách repo!");
+  await fetchProjectRepos();
 };
 
 onMounted(async () => {

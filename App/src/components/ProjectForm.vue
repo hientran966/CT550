@@ -40,6 +40,10 @@
           v-model="form.end_date"
           type="date"
           placeholder="Chọn ngày kết thúc"
+          :disabled-date="
+            (date) =>
+                (form.start_date && date < new Date(form.start_date))
+          "
           style="width: 100%;"
         />
       </el-form-item>

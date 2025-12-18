@@ -65,6 +65,10 @@
               size="small"
               @change="stopEditing"
               @click.stop=""
+              :disabled-date="
+                (date) =>
+                    (row.start_date && date < new Date(row.start_date))
+              "
             />
           </template>
           <template v-else>

@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
 // Import routes
 app.use("/api/auth", authRouter);
 
-// app.use(verifyToken); //Tắt để test API
+app.use(verifyToken);
 app.use("/api/projects", projectRouter);
 app.use("/api/members", memberRouter);
 app.use("/api/tasks", taskRouter);
@@ -58,10 +58,19 @@ app.use((req, res, next) => {
 
 //error handling
 app.use((err, req, res, next) => {
-    //
-    return res.status(err.statusCode || 500).json({
-        message: err.message || "Internal Server Error",
+  if (err.code === "GITHUB_INSTALLATION_INVALID") {
+    return res.status(400).json({
+      message: err.message,
+      code: err.code,
     });
+  }
+
+  console.error("Unhandled error:", err);
+
+  res.status(500).json({
+    message: "Internal server error",
+  });
 });
+
 
 module.exports = app;

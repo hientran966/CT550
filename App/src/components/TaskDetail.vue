@@ -190,12 +190,14 @@
                         type="date"
                         placeholder="Bắt đầu"
                         size="small"
+                        :disabled-date="disableStartDate"
                       />
                       <el-date-picker
                         v-model="editCache.due_date"
                         type="date"
                         placeholder="Kết thúc"
                         size="small"
+                        :disabled-date="disableDueDate"
                       />
                     </template>
 
@@ -346,6 +348,7 @@ import TaskForm from "./TaskForm.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
 
+import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useFileStore } from "@/stores/fileStore";
 import { useActivityStore } from "@/stores/activityStore";
@@ -377,6 +380,7 @@ const newComment = ref("");
 const canEdit = ref(false);
 const canUpdate = ref(false);
 
+const projectStore = useProjectStore();
 const taskStore = useTaskStore();
 const fileStore = useFileStore();
 const activityStore = useActivityStore();
@@ -388,6 +392,9 @@ const { getFilesByTask } = storeToRefs(fileStore);
 const { getActivitysByTask } = storeToRefs(activityStore);
 const { getCommentsByTask } = storeToRefs(commentStore);
 
+const project = computed(() =>
+  projectStore.projects.find(p => p.id === props.projectId)
+);
 const files = computed(() => getFilesByTask.value(task.value.id) || []);
 const activities = computed(
   () => getActivitysByTask.value(task.value.id) || []
@@ -425,6 +432,38 @@ async function checkRole() {
 }
 
 // EDIT TASK
+const toDate = (d) => {
+  if (!d) return null;
+  return d instanceof Date ? d : new Date(d);
+};
+
+const disableStartDate = (date) => {
+  if (!project.value) return false;
+
+  const projectStart = toDate(project.value.start_date);
+  const projectEnd = toDate(project.value.end_date);
+
+  return (
+    date < projectStart ||
+    date > projectEnd
+  );
+};
+
+const disableDueDate = (date) => {
+  if (!project.value) return false;
+
+  const projectStart = toDate(project.value.start_date);
+  const projectEnd = toDate(project.value.end_date);
+
+  if (date < projectStart || date > projectEnd) return true;
+
+  if (editCache.value.start_date) {
+    return date < toDate(editCache.value.start_date);
+  }
+
+  return false;
+};
+
 const startEditTitle = () => {
   if (!canEdit.value) return ElMessage.warning("Bạn không có quyền chỉnh sửa tiêu đề");
   editRow.value = "title";
@@ -442,6 +481,8 @@ const saveTitle = async () => {
   };
 
   await taskStore.updateTask(props.projectId, payload);
+
+  await loadData();
 
   editRow.value = null;
   ElMessage.success("Đã cập nhật tiêu đề");
@@ -465,6 +506,8 @@ const saveDescription = async () => {
   };
 
   await taskStore.updateTask(props.projectId, payload);
+
+  await loadData();
 
   editRow.value = null;
   ElMessage.success("Đã cập nhật mô tả");
@@ -492,21 +535,40 @@ const saveEdit = async (key) => {
   };
 
   if (key === "date") {
-    const updates = {};
+    if (!project.value) {
+      ElMessage.error("Không xác định được thời gian dự án");
+      return;
+    }
 
-    const newStart = toMySQLDate(editCache.value.start_date);
-    const newDue = toMySQLDate(editCache.value.due_date);
+    const projectStart = toDate(project.value.start_date);
+    const projectEnd = toDate(project.value.end_date);
+
+    const newStart = toDate(editCache.value.start_date);
+    const newDue = toDate(editCache.value.due_date);
+
+    if (
+      (newStart && (newStart < projectStart || newStart > projectEnd)) ||
+      (newDue && (newDue < projectStart || newDue > projectEnd))
+    ) {
+      return ElMessage.error(
+        `Thời gian task phải nằm trong khoảng ${project.value.start_date} → ${project.value.end_date}`
+      );
+    }
+
+    if (newStart && newDue && newDue < newStart) {
+      return ElMessage.error("Ngày kết thúc phải ≥ ngày bắt đầu");
+    }
+
+    const updates = {};
 
     const oldStart = toMySQLDate(task.value.start_date);
     const oldDue = toMySQLDate(task.value.due_date);
 
-    if (newStart !== oldStart) {
-      updates.start_date = newStart;
-    }
+    const startSQL = toMySQLDate(newStart);
+    const dueSQL = toMySQLDate(newDue);
 
-    if (newDue !== oldDue) {
-      updates.due_date = newDue;
-    }
+    if (startSQL !== oldStart) updates.start_date = startSQL;
+    if (dueSQL !== oldDue) updates.due_date = dueSQL;
 
     if (Object.keys(updates).length === 0) {
       ElMessage.info("Không có thay đổi nào");
@@ -527,6 +589,7 @@ const saveEdit = async (key) => {
   }
 
   await taskStore.updateTask(props.projectId, payload);
+  await loadData();
 
   editRow.value = null;
   ElMessage.success("Đã lưu thay đổi");
@@ -617,6 +680,7 @@ watch(
       await checkRole();
       editRow.value = null;
       editCache.value = {};
+      rightTab.value = "comment";
     }
   }
 );

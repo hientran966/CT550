@@ -1,115 +1,216 @@
 const GitHubService = require("../services/Github.service");
 
 class GitHubController {
-  // callback khi cài đặt app
+  /* ================= CALLBACK ================= */
+
   async callback(req, res) {
-    const { installation_id, state } = req.query;
-    const projectId = state;
+    try {
+      const { installation_id, state } = req.query;
+      const projectId = state;
 
-    if (!installation_id)
-      return res.status(400).json({ message: "Missing installation_id" });
+      if (!installation_id) {
+        return res.status(400).json({ message: "Missing installation_id" });
+      }
 
-    await GitHubService.saveInstallation(installation_id, "unknown_user");
-    if (projectId) {
-      await GitHubService.linkInstallationToProject(projectId, installation_id);
+      await GitHubService.saveInstallation(installation_id, "unknown_user");
+
+      if (projectId) {
+        const result = await GitHubService.linkInstallationToProject(
+          projectId,
+          installation_id
+        );
+
+        if (result instanceof Error) {
+          return res.status(400).json({ message: result.message });
+        }
+      }
+
+      const frontendUrl =
+        process.env.FRONTEND_URL || "http://localhost:3001";
+
+      res.redirect(
+        `${frontendUrl}/git?connected=true&project=${projectId}`
+      );
+    } catch (err) {
+      console.error("GitHub callback error:", err);
+      res.status(500).json({ message: "Internal server error" });
     }
-
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3001";
-    res.redirect(`${frontendUrl}/git?connected=true&project=${projectId}`);
   }
 
-  // gán installation cho project
+  /* ================= LINK ================= */
+
   async linkInstallation(req, res) {
-    const { projectId, installationId } = req.params;
-    await GitHubService.linkInstallationToProject(projectId, installationId);
-    res.json({ message: "Linked successfully" });
+    try {
+      const { projectId, installationId } = req.params;
+
+      const result =
+        await GitHubService.linkInstallationToProject(
+          projectId,
+          installationId
+        );
+
+      if (result instanceof Error) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      res.json({ message: "Linked successfully" });
+    } catch (err) {
+      console.error("Link installation error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   }
 
-  // lấy installation của project
+  /* ================= GET INSTALLATION ================= */
+
   async getInstallation(req, res) {
-    const { projectId } = req.params;
-    const installation =
-      await GitHubService.getInstallationByProject(projectId);
-    if (!installation)
-      return res.status(404).json({ message: "No installation found" });
-    res.json(installation);
+    try {
+      const { projectId } = req.params;
+
+      const installation =
+        await GitHubService.getInstallationByProject(projectId);
+
+      if (!installation) {
+        return res.status(404).json({ message: "No installation found" });
+      }
+
+      res.json(installation);
+    } catch (err) {
+      console.error("Get installation error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   }
 
-  // lấy danh sách repo trong installation
+  /* ================= REPOSITORIES ================= */
+
   async listRepos(req, res) {
-    const { installationId } = req.params;
-    const repos = await GitHubService.listRepositories(installationId);
-    res.json(repos);
+    try {
+      const { installationId } = req.params;
+      const repos = await GitHubService.listRepositories(installationId);
+      res.json(repos);
+    } catch (err) {
+      console.error("List repos error:", err);
+      res.status(500).json({ message: "Cannot fetch repositories" });
+    }
   }
 
-  // lưu repo mà project chọn
   async saveProjectRepos(req, res) {
-    const { projectId } = req.params;
-    const repos = req.body.repos;
-    await GitHubService.saveProjectRepositories(projectId, repos);
-    res.json({ message: "Saved project repositories" });
+    try {
+      const { projectId } = req.params;
+      const { repos } = req.body;
+
+      await GitHubService.saveProjectRepositories(projectId, repos);
+
+      res.json({ message: "Saved project repositories" });
+    } catch (err) {
+      console.error("Save project repos error:", err);
+      res.status(500).json({ message: "Failed to save repositories" });
+    }
   }
 
-  // lấy repo mà project đang liên kết
   async getProjectRepos(req, res) {
-    const { projectId } = req.params;
-    const repos = await GitHubService.getProjectRepositories(projectId);
-    res.json(repos);
+    try {
+      const { projectId } = req.params;
+      const repos = await GitHubService.getProjectRepositories(projectId);
+      res.json(repos);
+    } catch (err) {
+      console.error("Get project repos error:", err);
+      res.status(500).json({ message: "Failed to get repositories" });
+    }
   }
 
-  // huỷ installation khỏi project
+  /* ================= UNLINK ================= */
+
   async unlinkInstallation(req, res) {
-    const { projectId } = req.params;
-    await GitHubService.unlinkInstallationFromProject(projectId);
-    res.json({ message: "Installation unlinked successfully" });
+    try {
+      const { projectId } = req.params;
+
+      const result =
+        await GitHubService.unlinkInstallationFromProject(projectId);
+
+      if (result instanceof Error) {
+        return res.status(400).json({ message: result.message });
+      }
+
+      res.json({ message: "Installation unlinked successfully" });
+    } catch (err) {
+      console.error("Unlink installation error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   }
 
-  // list files
+  /* ================= CONTENT ================= */
+
   async listRepoFiles(req, res) {
-    const { installationId, owner, repo } = req.params;
-    const path = req.params[0] || "";
-    const files = await GitHubService.listRepoFiles(
-      installationId,
-      owner,
-      repo,
-      path
-    );
-    res.json(files);
+    try {
+      const { installationId, owner, repo } = req.params;
+      const path = req.params[0] || "";
+
+      const files = await GitHubService.listRepoFiles(
+        installationId,
+        owner,
+        repo,
+        path
+      );
+
+      res.json(files);
+    } catch (err) {
+      console.error("List repo files error:", err);
+      res.status(500).json({ message: "Cannot fetch repo files" });
+    }
   }
 
-  // list commits
   async listRecentCommits(req, res) {
-    const { installationId, owner, repo } = req.params;
-    const commits = await GitHubService.listRecentCommits(
-      installationId,
-      owner,
-      repo
-    );
-    res.json(commits);
+    try {
+      const { installationId, owner, repo } = req.params;
+      const commits =
+        await GitHubService.listRecentCommits(
+          installationId,
+          owner,
+          repo
+        );
+
+      res.json(commits);
+    } catch (err) {
+      console.error("List commits error:", err);
+      res.status(500).json({ message: "Cannot fetch commits" });
+    }
   }
 
-  // list branches
   async listBranches(req, res) {
-    const { installationId, owner, repo } = req.params;
-    const branches = await GitHubService.listBranches(
-      installationId,
-      owner,
-      repo
-    );
-    res.json(branches);
+    try {
+      const { installationId, owner, repo } = req.params;
+      const branches =
+        await GitHubService.listBranches(
+          installationId,
+          owner,
+          repo
+        );
+
+      res.json(branches);
+    } catch (err) {
+      console.error("List branches error:", err);
+      res.status(500).json({ message: "Cannot fetch branches" });
+    }
   }
 
-  // list pull requests
   async listPullRequests(req, res) {
-    const { installationId, owner, repo } = req.params;
-    const state = req.query.state || "all";
-    const pulls = await GitHubService.listPullRequests(
-      installationId,
-      owner,
-      repo,
-      state
-    );
-    res.json(pulls);
+    try {
+      const { installationId, owner, repo } = req.params;
+      const state = req.query.state || "all";
+
+      const pulls =
+        await GitHubService.listPullRequests(
+          installationId,
+          owner,
+          repo,
+          state
+        );
+
+      res.json(pulls);
+    } catch (err) {
+      console.error("List pull requests error:", err);
+      res.status(500).json({ message: "Cannot fetch pull requests" });
+    }
   }
 }
 

@@ -25,12 +25,11 @@ class CommentService {
       await connection.beginTransaction();
 
       const [commentRes] = await connection.execute(
-        `INSERT INTO comments (user_id, task_id, file_id, file_version_id, content)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO comments (user_id, task_id, file_version_id, content)
+         VALUES (?, ?, ?, ?)`,
         [
           comment.user_id,
           comment.task_id,
-          comment.file_id,
           comment.file_version_id,
           comment.content,
         ]
@@ -109,10 +108,6 @@ class CommentService {
     if (filter.task_id) {
       conditions.push("c.task_id = ?");
       params.push(filter.task_id);
-    }
-    if (filter.file_id) {
-      conditions.push("c.file_id = ?");
-      params.push(filter.file_id);
     }
     if (filter.file_version_id) {
       conditions.push("c.file_version_id = ?");

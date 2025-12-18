@@ -1,6 +1,14 @@
+require("dotenv").config();
 const fetch = require("node-fetch");
 
-const OLLAMA_API = "http://localhost:11434/api/generate";
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL;
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL;
+
+if (!OLLAMA_BASE_URL || !OLLAMA_MODEL) {
+  throw new Error("Thiếu cấu hình OLLAMA trong file .env");
+}
+
+const OLLAMA_API = `${OLLAMA_BASE_URL}/api/generate`;
 
 class Ollama {
     constructor() {}
@@ -11,7 +19,7 @@ class Ollama {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "gpt-oss:20b-cloud",
+                    model: OLLAMA_MODEL,
                     prompt,
                     stream: false
                 }),

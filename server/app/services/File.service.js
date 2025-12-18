@@ -93,8 +93,8 @@ class FileService {
 
       // --- Tạo version đầu tiên ---
       const [verResult] = await connection.execute(
-        `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-                VALUES (?, 1, ?, ?, 'Hoạt động')`,
+        `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
+                VALUES (?, 1, ?, ?)`,
         [fileId, file_url, fileType]
       );
 
@@ -133,7 +133,6 @@ class FileService {
               ? `${baseUrl}/${file_url.replace(/\\/g, "/")}`
               : null,
             file_type: fileType,
-            status: "Hoạt động",
           },
         ],
       };
@@ -199,8 +198,8 @@ class FileService {
 
       // --- Tạo version mới ---
       const [verResult] = await connection.execute(
-        `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-          VALUES (?, ?, ?, ?, 'Hoạt động')`,
+        `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
+          VALUES (?, ?, ?, ?)`,
         [fileId, version, file_url, fileType]
       );
 
@@ -214,7 +213,6 @@ class FileService {
         version_number: version,
         file_url: `${baseUrl}/${file_url.replace(/\\/g, "/")}`,
         file_type: fileType,
-        status: "Hoạt động",
       };
 
       // --- Gửi socket cập nhật ---
@@ -291,8 +289,8 @@ class FileService {
         const version = verCount[0].count + 1;
 
         await connection.execute(
-          `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-         VALUES (?, ?, ?, ?, 'Hoạt động')`,
+          `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
+         VALUES (?, ?, ?, ?)`,
           [fileId, version, file_url, fileType]
         );
       } else {
@@ -304,8 +302,8 @@ class FileService {
         fileId = fileRes.insertId;
 
         await connection.execute(
-          `INSERT INTO file_versions (file_id, version_number, file_url, file_type, status)
-         VALUES (?, 1, ?, ?, 'Hoạt động')`,
+          `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
+         VALUES (?, 1, ?, ?)`,
           [fileId, file_url, fileType]
         );
       }
@@ -350,8 +348,7 @@ class FileService {
                       'file_id', fv.file_id,
                       'version_number', fv.version_number,
                       'file_url', fv.file_url,
-                      'file_type', fv.file_type,
-                      'status', fv.status
+                      'file_type', fv.file_type
                   )
                   FROM file_versions fv
                   WHERE fv.file_id = f.id
@@ -389,6 +386,8 @@ class FileService {
       params.push(filter.created_by);
     }
     const [rows] = await this.mysql.execute(sql, params);
+
+    if (rows.length === 0) return [];
 
     const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 

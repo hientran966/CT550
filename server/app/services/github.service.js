@@ -3,7 +3,23 @@ const { getInstallationAccessToken } = require("../utils/githubAuth");
 const MySQL = require("../utils/mysql.util");
 
 class GitHubService {
-  // Lưu installation khi callback từ GitHub
+  /* ================== VERIFY INSTALLATION ================== */
+
+  static async verifyInstallationId(installationId) {
+    try {
+      // Nếu tạo token được => installation tồn tại
+      await getInstallationAccessToken(installationId);
+      return true;
+    } catch (err) {
+      if (err.code === "GITHUB_INSTALLATION_INVALID") {
+        return false;
+      }
+      throw err; // lỗi khác (JWT, GitHub down...)
+    }
+  }
+
+  /* ================== INSTALLATION ================== */
+
   static async saveInstallation(installationId, accountLogin) {
     const sql = `
       INSERT INTO github_installations (installation_id, account_login)
@@ -13,7 +29,6 @@ class GitHubService {
     await MySQL.pool.query(sql, [installationId, accountLogin]);
   }
 
-  // Gán installation cho project
   static async linkInstallationToProject(
     projectId,
     installationId,
@@ -21,72 +36,86 @@ class GitHubService {
   ) {
     const conn = await MySQL.pool.getConnection();
     try {
+      const isValid = await this.verifyInstallationId(installationId);
+      if (!isValid) {
+        return new Error("GitHub installation ID không tồn tại hoặc đã bị gỡ");
+      }
+
       await conn.beginTransaction();
+
       const [exists] = await conn.query(
-        "SELECT installation_id FROM project_installations WHERE project_id = ?",
+        "SELECT 1 FROM project_installations WHERE project_id = ?",
         [projectId]
       );
-
       if (exists.length) {
-        throw new Error("This project already has an installation linked.");
+        return new Error("This project already has an installation linked.");
       }
 
       const [checkInstall] = await conn.query(
-        "SELECT id FROM github_installations WHERE installation_id = ?",
+        "SELECT 1 FROM github_installations WHERE installation_id = ?",
         [installationId]
       );
 
       if (!checkInstall.length) {
         await conn.query(
           "INSERT INTO github_installations (installation_id, account_login) VALUES (?, ?)",
-          [installationId, accountLogin || null]
+          [installationId, accountLogin]
         );
       }
 
       await conn.query(
         `INSERT INTO project_installations (project_id, installation_id)
-         VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE installation_id = VALUES(installation_id)`,
+       VALUES (?, ?)`,
         [projectId, installationId]
       );
 
       await conn.commit();
     } catch (err) {
       await conn.rollback();
-      console.error("Error linking installation to project:", err);
-      throw err;
+      return err;
     } finally {
       conn.release();
     }
   }
 
-  // Lấy installation theo project
   static async getInstallationByProject(projectId) {
     const [rows] = await MySQL.pool.query(
       `SELECT gi.installation_id, gi.account_login
        FROM github_installations gi
        JOIN project_installations pi ON gi.installation_id = pi.installation_id
-       WHERE pi.project_id = ? LIMIT 1`,
+       WHERE pi.project_id = ?
+       LIMIT 1`,
       [projectId]
     );
-    return rows.length ? rows[0] : null;
+    return rows[0] || null;
   }
 
-  // Liệt kê repository theo installation
+  /* ================== INTERNAL HELPER ================== */
+
+  static async _getValidTokenOrCleanup(installationId) {
+    try {
+      return await getInstallationAccessToken(installationId);
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  /* ================== REPOSITORIES ================== */
+
   static async listRepositories(installationId) {
-    const token = await getInstallationAccessToken(installationId);
+    const token = await this._getValidTokenOrCleanup(installationId);
+
     const res = await axios.get(
       "https://api.github.com/installation/repositories",
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      { headers: { Authorization: `Bearer ${token}` } }
     );
+
     return res.data.repositories;
   }
 
-  // Lưu các repository được chọn cho project
   static async saveProjectRepositories(projectId, repos) {
     if (!repos?.length) return;
+
     const conn = await MySQL.pool.getConnection();
     try {
       await conn.beginTransaction();
@@ -98,7 +127,8 @@ class GitHubService {
 
       for (const repo of repos) {
         await conn.query(
-          `INSERT INTO project_repositories (project_id, repo_id, full_name, html_url, is_private)
+          `INSERT INTO project_repositories
+           (project_id, repo_id, full_name, html_url, is_private)
            VALUES (?, ?, ?, ?, ?)`,
           [projectId, repo.id, repo.full_name, repo.html_url, repo.private]
         );
@@ -107,48 +137,12 @@ class GitHubService {
       await conn.commit();
     } catch (err) {
       await conn.rollback();
-      throw err;
+      return err;
     } finally {
       conn.release();
     }
   }
 
-  // Xóa installation khỏi project + các repo liên quan
-  static async unlinkInstallationFromProject(projectId) {
-    const conn = await MySQL.pool.getConnection();
-    try {
-      await conn.beginTransaction();
-
-      const [rows] = await conn.query(
-        "SELECT installation_id FROM project_installations WHERE project_id = ?",
-        [projectId]
-      );
-      if (!rows.length)
-        throw new Error("No installation found for this project");
-
-      const installationId = rows[0].installation_id;
-
-      await conn.query(
-        "DELETE FROM project_repositories WHERE project_id = ?",
-        [projectId]
-      );
-
-      await conn.query(
-        "DELETE FROM project_installations WHERE project_id = ?",
-        [projectId]
-      );
-
-      await conn.commit();
-      return { installationId };
-    } catch (err) {
-      await conn.rollback();
-      throw err;
-    } finally {
-      conn.release();
-    }
-  }
-
-  // Lấy danh sách repo mà project đang gắn
   static async getProjectRepositories(projectId) {
     const [rows] = await MySQL.pool.query(
       "SELECT * FROM project_repositories WHERE project_id = ?",
@@ -157,32 +151,40 @@ class GitHubService {
     return rows;
   }
 
-  // Lấy nội dung file từ GitHub
+  /* ================== REPO CONTENT ================== */
+
   static async listRepoFiles(installationId, owner, repo, path = "") {
-    const token = await getInstallationAccessToken(installationId);
+    const token = await this._getValidTokenOrCleanup(installationId);
+
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
     return res.data;
   }
 
   static async listRecentCommits(installationId, owner, repo, limit = 4) {
-    const token = await getInstallationAccessToken(installationId);
+    const token = await this._getValidTokenOrCleanup(installationId);
+
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${limit}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
     return res.data;
   }
 
-  // ================== BRANCHES ==================
+  /* ================== BRANCHES ================== */
+
   static async listBranches(installationId, owner, repo) {
-    const token = await getInstallationAccessToken(installationId);
+    const token = await this._getValidTokenOrCleanup(installationId);
+
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/branches`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
     return res.data.map((b) => ({
       name: b.name,
       protected: b.protected,
@@ -191,13 +193,16 @@ class GitHubService {
     }));
   }
 
-  // ================== PULL REQUESTS ==================
+  /* ================== PULL REQUESTS ================== */
+
   static async listPullRequests(installationId, owner, repo, state = "all") {
-    const token = await getInstallationAccessToken(installationId);
+    const token = await this._getValidTokenOrCleanup(installationId);
+
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/pulls?state=${state}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
     return res.data.map((pr) => ({
       id: pr.id,
       number: pr.number,
@@ -210,6 +215,40 @@ class GitHubService {
       updated_at: pr.updated_at,
       merged_at: pr.merged_at,
     }));
+  }
+
+  /* ================== UNLINK ================== */
+
+  static async unlinkInstallationFromProject(projectId) {
+    const conn = await MySQL.pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [rows] = await conn.query(
+        "SELECT installation_id FROM project_installations WHERE project_id = ?",
+        [projectId]
+      );
+      if (!rows.length) {
+        return new Error("No installation found for this project");
+      }
+
+      await conn.query(
+        "DELETE FROM project_repositories WHERE project_id = ?",
+        [projectId]
+      );
+      await conn.query(
+        "DELETE FROM project_installations WHERE project_id = ?",
+        [projectId]
+      );
+
+      await conn.commit();
+      return { installationId: rows[0].installation_id };
+    } catch (err) {
+      await conn.rollback();
+      return err;
+    } finally {
+      conn.release();
+    }
   }
 }
 

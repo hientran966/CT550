@@ -17,7 +17,7 @@
               ? 'warning'
               : column.name === 'Đang Tiến Hành'
               ? 'primary'
-              : column.name === 'Review'
+              : column.name === 'Chờ Duyệt'
               ? 'info'
               : 'success'
           "
@@ -120,14 +120,14 @@ const canDeleteMap = ref({});
 const statusMap = {
   todo: "Đang Chờ",
   in_progress: "Đang Tiến Hành",
-  review: "Review",
+  review: "Chờ Duyệt",
   done: "Đã Xong",
 };
 
 const reverseStatusMap = {
   "Đang Chờ": "todo",
   "Đang Tiến Hành": "in_progress",
-  Review: "review",
+  "Chờ Duyệt": "review",
   "Đã Xong": "done",
 };
 
@@ -140,7 +140,7 @@ const columns = computed(() => [
     name: "Đang Tiến Hành",
     tasks: props.tasks.filter((t) => t.status === "in_progress"),
   },
-  { name: "Review", tasks: props.tasks.filter((t) => t.status === "review") },
+  { name: "Chờ Duyệt", tasks: props.tasks.filter((t) => t.status === "review") },
   { name: "Đã Xong", tasks: props.tasks.filter((t) => t.status === "done") },
 ]);
 
@@ -246,7 +246,7 @@ function headerClass(name) {
       return "header-warning";
     case "Đang Tiến Hành":
       return "header-primary";
-    case "Review":
+    case "Chờ Duyệt":
       return "header-info";
     case "Đã Xong":
       return "header-success";
@@ -261,7 +261,7 @@ function columnClass(name) {
       return "column-warning";
     case "Đang Tiến Hành":
       return "column-primary";
-    case "Chờ duyệt":
+    case "Chờ Duyệt":
       return "column-info";
     case "Đã Xong":
       return "column-success";

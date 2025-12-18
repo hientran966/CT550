@@ -88,7 +88,7 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElLoading } from "element-plus";
 import { useTaskStore } from "@/stores/taskStore";
 
 import MemberService from "@/services/Member.service";
@@ -127,6 +127,7 @@ const selectedTask = ref(null);
 const detailVisible = ref(false);
 const chatModal = ref(false);
 const isExpanded = ref(true);
+const aiLoading = ref(false);
 
 const onAdd = () => (formRef.value = true);
 const openMemberList = () => (memberListRef.value = true);
@@ -165,14 +166,32 @@ function removeQueryParam(param) {
   });
 }
 
-function handleAIGen(count) {
-  OllamaService.generateTasks({
-    projectId,
-    userId: userId,
-    taskCount: count
-  }).then(() => {
-    taskStore.loadTasks(projectId);
-  });
+async function handleAIGen(count) {
+  let loadingInstance;
+  try {
+    aiLoading.value = true;
+
+    loadingInstance = ElLoading.service({
+      lock: true,
+      text: "AI đang tạo công việc...",
+      background: "rgba(0, 0, 0, 0.7)",
+    });
+
+    await OllamaService.generateTasks({
+      projectId,
+      userId,
+      taskCount: count,
+    });
+
+    await taskStore.loadTasks(projectId);
+    ElMessage.success("Tạo task bằng AI thành công");
+  } catch (err) {
+    console.error(err);
+    ElMessage.error("Tạo task thất bại");
+  } finally {
+    aiLoading.value = false;
+    loadingInstance?.close();
+  }
 }
 
 async function onDeleteProject(projectId) {
