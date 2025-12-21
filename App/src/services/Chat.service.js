@@ -10,6 +10,10 @@ class ChatService {
         return (await this.api.post("/", data)).data;
     }
 
+    async getAllChannels() {
+        return (await this.api.get("/")).data;
+    }
+
     async getChannelById(id) {
         return (await this.api.get(`/${id}`)).data;
     }
@@ -52,8 +56,8 @@ class ChatService {
         return (await this.api.get(`/${channelId}/messages`)).data;
     }
 
-    async getThreadMessages(parentId) {
-        return (await this.api.get(`/thread/${parentId}`)).data;
+    async getMessageChannel(messageId) {
+        return (await this.api.get(`/message/${messageId}/channel`)).data;
     }
 
     async sendMessageWithFiles({ channel_id, sender_id, content, files = [], parent_id, project_id, task_id }) {

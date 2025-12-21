@@ -2,7 +2,12 @@
   <div class="chat-view">
     <!-- Danh sách tin nhắn -->
     <el-scrollbar class="chat-messages" ref="scrollbarRef">
-      <div v-for="msg in messages" :key="msg.id" class="message-item">
+      <div
+        v-for="msg in messages"
+        :key="msg.id"
+        class="message-item"
+        :ref="el => setMessageRef(el, msg.id)"
+      >
         <div class="message-row">
           <div class="avatar-col">
             <el-avatar :size="40" :src="msg.sender_avatar">
@@ -73,14 +78,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from "vue";
-import { ElMessage } from "element-plus";
-import { useChatStore } from "@/stores/chatStore";
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { getSocket } from "@/plugins/socket";
+
+import { ElMessage } from "element-plus";
+import { Paperclip } from "@element-plus/icons-vue";
+
 import MentionInput from "@/components/MentionInput.vue";
 import FileCard from "@/components/FileCard.vue";
+
 import ChatService from "@/services/Chat.service";
-import { Paperclip } from "@element-plus/icons-vue";
+import { useChatStore } from "@/stores/chatStore";
 
 const props = defineProps({
   channelId: { type: Number, required: true },
@@ -88,31 +97,17 @@ const props = defineProps({
 });
 
 const chatStore = useChatStore();
+const route = useRoute();
+const router = useRouter();
+
 const messages = computed(() => chatStore.getChatByChannel(props.channelId));
 const message = ref("");
 const members = ref([]);
 const uploadedFiles = ref([]);
 const sending = ref(false);
 const scrollbarRef = ref();
+const messageRefs = ref(new Map());
 let socket;
-
-onMounted(async () => {
-  socket = getSocket();
-  if (!socket) return;
-
-  await chatStore.loadChats(props.channelId);
-  await loadMembers();
-
-  socket.emit("join_channel", props.channelId);
-  scrollToBottom();
-
-  socket.on("chat_message", handleIncomingMessage);
-  console.log(messages);
-});
-
-onBeforeUnmount(() => {
-  if (socket) socket.off("chat_message", handleIncomingMessage);
-});
 
 function handleIncomingMessage(msg) {
   if (msg.channel_id === props.channelId) {
@@ -166,10 +161,45 @@ async function sendMessage() {
 
 function parseMentions(text) {
   if (!text) return "";
+
   return text.replace(
-    /@\[([^\]]+)\]\((\d+)\)/g,
-    `<span class="mention">@$1</span>`
+    /<@user:(\d+)>/g,
+    (match, userId) => {
+      const user = members.value.find(
+        (u) => String(u.user_id) === String(userId)
+      );
+      const name = user?.name || "unknown";
+      return `<span class="mention" data-user-id="${userId}">@${name}</span>`;
+    }
   );
+}
+
+function setMessageRef(el, messageId) {
+  if (el) {
+    messageRefs.value.set(messageId, el);
+  } else {
+    messageRefs.value.delete(messageId);
+  }
+}
+
+function scrollToMessage(messageId) {
+  nextTick(() => {
+    const scrollbar = scrollbarRef.value;
+    const wrap = scrollbar?.wrapRef;
+    const target = messageRefs.value.get(messageId);
+    if (!scrollbar || !wrap || !target) return;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    const offset =
+      targetRect.top - wrapRect.top + wrap.scrollTop - 20;
+
+    scrollbar.setScrollTop(offset);
+
+    target.classList.add("highlight");
+    setTimeout(() => target.classList.remove("highlight"), 600);
+  });
 }
 
 function scrollToBottom() {
@@ -206,6 +236,43 @@ function formatTime(dateStr) {
     return "";
   }
 }
+
+onMounted(async () => {
+  socket = getSocket();
+  if (!socket) return;
+
+  await chatStore.loadChats(props.channelId);
+  await loadMembers();
+
+  socket.emit("join_channel", props.channelId);
+  if (!hasTargetMessage.value) {
+    scrollToBottom();
+  }
+
+  socket.on("chat_message", handleIncomingMessage);
+});
+
+onBeforeUnmount(() => {
+  if (socket) socket.off("chat_message", handleIncomingMessage);
+});
+
+watch(
+  messages,
+  (newMessages) => {
+    const targetMessageId = Number(route.query.message);
+    if (!targetMessageId) return;
+
+    const exists = newMessages.some(m => m.id === targetMessageId);
+    if (!exists) return;
+
+    scrollToMessage(targetMessageId);
+
+    router.replace({
+      query: { },
+    });
+  },
+  { flush: "post" }
+);
 </script>
 
 <style scoped>
@@ -222,6 +289,7 @@ function formatTime(dateStr) {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  overflow: hidden;
 }
 
 .avatar-col {
@@ -245,16 +313,28 @@ function formatTime(dateStr) {
   }
 }
 
+:deep(.el-scrollbar__wrap),
+:deep(.el-scrollbar__view) {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 .chat-messages {
   flex: 1;
-  padding: 16px 20px;
   overflow-y: auto;
+  overflow-x: hidden !important;
 }
 
 .message-item {
-  padding: 16px 0;
+  padding: 20px;
   border-bottom: 1px solid #f0f0f0;
-  width: 90%;
+  box-sizing: border-box;
+  transition: background-color 0.6s ease;
+}
+
+.message-item.highlight {
+  background: #d1edff;
+  border-radius: 8px;
 }
 
 .avatar-col {
@@ -288,7 +368,6 @@ function formatTime(dateStr) {
   max-width: 100%;
 }
 
-/* ✅ Hiển thị file trong message */
 .attachments {
   margin-top: 10px;
 }

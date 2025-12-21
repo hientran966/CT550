@@ -146,7 +146,7 @@ const openNotification = async (noti) => {
     if (noti.reference_type === "chat_message" && ref) {
       router.push({
         path: `/projects/${ref.project_id}`,
-        query: { channel: ref.channel_id }
+        query: { channel: ref.channel_id, message: ref.message_id, }
       });
       return;
     }

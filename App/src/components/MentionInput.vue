@@ -39,7 +39,7 @@ const activeIndex = ref(0);
 
 watch(content, (val) => {
   emit("update:modelValue", val);
-  const match = val.match(/@(\w*)$/);
+  const match = val.match(/@([^\s@]*)$/);
   if (match) {
     query.value = match[1];
     showDropdown.value = true;
@@ -57,7 +57,10 @@ function onInput(val) {
 }
 
 function chooseUser(user) {
-  content.value = content.value.replace(/@(\w*)$/, `@[${user.name}]`);
+  content.value = content.value.replace(
+    /@(\w*)$/,
+    `<@user:${user.user_id}> `
+  );
   emit("mention", user);
   showDropdown.value = false;
 }

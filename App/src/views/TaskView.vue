@@ -205,7 +205,6 @@ async function onDeleteProject(projectId) {
   }
 }
 
-
 onMounted(() => {
   taskStore.loadTasks(projectId);
   loadMembers();
@@ -217,8 +216,6 @@ onMounted(() => {
   if (route.query.channel) {
     activeView.value = "chat";
     selectedChannel.value = Number(route.query.channel);
-
-    removeQueryParam("channel");
   }
 });
 

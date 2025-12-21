@@ -27,7 +27,19 @@ export const useChatStore = defineStore("chat", {
         created_at: dayjs(res.created_at).format("DD/MM/YYYY HH:mm"),
       };
       return newChat;
-    }
+    },
+
+    appendChat(channelId, chat) {
+      const formatted = {
+        ...chat,
+        created_at: dayjs(chat.created_at).format("DD/MM/YYYY HH:mm"),
+      };
+
+      this.chatByChannel[channelId] = [
+        ...(this.chatByChannel[channelId] || []),
+        formatted,
+      ];
+    },
   },
 
   getters: {

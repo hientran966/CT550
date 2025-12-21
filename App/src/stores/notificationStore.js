@@ -105,13 +105,12 @@ export const useNotificationStore = defineStore("noti", {
         }
 
         if (noti.reference_type === "chat_message") {
-          const channel = await ChatService.getChannelById(
-            noti.reference_id
-          );
+          const channel = await ChatService.getMessageChannel(noti.reference_id);
           console.log("Lấy reference chat_message:", channel);
           if (!channel) return null;
 
           return {
+            message_id: noti.reference_id,
             channel_id: channel.id,
             project_id: channel.project_id,
           };

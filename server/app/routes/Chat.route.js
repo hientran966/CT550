@@ -5,6 +5,7 @@ const upload = require("../middlewares/upload.middleware");
 
 // --- Channel ---
 router.post("/", chatController.create);
+router.get("/", chatController.findAll);
 router.get("/:id", chatController.getById);
 router.get("/project/:project_id", chatController.findByProject);
 router.put("/:id", chatController.update);
@@ -18,11 +19,11 @@ router.delete("/member", chatController.removeMember);
 
 // --- Messages ---
 router.post("/message", chatController.addMessage);
+router.get("/message/:id/channel", chatController.getMessageChannel);
 
 router.post("/message/files", upload.array("files"), chatController.addMessageWithFiles);
 
 router.get("/:channel_id/messages", chatController.getMessages);
-router.get("/thread/:parent_id", chatController.getThreadMessages);
 
 // --- Mentions ---
 router.post("/mentions", chatController.addMentions);

@@ -19,6 +19,20 @@ class ChatService {
     };
   }
 
+  extractMentionIds(content) {
+    if (!content) return [];
+
+    const regex = /<@user:(\d+)>/g;
+    const ids = new Set();
+    let match;
+
+    while ((match = regex.exec(content)) !== null) {
+      ids.add(Number(match[1]));
+    }
+
+    return Array.from(ids);
+  }
+
   //channel
   async create(payload, connection = null) {
     const chat = await this.extractChatData(payload);
@@ -177,6 +191,11 @@ class ChatService {
 
     const messageId = result.insertId;
 
+    const mentionedUserIds = this.extractMentionIds(content);
+    if (mentionedUserIds.length) {
+      await this.addMentions(messageId, mentionedUserIds, sender_id);
+    }
+
     const [messageRows] = await this.mysql.execute(
       `SELECT m.*, u.name AS sender_name, u.id as user_id
        FROM chat_messages m
@@ -188,24 +207,6 @@ class ChatService {
     const message = messageRows[0];
 
     sendMessageToChannel(channel_id, message);
-
-    const [members] = await this.mysql.execute(
-      `SELECT user_id FROM chat_channel_members 
-       WHERE channel_id = ? AND deleted_at IS NULL`,
-      [channel_id]
-    );
-
-    for (const m of members) {
-      if (m.user_id === sender_id) continue;
-      await this.notificationService.create({
-        recipient_id: m.user_id,
-        actor_id: sender_id,
-        type: "chat_message",
-        reference_type: "chat_message",
-        reference_id: channel_id,
-        message: `Tin nhắn mới trong kênh`,
-      });
-    }
 
     return message;
   }
@@ -229,6 +230,22 @@ class ChatService {
     );
 
     for (const msg of rows) {
+      const mentions = [];
+      const [mentionRows] = await this.mysql.execute(
+        `SELECT cm.mentioned_user_id, u.name AS mentioned_user_name
+         FROM chat_mentions cm
+         JOIN users u ON u.id = cm.mentioned_user_id
+          WHERE cm.message_id = ?`,
+        [msg.id]
+      );
+      for (const mr of mentionRows) {
+        mentions.push({
+          id: mr.mentioned_user_id,
+          name: mr.mentioned_user_name,
+        });
+      }
+      msg.mentions = mentions;
+
       if (msg.have_file) {
         const [files] = await this.mysql.execute(
           `SELECT
@@ -287,29 +304,37 @@ class ChatService {
     return rows;
   }
 
-  async getThreadMessages(parent_id) {
+  async getMessageChannel(message_id) {
     const [rows] = await this.mysql.execute(
-      `SELECT m.*, u.name AS sender_name
-       FROM chat_messages m
-       JOIN users u ON u.id = m.sender_id
-       WHERE m.parent_id = ? AND m.deleted_at IS NULL
-       ORDER BY m.created_at ASC`,
-      [parent_id]
+      `SELECT c.*
+       FROM chat_channels c
+       JOIN chat_messages m ON m.channel_id = c.id
+       WHERE m.id = ? AND c.deleted_at IS NULL`,
+      [message_id]
     );
-    return rows;
+    return rows[0] || null;
   }
 
   //mentions
-  async addMentions(message_id, mentioned_user_ids = [], actor_id) {
+  async addMentions(
+    message_id,
+    mentioned_user_ids = [],
+    actor_id,
+    connection = this.mysql
+  ) {
     if (!mentioned_user_ids.length) return;
+
     const values = mentioned_user_ids.map((uid) => [message_id, uid]);
-    await this.mysql.query(
+
+    await connection.query(
       `INSERT INTO chat_mentions (message_id, mentioned_user_id)
-       VALUES ?`,
+      VALUES ?`,
       [values]
     );
 
     for (const uid of mentioned_user_ids) {
+      if (uid === actor_id) continue;
+
       await this.notificationService.create({
         recipient_id: uid,
         actor_id: actor_id,
@@ -347,6 +372,17 @@ class ChatService {
       );
 
       const messageId = msgResult.insertId;
+
+      const mentionedUserIds = this.extractMentionIds(content);
+      if (mentionedUserIds.length) {
+        await this.addMentions(
+          messageId,
+          mentionedUserIds,
+          sender_id,
+          connection
+        );
+      }
+
       let attachedFiles = [];
 
       if (Array.isArray(files) && files.length > 0) {
@@ -393,27 +429,6 @@ class ChatService {
       message.have_file = attachedFiles.length > 0;
 
       sendMessageToChannel(channel_id, message);
-
-      const [members] = await connection.execute(
-        `SELECT user_id FROM chat_channel_members 
-        WHERE channel_id = ? AND deleted_at IS NULL`,
-        [channel_id]
-      );
-
-      const notifications = members
-        .filter((m) => m.user_id !== sender_id)
-        .map((m) =>
-          this.notificationService.create({
-            recipient_id: m.user_id,
-            actor_id: sender_id,
-            type: "chat_message",
-            reference_type: "chat_message",
-            reference_id: channel_id,
-            message: `Tin nhắn mới trong kênh`,
-          })
-        );
-
-      await Promise.all(notifications);
 
       await connection.commit();
       return message;
