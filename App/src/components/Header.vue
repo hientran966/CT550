@@ -127,6 +127,10 @@
 
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item @click="emit('edit-project')">
+                <el-icon style="margin-right:6px;"><EditPen /></el-icon>
+                Chỉnh sửa dự án
+              </el-dropdown-item>
               <el-dropdown-item @click="confirmDeleteProject">
                 <el-icon style="margin-right:6px;"><Delete /></el-icon>
                 Xóa dự án
@@ -141,7 +145,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, MagicStick, Fold, Expand, MoreFilled, Delete } from "@element-plus/icons-vue";
+import { Plus, Search, Filter, MagicStick, Fold, Expand, MoreFilled, Delete, EditPen } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 import { useProjectStore } from "@/stores/projectStore";
@@ -157,7 +161,7 @@ const props = defineProps({
   projectId: { type: Number, required: false },
   members: { type: Array, default: () => [] },
 });
-const emit = defineEmits(["add", "ai-gen", "member-click", "toggle-menu"]);
+const emit = defineEmits(["edit-project", "add", "ai-gen", "member-click", "toggle-menu"]);
 
 // ----------- STATE -----------
 const search = ref("");

@@ -15,6 +15,7 @@
         :project-id="projectId"
         :is-expanded="isExpanded"
         :members="members"
+        @edit-project="onEditProject"
         @add="onAdd"
         @delete-project="onDeleteProject"
         @ai-gen="handleAIGen"
@@ -55,6 +56,7 @@
 
         <Chat
           v-else-if="activeView === 'chat' && selectedChannel"
+          :project-id="projectId"
           :channel-id="selectedChannel"
           :current-user-id="userId"
         />
@@ -62,8 +64,14 @@
     </div>
   </div>
 
+  <EditProject
+    v-model="projectRef"
+    :project-id="projectId"
+    :project-data="{}"
+    @project-updated="onProjectUpdated"
+  />
   <TaskForm
-    v-model="formRef"
+    v-model="taskRef"
     :project-id="projectId"
     @task-added="() => taskStore.loadTasks(projectId)"
   />
@@ -89,7 +97,9 @@
 import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElLoading } from "element-plus";
+
 import { useTaskStore } from "@/stores/taskStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 import MemberService from "@/services/Member.service";
 import ChatService from "@/services/Chat.service";
@@ -97,6 +107,7 @@ import OllamaService from "@/services/Ollama.service";
 import ProjectService from "@/services/Project.service";
 
 import ProjectMenu from "@/components/ProjectMenu.vue";
+import EditProject from "@/components/EditProject.vue";
 import Header from "@/components/Header.vue";
 import TaskKanban from "@/components/TaskKanban.vue";
 import Timeline from "@/components/Timeline.vue";
@@ -117,10 +128,12 @@ const user = JSON.parse(localStorage.getItem("user") || "{}");
 const userId = user?.id || null;
 
 const taskStore = useTaskStore();
+const projectStore = useProjectStore();
 
 const activeView = ref("kanban");
 const selectedChannel = ref(null);
-const formRef = ref(false);
+const projectRef = ref(false);
+const taskRef = ref(false);
 const members = ref([]);
 const memberListRef = ref(false);
 const selectedTask = ref(null);
@@ -129,7 +142,8 @@ const chatModal = ref(false);
 const isExpanded = ref(true);
 const aiLoading = ref(false);
 
-const onAdd = () => (formRef.value = true);
+const onAdd = () => (taskRef.value = true);
+const onEditProject = () => (projectRef.value = true);
 const openMemberList = () => (memberListRef.value = true);
 
 async function loadMembers() {
@@ -197,12 +211,20 @@ async function handleAIGen(count) {
 async function onDeleteProject(projectId) {
   try {
     const res = await await ProjectService.deleteProject(projectId, userId);
+    if (res.error) {
+      ElMessage.error("Xóa project thất bại");
+      return;
+    }
     ElMessage.success("Xóa project thành công");
 
     router.push("/projects");
   } catch (err) {
     console.error(err);
   }
+}
+
+async function onProjectUpdated() {
+  await projectStore.fetchProjects();
 }
 
 onMounted(() => {

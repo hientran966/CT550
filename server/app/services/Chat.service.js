@@ -206,6 +206,9 @@ class ChatService {
 
     const message = messageRows[0];
 
+    const avatar = await this.fileService.getAvatar(message.sender_id);
+    message.sender_avatar = avatar?.file_url || null;
+
     sendMessageToChannel(channel_id, message);
 
     return message;
@@ -220,7 +223,8 @@ class ChatService {
     const [rows] = await this.mysql.execute(
       `SELECT 
         m.*, 
-        u.name AS sender_name
+        u.name AS sender_name,
+        u.id   AS sender_id
      FROM chat_messages m
      JOIN users u ON u.id = m.sender_id
      WHERE m.channel_id = ? AND m.deleted_at IS NULL
@@ -230,6 +234,7 @@ class ChatService {
     );
 
     for (const msg of rows) {
+      //Lấy nhắc đến
       const mentions = [];
       const [mentionRows] = await this.mysql.execute(
         `SELECT cm.mentioned_user_id, u.name AS mentioned_user_name
@@ -246,6 +251,7 @@ class ChatService {
       }
       msg.mentions = mentions;
 
+      //Lấy file đính kèm
       if (msg.have_file) {
         const [files] = await this.mysql.execute(
           `SELECT
@@ -299,6 +305,10 @@ class ChatService {
       } else {
         msg.files = [];
       }
+
+      //Lấy avatar người gửi
+      const avatar = await this.fileService.getAvatar(msg.sender_id);
+      msg.sender_avatar = avatar?.file_url || null;
     }
 
     return rows;
@@ -349,6 +359,7 @@ class ChatService {
   //file
   async addMessageWithFiles(payload) {
     const {
+      project_id,
       channel_id,
       sender_id,
       parent_id = null,
@@ -391,7 +402,7 @@ class ChatService {
             const filePayload = {
               ...file,
               created_by: sender_id,
-              project_id: file?.project_id ?? null,
+              project_id: payload?.project_id ?? null,
               task_id: file?.task_id ?? null,
             };
 
@@ -427,6 +438,9 @@ class ChatService {
       const message = msgRows[0] ?? {};
       message.files = attachedFiles;
       message.have_file = attachedFiles.length > 0;
+
+      const avatar = await this.fileService.getAvatar(message.sender_id);
+      message.sender_avatar = avatar?.file_url || null;
 
       sendMessageToChannel(channel_id, message);
 

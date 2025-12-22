@@ -6,7 +6,7 @@
         v-for="msg in messages"
         :key="msg.id"
         class="message-item"
-        :ref="el => setMessageRef(el, msg.id)"
+        :ref="(el) => setMessageRef(el, msg.id)"
       >
         <div class="message-row">
           <div class="avatar-col">
@@ -17,7 +17,12 @@
 
           <div class="content-col">
             <div class="message-header">
-              <span class="sender-name">{{ msg.sender_name }}</span>
+              <span class="sender-name">
+                {{ msg.sender_name }}
+                <span v-if="msg.sender_id === currentUserId" class="you-label">
+                  (Bạn)
+                </span>
+              </span>
               <span class="time">{{ formatTime(msg.created_at) }}</span>
             </div>
 
@@ -78,7 +83,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from "vue";
+import {
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  computed,
+  watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getSocket } from "@/plugins/socket";
 
@@ -92,6 +104,7 @@ import ChatService from "@/services/Chat.service";
 import { useChatStore } from "@/stores/chatStore";
 
 const props = defineProps({
+  projectId: { type: Number, required: true },
   channelId: { type: Number, required: true },
   currentUserId: { type: Number, required: true },
 });
@@ -101,6 +114,9 @@ const route = useRoute();
 const router = useRouter();
 
 const messages = computed(() => chatStore.getChatByChannel(props.channelId));
+const hasTargetMessage = computed(() => {
+  return !!route.query.message;
+});
 const message = ref("");
 const members = ref([]);
 const uploadedFiles = ref([]);
@@ -140,6 +156,7 @@ async function sendMessage() {
   sending.value = true;
   try {
     const saved = await ChatService.sendMessageWithFiles({
+      project_id: props.projectId,
       channel_id: props.channelId,
       sender_id: props.currentUserId,
       content: message.value,
@@ -162,16 +179,13 @@ async function sendMessage() {
 function parseMentions(text) {
   if (!text) return "";
 
-  return text.replace(
-    /<@user:(\d+)>/g,
-    (match, userId) => {
-      const user = members.value.find(
-        (u) => String(u.user_id) === String(userId)
-      );
-      const name = user?.name || "unknown";
-      return `<span class="mention" data-user-id="${userId}">@${name}</span>`;
-    }
-  );
+  return text.replace(/<@user:(\d+)>/g, (match, userId) => {
+    const user = members.value.find(
+      (u) => String(u.user_id) === String(userId)
+    );
+    const name = user?.name || "unknown";
+    return `<span class="mention" data-user-id="${userId}">@${name}</span>`;
+  });
 }
 
 function setMessageRef(el, messageId) {
@@ -192,8 +206,7 @@ function scrollToMessage(messageId) {
     const wrapRect = wrap.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
 
-    const offset =
-      targetRect.top - wrapRect.top + wrap.scrollTop - 20;
+    const offset = targetRect.top - wrapRect.top + wrap.scrollTop - 20;
 
     scrollbar.setScrollTop(offset);
 
@@ -262,13 +275,13 @@ watch(
     const targetMessageId = Number(route.query.message);
     if (!targetMessageId) return;
 
-    const exists = newMessages.some(m => m.id === targetMessageId);
+    const exists = newMessages.some((m) => m.id === targetMessageId);
     if (!exists) return;
 
     scrollToMessage(targetMessageId);
 
     router.replace({
-      query: { },
+      query: {},
     });
   },
   { flush: "post" }
@@ -293,7 +306,7 @@ watch(
 }
 
 .avatar-col {
-  flex: 0 0 40px; 
+  flex: 0 0 40px;
 }
 
 .content-col {

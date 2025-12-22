@@ -40,7 +40,7 @@
     <template #footer>
       <div class="footer-wrapper">
         <el-tag
-          v-if="props.file.latest_version.version_number > 1"
+          v-if="latestVersion && latestVersion.version_number > 1"
           type="primary"
           size="small"
           effect="plain"
@@ -73,7 +73,11 @@ const props = defineProps({
 const router = useRouter();
 
 const latestVersion = computed(() => {
-  return props.file?.latest_version || null;
+  return (
+    props.file?.latest_version ||
+    props.file?.versions?.[props.file.versions.length - 1] ||
+    null
+  );
 });
 
 const fileType = computed(() => {

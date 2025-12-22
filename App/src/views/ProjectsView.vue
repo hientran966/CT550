@@ -6,14 +6,13 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
-import { storeToRefs } from "pinia";
 import { useProjectStore } from "@/stores/projectStore";
+
 import Header from "@/components/Header.vue";
 import ProjectTable from "@/components/ProjectTable.vue";
 import ProjectForm from "@/components/ProjectForm.vue";
 
 const projectStore = useProjectStore();
-const { projects } = storeToRefs(projectStore);
 
 const formRef = ref(false);
 const onAdd = () => (formRef.value = true);

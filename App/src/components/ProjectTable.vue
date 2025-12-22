@@ -42,6 +42,7 @@
               size="small"
               @change="stopEditing"
               @click.stop=""
+              :clearable="false"
             />
           </template>
           <template v-else>
@@ -65,10 +66,13 @@
               size="small"
               @change="stopEditing"
               @click.stop=""
-              :disabled-date="
-                (date) =>
-                    (row.start_date && date < new Date(row.start_date))
-              "
+              :clearable="false"
+              :disabled-date="(date) => {
+                const taskEnd = latestTaskEndDate(row.id);
+                if (row.start_date && date < new Date(row.start_date)) return true;
+                if (taskEnd && date < taskEnd) return true;
+                return false;
+              }"
             />
           </template>
           <template v-else>
@@ -146,6 +150,7 @@
 import { ref, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useRoleStore } from "@/stores/roleStore";
+import { useTaskStore } from "@/stores/taskStore";
 
 import AvatarGroup from "@/components/AvatarGroup.vue";
 import FileService from "@/services/File.service";
@@ -155,6 +160,7 @@ import defaultAvatar from "@/assets/default-avatar.png";
 
 const router = useRouter();
 const roleStore = useRoleStore();
+const taskStore = useTaskStore();
 
 const props = defineProps({
   projects: { type: Array, required: true },
@@ -167,6 +173,19 @@ const projectMembers = ref({});
 const managerAvatars = ref({});
 const managerNames = ref({});
 const projectRoles = ref({});
+
+const latestTaskEndDate = computed(() => {
+  return (projectId) => {
+    const list = taskStore.getTasksByProject(projectId);
+    if (!list || !list.length) return null;
+
+    return list
+      .map((t) => t.end_date || t.due_date)
+      .filter(Boolean)
+      .map((d) => new Date(d))
+      .reduce((max, d) => (max && max > d ? max : d), null);
+  };
+});
 
 // ------------------ PHÂN TRANG ------------------
 const currentPage = ref(1);
@@ -216,17 +235,29 @@ function startEditing(row, field) {
 
 function stopEditing() {
   if (!editingRow.value || !editingField.value) return;
+
   const field = editingField.value;
-  const id = editingRow.value.id;
-  let value = editingRow.value[field];
+  const row = editingRow.value;
+  let value = row[field];
+
+  if (field === "end_date") {
+    const taskEnd = latestTaskEndDate.value(row.id);
+    if (taskEnd && new Date(value) < taskEnd) {
+      ElMessage.error(
+        `Ngày kết thúc dự án không được trước ngày kết thúc task cuối (${taskEnd.toLocaleDateString("vi-VN")})`
+      );
+      return;
+    }
+  }
 
   if (field === "start_date" || field === "end_date") {
     value = toSQLDate(value);
-    editingRow.value[field] = value;
+    row[field] = value;
   }
 
   const user = JSON.parse(localStorage.getItem("user"));
-  emit("update-project", { id, [field]: value, actor_id: user?.id });
+  emit("update-project", { id: row.id, [field]: value, actor_id: user?.id });
+
   editingRow.value = null;
   editingField.value = null;
 }
