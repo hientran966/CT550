@@ -57,19 +57,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { Files, Guide, Menu, PieChart, ChatSquare, Collection, Calendar } from "@element-plus/icons-vue";
-import ChatService from "@/services/Chat.service";
+import { onMounted, watch, computed } from "vue";
+import { useChatStore } from "@/stores/chatStore";
+import {
+  Files, Guide, Menu, PieChart, ChatSquare, Collection, Calendar
+} from "@element-plus/icons-vue";
 
 const props = defineProps({
   activeView: String,
   projectId: Number,
   isExpanded: Boolean
 });
+
 const emit = defineEmits(["update:view", "select-channel", "chat-add"]);
 
-const channels = ref([]);
-const lastKey = ref(props.activeView);
+const chatStore = useChatStore();
+
+const channels = computed(() => chatStore.channels);
 
 function handleSelect(key) {
   if (key === "chat-add") {
@@ -87,13 +91,18 @@ function handleSelect(key) {
   emit("update:view", key);
 }
 
-onMounted(async () => {
+async function loadChannels() {
+  if (!props.projectId) return;
   try {
-    channels.value = await ChatService.getChannelsByProject(props.projectId);
-  } catch {
-    console.error("Không thể tải danh sách kênh chat");
+    await chatStore.loadChannelsByProject(props.projectId);
+  } catch (err) {
+    console.error("Lỗi khi tải kênh chat:", err);
   }
-});
+}
+
+onMounted(loadChannels);
+
+watch(() => props.projectId, loadChannels);
 </script>
 
 <style scoped>

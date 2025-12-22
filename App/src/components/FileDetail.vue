@@ -240,7 +240,6 @@ const addComment = async () => {
       const height = Math.abs(endPos.value.y - startPos.value.y);
 
       payload.visual = {
-        shape_type: "rectangle",
         coordinates: { x, y, width, height },
         color: "#FF0000",
         opacity: 0.4,

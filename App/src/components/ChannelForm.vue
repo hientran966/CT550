@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="Thêm Nhóm Chat Mới"
+    :title="isEdit ? 'Chỉnh sửa nhóm chat' : 'Thêm nhóm chat mới'"
     width="500px"
     :before-close="handleClose"
     :close-on-click-modal="false"
@@ -40,28 +40,39 @@
 
     <template #footer>
       <el-button @click="handleClose">Hủy</el-button>
-      <el-button type="primary" @click="submitForm">Tạo</el-button>
+      <el-button type="primary" @click="submitForm">
+        {{ isEdit ? "Lưu" : "Tạo" }}
+      </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { ElMessage } from "element-plus";
-import ChatService from "@/services/Chat.service";
+
+import { useChatStore } from "@/stores/chatStore";
+
 import MemberService from "@/services/Member.service";
 
 const props = defineProps({
   modelValue: Boolean,
   projectId: Number,
+  channelId: {
+    type: Number,
+    default: null,
+  },
 });
 
-const emit = defineEmits(["update:modelValue", "channel-added"]);
+const emit = defineEmits(["update:modelValue", "channel-added", "channel-updated"]);
 
 const visible = computed({
   get: () => props.modelValue,
   set: (val) => emit("update:modelValue", val),
 });
+const isEdit = computed(() => !!props.channelId);
+
+const chatStore = useChatStore();
 
 const channelForm = ref();
 const users = ref([]);
@@ -88,6 +99,20 @@ async function fetchMembers() {
   } catch (error) {
     console.error("Lỗi khi lấy danh sách thành viên:", error);
     ElMessage.error("Không thể tải danh sách thành viên");
+  }
+}
+
+async function loadChannelDetail() {
+  if (!props.channelId) return;
+
+  try {
+    const channel = await chatStore.getChannelDetail(props.channelId);
+
+    form.name = channel.name;
+    form.description = channel.description;
+    form.members = channel.members.map((m) => m.user_id);
+  } catch {
+    ElMessage.error("Không thể tải thông tin kênh");
   }
 }
 
@@ -118,19 +143,40 @@ async function submitForm() {
       project_id: props.projectId,
       name: form.name,
       description: form.description,
-      created_by: user.id,
       members: form.members,
     };
 
-    await ChatService.createChannel(payload);
+    if (isEdit.value) {
+      await chatStore.updateChannel(props.channelId, payload);
+      ElMessage.success("Cập nhật kênh thành công");
+      emit("channel-updated");
+    } else {
+      await chatStore.createChannel({
+        ...payload,
+        created_by: user.id,
+      });
+      ElMessage.success("Tạo nhóm chat thành công");
+      emit("channel-added");
+    }
 
-    ElMessage.success("Tạo nhóm chat thành công");
     visible.value = false;
-    emit("channel-added");
     resetForm();
   } catch (err) {
-    console.error("Lỗi tạo nhóm:", err);
-    ElMessage.error("Lỗi tạo nhóm");
+    console.error(err);
+    ElMessage.error(isEdit.value ? "Cập nhật thất bại" : "Tạo nhóm thất bại");
   }
 }
+
+watch(
+  () => props.modelValue,
+  async (val) => {
+    if (!val) return;
+
+    await fetchMembers();
+
+    if (isEdit.value) {
+      await loadChannelDetail();
+    }
+  }
+);
 </script>

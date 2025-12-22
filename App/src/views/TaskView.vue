@@ -6,18 +6,23 @@
       :is-expanded="isExpanded"
       @update:view="activeView = $event"
       @select-channel="selectedChannel = $event"
-      @chat-add="chatModal = true"
+      @chat-add="addChannel = true"
     />
 
     <div class="main-content" :style="{ maxWidth: `calc(100vw - ${isExpanded ? 200 : 64}px)` }">
       <Header
         :page="'task'"
+        :view="activeView"
         :project-id="projectId"
-        :is-expanded="isExpanded"
+        :channel-id="selectedChannel"
         :members="members"
         @edit-project="onEditProject"
-        @add="onAdd"
         @delete-project="onDeleteProject"
+
+        @edit-channel="editChannel = true"
+        @delete-channel="onDeleteChannel"
+
+        @add="onAdd"
         @ai-gen="handleAIGen"
         @member-click="openMemberList"
         @toggle-menu="isExpanded = !isExpanded"
@@ -76,9 +81,19 @@
     @task-added="() => taskStore.loadTasks(projectId)"
   />
   <ChannelForm
-    v-model="chatModal"
+    v-model="addChannel"
     :project-id="projectId"
-    @channel-added="() => {}"
+  />
+  <ChannelForm
+    v-model="editChannel"
+    :project-id="projectId"
+    :channel-id="selectedChannel"
+  />
+  <ChannelMemberList
+    v-model="channelMemberRef"
+    :project-id="projectId"
+    :channel-id="selectedChannel"
+    @member-updated="() => loadMembers()"
   />
   <MemberList
     v-model="memberListRef"
@@ -100,6 +115,7 @@ import { ElMessage, ElLoading } from "element-plus";
 
 import { useTaskStore } from "@/stores/taskStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { useChatStore } from "@/stores/chatStore";
 
 import MemberService from "@/services/Member.service";
 import ChatService from "@/services/Chat.service";
@@ -117,6 +133,7 @@ import FileList from "@/components/FileList.vue";
 import Chat from "@/components/Chat.vue";
 import TaskForm from "@/components/TaskForm.vue";
 import ChannelForm from "@/components/ChannelForm.vue";
+import ChannelMemberList from "@/components/ChannelMemberList.vue";
 import MemberList from "@/components/MemberList.vue";
 import TaskDetail from "@/components/TaskDetail.vue";
 import TaskGantt from "@/components/TaskGantt.vue";
@@ -129,22 +146,33 @@ const userId = user?.id || null;
 
 const taskStore = useTaskStore();
 const projectStore = useProjectStore();
+const chatStore = useChatStore();
 
 const activeView = ref("kanban");
 const selectedChannel = ref(null);
 const projectRef = ref(false);
 const taskRef = ref(false);
 const members = ref([]);
+
+const channelMemberRef = ref(false);
 const memberListRef = ref(false);
 const selectedTask = ref(null);
 const detailVisible = ref(false);
-const chatModal = ref(false);
+const addChannel = ref(false);
+const editChannel = ref(false);
 const isExpanded = ref(true);
 const aiLoading = ref(false);
 
 const onAdd = () => (taskRef.value = true);
 const onEditProject = () => (projectRef.value = true);
-const openMemberList = () => (memberListRef.value = true);
+
+const openMemberList = () => {
+  if (activeView.value === "chat") {
+    channelMemberRef.value = true;
+  } else {
+    memberListRef.value = true;
+  }
+};
 
 async function loadMembers() {
   if (activeView.value == 'chat') {
@@ -220,6 +248,18 @@ async function onDeleteProject(projectId) {
     router.push("/projects");
   } catch (err) {
     console.error(err);
+  }
+}
+
+async function onDeleteChannel(channelId) {
+  try {
+    await chatStore.deleteChannel(channelId);
+    ElMessage.success("Xóa kênh thành công");
+
+    selectedChannel.value = null;
+    activeView.value = "kanban";
+  } catch {
+    ElMessage.error("Xóa kênh thất bại");
   }
 }
 

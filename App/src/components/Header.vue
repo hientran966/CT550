@@ -1,8 +1,13 @@
 <template>
   <el-header class="task-header" height="100px">
     <!-- Tiêu đề -->
-    <div style="height: 40px; display: flex; flex-direction: row; width: 100%;">
-      <el-button v-if="props.page === 'task'" text style="margin-top: 10px;" @click="onToggle">
+    <div style="height: 40px; display: flex; flex-direction: row; width: 100%">
+      <el-button
+        v-if="props.page === 'task'"
+        text
+        style="margin-top: 10px"
+        @click="onToggle"
+      >
         <el-icon size="large">
           <component :is="isExpanded ? Expand : Fold" />
         </el-icon>
@@ -15,12 +20,17 @@
 
     <!-- Thanh công cụ -->
     <div
-      style="width: 100%; display: flex; justify-content: space-between; align-items: center;"
+      style="
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      "
     >
       <!-- Bên trái -->
       <div class="left-section">
         <el-button
-          v-if="canAdd"
+          v-if="props.view === 'kanban' || props.page === 'project' && canAdd"
           type="primary"
           :icon="Plus"
           plain
@@ -28,7 +38,11 @@
         >
           <strong>Thêm mới</strong>
         </el-button>
-        <AiTaskGen v-if="props.page === 'task'" v-model:visible="aiGenVisible" @generate="emit('ai-gen', $event)">
+        <AiTaskGen
+          v-if="props.view === 'kanban' && canAdd"
+          v-model:visible="aiGenVisible"
+          @generate="emit('ai-gen', $event)"
+        >
           <template #trigger>
             <el-button
               type="primary"
@@ -38,25 +52,27 @@
             />
           </template>
         </AiTaskGen>
+        <h5 class="channel-description">{{ channelDescription }}</h5>
       </div>
 
       <!-- Bên phải -->
-      <div class="right-section" style="display: flex; align-items: center;">
+      <div class="right-section" style="display: flex; align-items: center">
         <el-input
+          v-if="props.view === 'kanban' || props.page === 'project'"
           v-model="search"
           placeholder="Tìm kiếm..."
           size="small"
           :prefix-icon="Search"
-          style="width: 180px; margin-right: 8px;"
+          style="width: 180px; margin-right: 8px"
         />
 
         <!-- Nút mở Drawer -->
         <el-button
-          v-if="props.page === 'task'"
+          v-if="props.view === 'kanban'"
           :icon="Filter"
           circle
           @click="drawerVisible = true"
-          style="margin-right: 8px;"
+          style="margin-right: 8px"
         />
 
         <!-- Drawer Bộ lọc -->
@@ -74,7 +90,7 @@
                 v-model="filters.priority"
                 placeholder="Chọn nhãn"
                 clearable
-                style="width: 100%; margin-top: 4px;"
+                style="width: 100%; margin-top: 4px"
               >
                 <el-option label="Tất cả" value=""></el-option>
                 <el-option label="Thấp" value="low"></el-option>
@@ -90,7 +106,7 @@
                 v-model="filters.assignees"
                 placeholder="Chọn người phụ trách"
                 clearable
-                style="width: 100%; margin-top: 4px;"
+                style="width: 100%; margin-top: 4px"
               >
                 <el-option
                   v-for="id in memberIds"
@@ -101,9 +117,11 @@
               </el-select>
             </div>
 
-            <div style="margin-top: 16px; text-align: right;">
+            <div style="margin-top: 16px; text-align: right">
               <el-button size="small" @click="resetFilter">Đặt lại</el-button>
-              <el-button size="small" type="primary" @click="applyFilter">Áp dụng</el-button>
+              <el-button size="small" type="primary" @click="applyFilter"
+                >Áp dụng</el-button
+              >
             </div>
           </div>
         </el-drawer>
@@ -117,24 +135,41 @@
           :size="30"
           :max="4"
           :tooltips="true"
-          style="margin-right: 8px; cursor: pointer;"
+          style="margin-right: 8px; cursor: pointer"
           @click="memberClick"
         />
-        <el-dropdown v-if="props.page === 'task'" trigger = "click">
-          <el-button circle style="border:none;">
+        <el-dropdown v-if="props.page === 'task'" trigger="click">
+          <el-button circle style="border: none">
             <el-icon><MoreFilled /></el-icon>
           </el-button>
 
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="emit('edit-project')">
-                <el-icon style="margin-right:6px;"><EditPen /></el-icon>
-                Chỉnh sửa dự án
-              </el-dropdown-item>
-              <el-dropdown-item @click="confirmDeleteProject">
-                <el-icon style="margin-right:6px;"><Delete /></el-icon>
-                Xóa dự án
-              </el-dropdown-item>
+              <!-- ====== CHAT VIEW ====== -->
+              <template v-if="props.view === 'chat'">
+                <el-dropdown-item @click="emit('edit-channel')">
+                  <el-icon style="margin-right: 6px"><EditPen /></el-icon>
+                  Chỉnh sửa kênh
+                </el-dropdown-item>
+
+                <el-dropdown-item @click="confirmDeleteChannel">
+                  <el-icon style="margin-right: 6px"><Delete /></el-icon>
+                  Xóa kênh
+                </el-dropdown-item>
+              </template>
+
+              <!-- ====== NON-CHAT VIEW ====== -->
+              <template v-else>
+                <el-dropdown-item @click="emit('edit-project')">
+                  <el-icon style="margin-right: 6px"><EditPen /></el-icon>
+                  Chỉnh sửa dự án
+                </el-dropdown-item>
+
+                <el-dropdown-item @click="confirmDeleteProject">
+                  <el-icon style="margin-right: 6px"><Delete /></el-icon>
+                  Xóa dự án
+                </el-dropdown-item>
+              </template>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -145,23 +180,45 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { Plus, Search, Filter, MagicStick, Fold, Expand, MoreFilled, Delete, EditPen } from "@element-plus/icons-vue";
+import {
+  Plus,
+  Search,
+  Filter,
+  MagicStick,
+  Fold,
+  Expand,
+  MoreFilled,
+  Delete,
+  EditPen,
+} from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
+import { useChatStore } from "@/stores/chatStore";
 import { useRoleStore } from "@/stores/roleStore";
 
 import AvatarGroup from "./AvatarGroup.vue";
-import AiTaskGen from "./TaskGenForm.vue"; 
+import AiTaskGen from "./TaskGenForm.vue";
 
 // ----------- PROPS & EMIT -----------
 const props = defineProps({
   page: { type: String, required: true },
+  view: { type: String, required: false },
+  channelId: { type: Number, required: false },
   projectId: { type: Number, required: false },
   members: { type: Array, default: () => [] },
 });
-const emit = defineEmits(["edit-project", "add", "ai-gen", "member-click", "toggle-menu"]);
+const emit = defineEmits([
+  "edit-project",
+  "delete-project",
+  "edit-channel",
+  "delete-channel",
+  "add",
+  "ai-gen",
+  "member-click",
+  "toggle-menu",
+]);
 
 // ----------- STATE -----------
 const search = ref("");
@@ -176,6 +233,7 @@ const filters = ref({
 // ----------- STORE -----------
 const projectStore = useProjectStore();
 const taskStore = useTaskStore();
+const chatStore = useChatStore();
 const roleStore = useRoleStore();
 
 // ----------- TITLE -----------
@@ -184,22 +242,43 @@ const projectName = computed(() => {
   const project = projectStore.projects?.find((p) => p.id === props.projectId);
   return project ? project.name : "";
 });
+const channelName = computed(() => {
+  if (props.view !== "chat" || !props.channelId) return "";
+  const channel = chatStore.channels.find((c) => c.id === props.channelId);
+  return channel ? channel.name : "";
+});
 const titleMap = {
   project: "Danh sách Project",
   task: "Danh sách Task",
-  member: "Danh sách thành viên",
-  user: "Danh sách người dùng",
+  channel: "Kênh Chat",
 };
-const pageTitle = computed(() =>
-  props.page === "task" && projectName.value
-    ? projectName.value
-    : titleMap[props.page] || "Danh sách"
+const pageTitle = computed(() => {
+  if (props.view === "chat" && channelName.value)
+    return channelName.value;
+
+  if (props.page === "task" && projectName.value)
+    return projectName.value;
+
+  return titleMap[props.page] || "Danh sách";
+});
+
+const currentChannel = computed(() =>
+  chatStore.channels.find((c) => c.id === props.channelId)
+);
+
+const channelDescription = computed(
+  () => {
+    if (props.view !== "chat" || !props.channelId) return "";
+    return currentChannel.value?.description || ""
+  }
 );
 
 // ----------- MEMBERS -----------
-const memberIds = computed(() => props.members.map(m => m.user_id));
+const memberIds = computed(() => props.members.map((m) => m.user_id));
 const namesMap = computed(() =>
-  Object.fromEntries(props.members.map(m => [m.user_id, m.name || "Người dùng"]))
+  Object.fromEntries(
+    props.members.map((m) => [m.user_id, m.name || "Người dùng"])
+  )
 );
 
 // ----------- ROLE CHECK -----------
@@ -261,9 +340,23 @@ async function confirmDeleteProject() {
     );
 
     emit("delete-project", props.projectId);
-  } catch {
+  } catch {}
+}
 
-  }
+async function confirmDeleteChannel() {
+  try {
+    await ElMessageBox.confirm(
+      "Bạn có chắc muốn xóa kênh này? Thao tác không thể hoàn tác.",
+      "Xác nhận",
+      {
+        confirmButtonText: "Xóa",
+        cancelButtonText: "Hủy",
+        type: "danger",
+      }
+    );
+
+    emit("delete-channel", props.channelId);
+  } catch {}
 }
 
 // ----------- LIFECYCLE -----------
@@ -272,12 +365,24 @@ onMounted(async () => {
     projectStore.fetchProjects?.();
   }
   await checkRole();
-  console.log("load",props.members)
+  console.log("load", props.members);
 });
 
-watch(() => props.projectId, async () => {
-  await checkRole();
-});
+watch(
+  () => props.projectId,
+  async () => {
+    await checkRole();
+  }
+);
+
+watch(
+  () => props.channelId,
+  async (id) => {
+    if (!id) return;
+    await chatStore.getChannelDetail(id);
+  },
+  { immediate: true }
+);
 
 watch(search, (val) => {
   if (props.page === "project") projectStore.setSearch(val);
@@ -302,5 +407,11 @@ watch(search, (val) => {
   font-weight: 600;
   font-size: 13px;
   color: #333;
+}
+.channel-description {
+  margin: 0;
+  margin-left: 16px;
+  font-size: 14px;
+  color: #666;
 }
 </style>

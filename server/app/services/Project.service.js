@@ -61,6 +61,7 @@ class ProjectService {
 
       if (Array.isArray(payload.members) && payload.members.length > 0) {
         for (const m of payload.members) {
+          if (m.user_id === project.created_by) continue;
           await this.memberService.create(
             {
               project_id: projectId,
@@ -79,7 +80,6 @@ class ProjectService {
           project_id: projectId,
           name: "Thảo luận chung",
           description: "Kênh mặc định để thảo luận trong dự án này",
-          type: "general",
           created_by: project.created_by,
         },
         connection
@@ -137,7 +137,7 @@ class ProjectService {
       `SELECT * 
       FROM tasks 
       WHERE project_id = ? AND deleted_at IS NULL
-      ORDER BY parent_task_id ASC, id ASC`,
+      ORDER BY id ASC`,
       [id]
     );
 
@@ -276,7 +276,7 @@ class ProjectService {
       COUNT(*) AS total_tasks,
       SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done_tasks
      FROM tasks 
-     WHERE project_id = ? AND parent_task_id IS NULL AND deleted_at IS NULL`,
+     WHERE project_id = ? AND deleted_at IS NULL`,
       [projectId]
     );
 
@@ -352,7 +352,6 @@ class ProjectService {
       LEFT JOIN task_assignees ta 
           ON ta.task_id = t.id AND ta.deleted_at IS NULL
       WHERE t.project_id = ? 
-        AND t.parent_task_id IS NULL
         AND t.deleted_at IS NULL
         AND ta.id IS NULL`,
       [projectId]

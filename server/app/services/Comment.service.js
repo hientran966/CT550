@@ -40,12 +40,11 @@ class CommentService {
         const visual = payload.visual;
         await connection.execute(
           `INSERT INTO visual_annotations 
-            (comment_id, file_version_id, shape_type, coordinates, color, opacity)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+            (comment_id, file_version_id, coordinates, color, opacity)
+           VALUES (?, ?, ?, ?, ?)`,
           [
             commentId,
             comment.file_version_id,
-            visual.shape_type ?? "rectangle",
             JSON.stringify(visual.coordinates ?? {}),
             visual.color ?? "#FF0000",
             visual.opacity ?? 0.5,
@@ -122,7 +121,6 @@ class CommentService {
         JSON_OBJECT('id', u.id, 'name', u.name) AS user,
         JSON_OBJECT(
           'id', va.id,
-          'shape_type', va.shape_type,
           'coordinates', va.coordinates,
           'color', va.color,
           'opacity', va.opacity
@@ -145,7 +143,6 @@ class CommentService {
         JSON_OBJECT('id', u.id, 'name', u.name) AS user,
         JSON_OBJECT(
           'id', va.id,
-          'shape_type', va.shape_type,
           'coordinates', va.coordinates,
           'color', va.color,
           'opacity', va.opacity
@@ -195,10 +192,9 @@ class CommentService {
         if (exists.length > 0) {
           await connection.execute(
             `UPDATE visual_annotations 
-             SET shape_type=?, coordinates=?, color=?, opacity=? 
+             SET coordinates=?, color=?, opacity=? 
              WHERE comment_id=?`,
             [
-              v.shape_type ?? "rectangle",
               JSON.stringify(v.coordinates ?? {}),
               v.color ?? "#FF0000",
               v.opacity ?? 0.5,
@@ -207,12 +203,11 @@ class CommentService {
           );
         } else {
           await connection.execute(
-            `INSERT INTO visual_annotations (comment_id, file_version_id, shape_type, coordinates, color, opacity)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO visual_annotations (comment_id, file_version_id, coordinates, color, opacity)
+             VALUES (?, ?, ?, ?, ?)`,
             [
               id,
               payload.file_version_id ?? null,
-              v.shape_type ?? "rectangle",
               JSON.stringify(v.coordinates ?? {}),
               v.color ?? "#FF0000",
               v.opacity ?? 0.5,

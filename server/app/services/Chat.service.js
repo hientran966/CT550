@@ -45,18 +45,23 @@ class ChatService {
       if (!connection) await conn.beginTransaction();
 
       const [result] = await conn.execute(
-        `INSERT INTO chat_channels (project_id, name, description, type, created_by)
-       VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO chat_channels (project_id, name, description, created_by)
+       VALUES (?, ?, ?, ?)`,
         [
           chat.project_id,
           chat.name,
           chat.description,
-          chat.type,
           chat.created_by,
         ]
       );
 
       const channelId = result.insertId;
+
+      await conn.query(
+        `INSERT INTO chat_channel_members (channel_id, user_id)
+       VALUES (?, ?)`,
+        [channelId, chat.created_by]
+      );
 
       if (members.length > 0) {
         const values = members.map((uid) => [channelId, uid]);
@@ -176,7 +181,7 @@ class ChatService {
 
   //message
   async addMessage(payload) {
-    const { channel_id, sender_id, parent_id, content } = payload;
+    const { channel_id, sender_id, content } = payload;
 
     const [channelRows] = await this.mysql.execute(
       `SELECT project_id FROM chat_channels WHERE id = ? AND deleted_at IS NULL`,
@@ -184,9 +189,9 @@ class ChatService {
     );
 
     const [result] = await this.mysql.execute(
-      `INSERT INTO chat_messages (channel_id, sender_id, parent_id, content)
-       VALUES (?, ?, ?, ?)`,
-      [channel_id, sender_id, parent_id ?? null, content]
+      `INSERT INTO chat_messages (channel_id, sender_id, content)
+       VALUES (?, ?, ?)`,
+      [channel_id, sender_id, content]
     );
 
     const messageId = result.insertId;
@@ -263,8 +268,7 @@ class ChatService {
                         'file_id', fv.file_id,
                         'version_number', fv.version_number,
                         'file_url', fv.file_url,
-                        'file_type', fv.file_type,
-                        'status', fv.status
+                        'file_type', fv.file_type
                     )
                 )
                 FROM file_versions fv
@@ -362,7 +366,6 @@ class ChatService {
       project_id,
       channel_id,
       sender_id,
-      parent_id = null,
       content = null,
       files = [],
     } = payload;
@@ -372,12 +375,11 @@ class ChatService {
       await connection.beginTransaction();
 
       const [msgResult] = await connection.execute(
-        `INSERT INTO chat_messages (channel_id, sender_id, parent_id, content, have_file)
-        VALUES (?, ?, ?, ?, true)`,
+        `INSERT INTO chat_messages (channel_id, sender_id, content, have_file)
+        VALUES (?, ?, ?, true)`,
         [
           channel_id ?? null,
           sender_id ?? null,
-          parent_id ?? null,
           content ?? null,
         ]
       );

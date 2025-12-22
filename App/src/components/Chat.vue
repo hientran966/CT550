@@ -258,9 +258,9 @@ onMounted(async () => {
   await loadMembers();
 
   socket.emit("join_channel", props.channelId);
-  if (!hasTargetMessage.value) {
-    scrollToBottom();
-  }
+//  if (!hasTargetMessage.value) {
+//    scrollToBottom();
+ // }
 
   socket.on("chat_message", handleIncomingMessage);
 });
