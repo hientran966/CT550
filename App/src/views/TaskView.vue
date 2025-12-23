@@ -41,10 +41,12 @@
         <Timeline
           v-else-if="activeView === 'timeline'"
           :project-id="projectId"
+          :tasks="taskStore.filteredTasksByProject(projectId)"
         />
         <TaskGantt
           v-else-if="activeView === 'gantt'"
           :project-id="projectId"
+          :tasks="taskStore.filteredTasksByProject(projectId)"
         />
         <Report v-else-if="activeView === 'report'" :project-id="projectId" />
         <GitHubIntegration v-else-if="activeView === 'github'" />
@@ -109,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElLoading } from "element-plus";
 import { getSocket } from "@/plugins/socket";
@@ -141,7 +143,7 @@ import TaskGantt from "@/components/TaskGantt.vue";
 
 const route = useRoute();
 const router = useRouter();
-const projectId = Number(route.params.id);
+const projectId = computed(() => Number(route.params.id));
 const user = JSON.parse(localStorage.getItem("user") || "{}");
 const userId = user?.id || null;
 
@@ -291,6 +293,10 @@ onMounted(() => {
 
   socket.on("project_accepted", async () => {
     await loadMembers();
+    await taskStore.loadTasks(projectId);
+  });
+
+  socket.on("task_updated", async () => {
     await taskStore.loadTasks(projectId);
   });
 });

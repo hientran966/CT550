@@ -29,6 +29,7 @@ app.get("/", (req, res) => {
 });
 // Import routes
 app.use("/api/auth", authRouter);
+app.use("/api/github", githubWebhookRouter);
 
 app.use(verifyToken);
 app.use("/api/projects", projectRouter);
@@ -47,8 +48,6 @@ app.get("/api/github/callback", (req, res, next) => {
   next();
 });
 app.use("/api/github", githubRoutes);
-
-app.use("/api/github", githubWebhookRouter);
 
 //handle 404
 app.use((req, res, next) => {

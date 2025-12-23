@@ -34,23 +34,25 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { ElMessageBox } from "element-plus";
-import TaskService from "@/services/Task.service";
+import { getSocket } from "@/plugins/socket";
+
+import { useTaskStore } from "@/stores/taskStore";
 
 const props = defineProps({
   projectId: Number,
+  tasks: {
+    type: Array,
+    default: () => []
+  }
 });
 
 const tasks = ref([]);
+const taskStore = useTaskStore();
 
 // Đảm bảo không bị lệch múi giờ
 const currentDate = ref(formatLocalDate(new Date()));
 
-onMounted(async () => {
-  const res = await TaskService.getByProject(props.projectId);
-  tasks.value = res || [];
-});
-
-// 🔹 Format Date thành yyyy-MM-dd theo múi giờ địa phương (VN)
+// Format Date thành yyyy-MM-dd theo múi giờ địa phương (VN)
 function formatLocalDate(date) {
   const d = new Date(date);
   const year = d.getFullYear();
@@ -108,6 +110,23 @@ function showTasksOfDay(dateString) {
     customClass: "task-dialog-box",
   });
 }
+
+async function loadTask() {
+  const res = await taskStore.getTasksByProject(props.projectId);
+  tasks.value = res || [];
+}
+
+onMounted(async () => {
+  await loadTask();
+
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("task_updated", async () => {
+    await taskStore.loadTasks(props.projectId);
+    await loadTask();
+  });
+});
 </script>
 
 <style scoped>

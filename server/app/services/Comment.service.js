@@ -78,29 +78,16 @@ class CommentService {
       }
 
       await connection.commit();
-      const [userRows] = await connection.execute(
-        "SELECT id, name FROM users WHERE id = ?",
-        [comment.user_id]
-      );
+      const fullComment = await this.findById(commentId);
 
       if (payload.project_id) {
         sendToProject(payload.project_id, "comment", {
           action: "create",
-          data: {
-            id: commentId,
-            ...comment,
-            user: userRows[0] || null,
-            visual: payload.visual ?? null,
-          },
+          data: fullComment,
         });
       }
 
-      return {
-        id: commentId,
-        ...comment,
-        user: userRows[0] || null,
-        visual: payload.visual ?? null,
-      };
+      return fullComment;
     } catch (error) {
       await connection.rollback();
       throw error;

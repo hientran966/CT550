@@ -5,6 +5,7 @@ import { dayjs } from "element-plus";
 export const useCommentStore = defineStore("comment", {
   state: () => ({
     commentsByTask: {},
+    commentsByVersion: {},
   }),
 
   actions: {

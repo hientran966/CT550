@@ -151,6 +151,13 @@ const openNotification = async (noti) => {
       return;
     }
 
+    if (noti.reference_type === "file") {
+      router.push({
+        path: `/file/${noti.reference_id}`,
+      });
+      return;
+    }
+
     router.push("/notifications");
   } catch (err) {
     console.error("Lỗi khi mở thông báo:", err);

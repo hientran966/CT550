@@ -70,7 +70,7 @@ class GitHubController {
         await GitHubService.getInstallationByProject(projectId);
 
       if (!installation) {
-        return res.status(404).json({ message: "No installation found" });
+        return res.status(404).json({ message: "Chưa cài đặt GitHub cho dự án này" });
       }
 
       res.json(installation);

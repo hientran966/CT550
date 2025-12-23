@@ -85,7 +85,10 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import TaskService from "@/services/Task.service";
+import { getSocket } from "@/plugins/socket";
+
+import { useTaskStore } from "@/stores/taskStore";
+
 import AvatarGroup from "./AvatarGroup.vue";
 
 const props = defineProps({
@@ -93,7 +96,13 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  tasks: {
+    type: Array,
+    default: () => []
+  }
 });
+
+const taskStore = useTaskStore();
 
 const tasks = ref([]);
 const columnWidth = 40;
@@ -202,8 +211,8 @@ const getProgressStyle = (task) => {
   };
 };
 
-onMounted(async () => {
-  const data = await TaskService.getByProject(props.projectId);
+async function loadTasks() {
+  const data = await taskStore.getTasksByProject(props.projectId)
   tasks.value = data;
 
   const tasksWithDates = data.filter(t => t.start_date && t.due_date);
@@ -219,6 +228,18 @@ onMounted(async () => {
     timelineStart.value = new Date(today.getFullYear(), today.getMonth(), 1);
     timelineEnd.value = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   }
+}
+
+onMounted(async () => {
+  loadTasks();
+
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("task_updated", async () => {
+    await taskStore.loadTasks(props.projectId);
+    await loadTasks();
+  });
 });
 </script>
 

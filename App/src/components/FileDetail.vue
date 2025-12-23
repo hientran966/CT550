@@ -1,7 +1,7 @@
 <template>
-  <el-row :gutter="0">
-    <el-col :span="16" style="height: 99vh">
-      <el-card style="height: 100%">
+  <div class="split-layout">
+    <div class="left-panel">
+      <el-card style="height: 100%; border: 0;">
         <!-- HEADER -->
         <div class="file-header">
           <h3 class="file-name">{{ file.file_name }}</h3>
@@ -103,10 +103,10 @@
           </div>
         </div>
       </el-card>
-    </el-col>
+    </div>
 
     <!-- COMMENT -->
-    <el-col :span="8" style="height: 99vh">
+    <div class="right-panel">
       <el-card style="height: 100%">
         <template #header>
           <div style="font-weight: 600">Bình luận</div>
@@ -141,8 +141,8 @@
           Gửi
         </el-button>
       </el-card>
-    </el-col>
-  </el-row>
+    </div>
+  </div>
   <UploadDialog
     v-model="uploadRef"
     :file-id="props.file.id"
@@ -156,11 +156,13 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { getSocket } from "@/plugins/socket";
 import { dayjs } from "element-plus";
-import CommentService from "@/services/Comment.service";
-import FileService from "@/services/File.service";
 import { Close, Crop, Upload } from "@element-plus/icons-vue";
+
+import CommentService from "@/services/Comment.service";
+
 import { useRoleStore } from "@/stores/roleStore";
 import { useFileStore } from "@/stores/fileStore";
+
 import UploadDialog from "./UploadDialog.vue";
 
 let socket;
@@ -212,7 +214,8 @@ const loadComments = async () => {
     const res = await CommentService.getAllComments({
       file_version_id: selectedVersionId.value,
     });
-    comments.value = (res || []).map((c) => ({
+
+    comments.value = (res || []).map(c => ({
       ...c,
       created_at: dayjs(c.created_at).format("DD/MM/YYYY HH:mm"),
     }));
@@ -247,10 +250,6 @@ const addComment = async () => {
     }
 
     const res = await CommentService.createComment(payload);
-    comments.value.unshift({
-      ...res,
-      created_at: dayjs(res.created_at).format("DD/MM/YYYY HH:mm"),
-    });
 
     newComment.value = "";
     cancelVisualMode();
@@ -261,6 +260,7 @@ const addComment = async () => {
 
 // --- VISUAL MODE ---
 const toggleVisualMode = () => {
+  clearCanvas();
   visualMode.value = true;
   canvasEl.value.classList.add("drawing");
 };
@@ -395,9 +395,19 @@ const initSelectedVersion = () => {
 
 // --- WATCH + SOCKET ---
 watch(fileVersions, () => initSelectedVersion(), { immediate: true });
-watch(selectedVersionId, (val) => val && loadComments());
+watch(
+  selectedVersionId,
+  async (val) => {
+    if (!val) return;
+    await nextTick();
+    loadComments();
+  },
+  { flush: "post" }
+);
 watch(() => props.file.id, async (newId) => {
   if (!newId) return;
+
+  comments.value = [];
   await fileStore.loadFileVersions(newId);
   initSelectedVersion();
 });
@@ -406,6 +416,8 @@ onMounted(async () => {
   await fileStore.loadFileVersions(props.file.id);
   initSelectedVersion();
 
+  await loadComments();
+
   canUploadVersion.value = await roleStore.canUpdateFileVersion(
     file.value.id,
     file.value.project_id
@@ -413,15 +425,24 @@ onMounted(async () => {
 
   socket = getSocket();
   socket.on("comment", (event) => {
-    if (event.action === "create") {
-      const exists = comments.value.some(c => c.id === event.data.id);
-      if (!exists) comments.value.unshift(event.data);
-    }
+    if (
+      event.action !== "create" ||
+      event.data.file_version_id !== selectedVersionId.value
+    ) return;
+
+    const exists = comments.value.some(c => c.id === event.data.id);
+    if (exists) return;
+
+    comments.value.unshift({
+      ...event.data,
+      created_at: dayjs(event.data.created_at).format("DD/MM/YYYY HH:mm"),
+    });
   });
 
   socket.on("file", async () => {
-    await loadComments();
     await fileStore.loadFileVersions(props.file.id);
+    initSelectedVersion();
+    await loadComments();
   });
 
   const observer = new ResizeObserver(() => updateCanvasSize());
@@ -434,6 +455,23 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.split-layout {
+  display: flex;
+  height: 100%;
+}
+.left-panel {
+  width: 1100px;
+  min-width: 1100px;
+  max-width: 1100px;
+  overflow-y: auto;
+}
+.right-panel {
+  width: 500px;
+  min-width: 500px;
+  max-width: 500px;
+  border-left: 1px solid #eee;
+  overflow: hidden;
+}
 .file-header {
   display: flex;
   justify-content: space-between;

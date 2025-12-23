@@ -6,16 +6,16 @@
   </div>
 </template>
 
-<script lang="ts" setup>
+<script setup>
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import FileService from "@/services/File.service";
 import FileDetail from "@/components/FileDetail.vue";
 
 const route = useRoute();
-const file = ref<any | null>(null);
+const file = ref(null);
 
-const loadFile = async (id: number) => {
+const loadFile = async (id) => {
   try {
     const res = await FileService.getAllFiles({ id });
     file.value = res[0] || null;
@@ -26,13 +26,17 @@ const loadFile = async (id: number) => {
 };
 
 onMounted(() => {
-  if (route.params.id) loadFile(Number(route.params.id));
+  if (route.params.id) {
+    loadFile(Number(route.params.id));
+  }
 });
 
 watch(
   () => route.params.id,
   (newId) => {
-    if (newId) loadFile(Number(newId));
+    if (newId) {
+      loadFile(Number(newId));
+    }
   }
 );
 </script>

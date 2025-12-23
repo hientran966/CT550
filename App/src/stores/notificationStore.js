@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import NotificationService from "@/services/Notification.service";
 import { useProjectStore } from "@/stores/projectStore";
 import { useTaskStore } from "@/stores/taskStore";
+import { useFileStore } from "@/stores/fileStore";
 import ChatService from "@/services/Chat.service";
 
 export const useNotificationStore = defineStore("noti", {

@@ -17,6 +17,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import { getSocket } from "@/plugins/socket";
 import { useFileStore } from "@/stores/fileStore";
 
 import FileCard from "@/components/FileCard.vue";
@@ -29,8 +30,7 @@ const props = defineProps({
 
 const formRef = ref(false);
 const fileStore = useFileStore();
-
-const { getFilesByTask, getFilesByProject, getFilesByUser } = fileStore;
+let socket;
 
 const files = computed(() => {
   if (props.taskId) {
@@ -62,6 +62,13 @@ const onUpload = () => (formRef.value = true);
 
 onMounted(() => {
   loadFiles();
+
+  socket = getSocket();
+  if (!socket) return;
+
+  socket.on("file", async () => {
+    loadFiles();
+  });
 });
 </script>
 

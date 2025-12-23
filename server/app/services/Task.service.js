@@ -1,7 +1,7 @@
 const AssignmentService = require("./Assign.service");
 const MemberService = require("./Member.service");
 const ActivityService = require("./Activity.service");
-const { sendToUser } = require("../socket/index");
+const { sendToUser, sendToProject } = require("../socket/index");
 
 class TaskService {
   constructor(mysql) {
@@ -219,6 +219,13 @@ class TaskService {
         },
         conn
       );
+
+      if (oldTask.project_id) {
+        sendToProject(oldTask.project_id, "task_updated", {
+            project_id: oldTask.project_id,
+            task_id: oldTask.id,
+        });
+      }
 
       await conn.commit();
       return { success: true };

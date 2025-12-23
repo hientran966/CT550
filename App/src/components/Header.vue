@@ -269,7 +269,7 @@ const currentChannel = computed(() =>
 const channelDescription = computed(
   () => {
     if (props.view !== "chat" || !props.channelId) return "";
-    return currentChannel.value?.description || ""
+    return currentChannel.value?.description || "Không có mô tả"
   }
 );
 

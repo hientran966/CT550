@@ -229,7 +229,7 @@ class GitHubService {
         [projectId]
       );
       if (!rows.length) {
-        return new Error("No installation found for this project");
+        return new Error("Không tìm thấy installation");
       }
 
       await conn.query(
