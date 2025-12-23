@@ -42,14 +42,14 @@
       <el-table-column label="Hành động" width="100">
         <template #default="{ row }">
           <el-popconfirm
-            v-if="canManage"
+            v-if="canManage && row.user_id !== userId"
             title="Bạn có chắc muốn xóa thành viên này không?"
             confirm-button-text="Xóa"
             cancel-button-text="Hủy"
             @confirm="deleteMember(row.id)"
           >
             <template #reference>
-              <el-button type="danger" :icon="Delete" circle />
+              <el-button type="danger" :icon="Delete" plain/>
             </template>
           </el-popconfirm>
         </template>
@@ -109,6 +109,8 @@ const loading = ref(false);
 const confirmDialogVisible = ref(false);
 const avatarUrl = ref(defaultAvatar);
 const userFound = ref(null);
+const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+const userId = currentUser?.id || null;
 
 const form = reactive({
   members: []

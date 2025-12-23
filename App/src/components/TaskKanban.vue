@@ -91,12 +91,16 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
-import { useTaskStore } from "@/stores/taskStore";
-import { useRoleStore } from "@/stores/roleStore";
 import { ElMessageBox, ElMessage } from "element-plus";
 import { Close } from "@element-plus/icons-vue";
 import AvatarGroup from "./AvatarGroup.vue";
+
 import FileService from "@/services/File.service";
+
+import { useTaskStore } from "@/stores/taskStore";
+import { useRoleStore } from "@/stores/roleStore";
+import { useActivityStore } from "@/stores/activityStore";
+
 import defaultAvatar from "@/assets/default-avatar.png";
 import { getSocket } from "@/plugins/socket";
 
@@ -112,6 +116,7 @@ const emit = defineEmits(["open-detail"]);
 
 const taskStore = useTaskStore();
 const roleStore = useRoleStore();
+const activityStore = useActivityStore();
 
 const avatarsMap = ref({});
 const canChangeStatusMap = ref({});
@@ -174,6 +179,7 @@ async function onDrop(event, toColumnName) {
         status: newStatus,
       });
     }
+    await activityStore.loadActivity(draggedTask.value.id);
   }
   draggedTask.value = null;
   fromColumn.value = null;

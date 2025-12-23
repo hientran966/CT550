@@ -5,6 +5,7 @@ import { dayjs } from "element-plus";
 export const useChatStore = defineStore("chat", {
   state: () => ({
     chatByChannel: {},
+    membersByChannel: {},
     channels: [],
   }),
 
@@ -21,32 +22,38 @@ export const useChatStore = defineStore("chat", {
         }));
       } catch (err) {
         console.error("Lỗi load tin nhắn:", err);
+        this.chatByChannel[channelId] = [];
       }
     },
 
     appendChat(channelId, chat) {
+      if (!this.chatByChannel[channelId]) {
+        this.chatByChannel[channelId] = [];
+      }
+
       const formatted = {
         ...chat,
         created_at: dayjs(chat.created_at).format("DD/MM/YYYY HH:mm"),
       };
 
-      this.chatByChannel[channelId] = [
-        ...(this.chatByChannel[channelId] || []),
-        formatted,
-      ];
+      this.chatByChannel[channelId].push(formatted);
     },
 
     /* ================= CHANNEL ================= */
 
     async getChannelDetail(channelId) {
       const cached = this.channels.find(c => c.id === channelId);
-      console.log('cached channel:', cached);
       if (cached) return cached;
 
       const channel = await ChatService.getChannelById(channelId);
-      console.log('fetched channel:', channel);
       this.channels.push(channel);
       return channel;
+    },
+
+    async loadChannelByUser(userId) {
+      const res = await ChatService.getChannelsByUser(userId);
+      this.channels = res || [];
+      return this.channels;
     },
 
     async loadChannelsByProject(projectId) {
@@ -78,6 +85,30 @@ export const useChatStore = defineStore("chat", {
       this.channels = this.channels.filter(c => c.id !== channelId);
       delete this.chatByChannel[channelId];
     },
+    /* ================= MEMBER ================= */
+    async getChannelMembers(channelId) {
+      const members = await ChatService.getChannelMembers(channelId);
+      this.membersByChannel[channelId] = members;
+      return members;
+    },
+
+    async addChannelMember(channelId, userId) {
+      const updated = await ChatService.addMember({channel_id: channelId, user_id: userId});
+      const idx = this.channels.findIndex(c => c.id === channelId);
+      if (idx !== -1) {
+        this.channels[idx] = updated;
+      }
+      return updated;
+    },
+
+    async removeChannelMember(channelId, userId) {
+      const updated = await ChatService.removeMember({channel_id: channelId, user_id: userId});
+      const idx = this.channels.findIndex(c => c.id === channelId);
+      if (idx !== -1) {
+        this.channels[idx] = updated;
+      }
+      return updated;
+    }
   },
 
   getters: {

@@ -1,10 +1,12 @@
 const { sendToProject } = require("../socket/index");
 const NotificationService = require("./Notification.service");
+const ActivityService = require("./Activity.service");
 
 class CommentService {
   constructor(mysql) {
     this.mysql = mysql;
     this.notificationService = new NotificationService(mysql);
+    this.activityService = new ActivityService(mysql);
   }
 
   async extractCommentData(payload) {
@@ -61,6 +63,17 @@ class CommentService {
           reference_id: comment.task_id || comment.file_id || null,
         },
         connection
+        );
+      }
+
+      if (comment.task_id){
+        await this.activityService.create(
+          {
+            task_id: comment.task_id,
+            actor_id: comment.user_id,
+            detail: `Bình luận mới`,
+          },
+          connection
         );
       }
 

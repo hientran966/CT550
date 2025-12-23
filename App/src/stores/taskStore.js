@@ -130,6 +130,7 @@ export const useTaskStore = defineStore("task", {
         await TaskService.updateTask(task.id, {
           status: task.status,
           project_id: projectId,
+          changedField: "status",
           updated_by: user.id,
         });
         const list = this.tasksByProject[projectId] || [];

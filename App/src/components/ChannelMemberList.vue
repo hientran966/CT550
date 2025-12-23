@@ -101,14 +101,14 @@ async function submit() {
     // add member
     await Promise.all(
       toAdd.map(id =>
-        ChatService.addChannelMember(props.channelId, id)
+        chatStore.addChannelMember(props.channelId, id)
       )
     );
 
     // remove member
     await Promise.all(
       toRemove.map(id =>
-        ChatService.removeChannelMember(props.channelId, id)
+        chatStore.removeChannelMember(props.channelId, id)
       )
     );
 

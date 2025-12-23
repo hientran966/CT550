@@ -276,6 +276,22 @@
         <div class="right-panel">
           <div class="panel-scroll" style="padding: 0 !important">
             <el-tabs v-model="rightTab" style="height: 100%; padding-left: 10px;">
+              <el-tab-pane label="Hoạt động" name="activity">
+                <el-card style="height: 100%; border: 0; width: 100%;">
+                  <div class="activity-list">
+                    <div
+                      v-for="activity in activities"
+                      :key="activity.id"
+                      class="item"
+                    >
+                      <div class="user-name">{{ activity.user.name }}</div>
+                      <div class="detail-text">{{ activity.detail }}</div>
+                      <div class="created-at">{{ activity.created_at }}</div>
+                      <el-divider />
+                    </div>
+                  </div>
+                </el-card>
+              </el-tab-pane>
               <el-tab-pane label="Bình luận" name="comment">
                 <el-card style="height: 100%; border: 0; width: 100%;">
                   <div class="comment-list">
@@ -303,23 +319,6 @@
                   </template>
                 </el-card>
               </el-tab-pane>
-
-              <el-tab-pane label="Hoạt động" name="activity">
-                <el-card style="height: 100%; border: 0; width: 100%;">
-                  <div class="activity-list">
-                    <div
-                      v-for="activity in activities"
-                      :key="activity.id"
-                      class="item"
-                    >
-                      <div class="user-name">{{ activity.user.name }}</div>
-                      <div class="detail-text">{{ activity.detail }}</div>
-                      <div class="created-at">{{ activity.created_at }}</div>
-                      <el-divider />
-                    </div>
-                  </div>
-                </el-card>
-              </el-tab-pane>
             </el-tabs>
           </div>
         </div>
@@ -344,7 +343,6 @@ import { ElMessage } from "element-plus";
 import dayjs from "dayjs";
 
 import UploadDialog from "./UploadDialog.vue";
-import TaskForm from "./TaskForm.vue";
 import AvatarGroup from "./AvatarGroup.vue";
 import FileCard from "./FileCard.vue";
 
@@ -371,7 +369,7 @@ const visible = computed({
 let socket;
 
 const uploadRef = ref(false);
-const rightTab = ref("comment");
+const rightTab = ref("activity");
 const editRow = ref(null);
 const editCache = ref({});
 const task = ref({});
@@ -650,6 +648,14 @@ onMounted(async () => {
 
   socket.on("task_updated", async () => {
     await loadData();
+    await roleStore.fetchTaskRole(props.taskId, props.projectId, true);
+    await checkRole();
+  });
+
+  socket.on("comment", (event) => {
+    if (event.action === "create") {
+      loadData();
+    }
   });
 
   socket.on("file", async () => {

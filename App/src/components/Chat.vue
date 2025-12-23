@@ -10,7 +10,7 @@
       >
         <div class="message-row">
           <div class="avatar-col">
-            <el-avatar :size="40" :src="msg.sender_avatar">
+            <el-avatar :size="40" :src="msg.sender_avatar || defaultAvatar">
               {{ msg.sender_name?.[0]?.toUpperCase() }}
             </el-avatar>
           </div>
@@ -103,6 +103,8 @@ import FileCard from "@/components/FileCard.vue";
 import ChatService from "@/services/Chat.service";
 import { useChatStore } from "@/stores/chatStore";
 
+import defaultAvatar from "@/assets/default-avatar.png";
+
 const props = defineProps({
   projectId: { type: Number, required: true },
   channelId: { type: Number, required: true },
@@ -117,6 +119,8 @@ const messages = computed(() => chatStore.getChatByChannel(props.channelId));
 const hasTargetMessage = computed(() => {
   return !!route.query.message;
 });
+
+let currentChannelId = null;
 const message = ref("");
 const members = ref([]);
 const uploadedFiles = ref([]);
@@ -163,7 +167,7 @@ async function sendMessage() {
       files: uploadedFiles.value,
     });
 
-    chatStore.chatByChannel[props.channelId].push(saved);
+    chatStore.appendChat(props.channelId, saved);
 
     message.value = "";
     uploadedFiles.value = [];
@@ -258,9 +262,7 @@ onMounted(async () => {
   await loadMembers();
 
   socket.emit("join_channel", props.channelId);
-//  if (!hasTargetMessage.value) {
-//    scrollToBottom();
- // }
+  currentChannelId = props.channelId;
 
   socket.on("chat_message", handleIncomingMessage);
 });
@@ -268,6 +270,27 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (socket) socket.off("chat_message", handleIncomingMessage);
 });
+
+watch(
+  () => props.channelId,
+  async (newId, oldId) => {
+    if (!newId || newId === oldId) return;
+
+    if (socket && oldId) {
+      socket.emit("leave_channel", oldId);
+    }
+
+    await chatStore.loadChats(newId);
+    await loadMembers();
+
+    if (socket) {
+      socket.emit("join_channel", newId);
+    }
+
+    currentChannelId = newId;
+    scrollToBottom();
+  }
+);
 
 watch(
   messages,

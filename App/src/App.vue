@@ -27,6 +27,7 @@ import { useNotificationStore } from "@/stores/notificationStore";
 import { useTaskStore } from "@/stores/taskStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useInviteStore } from "@/stores/inviteStore";
+import { useRoleStore } from "./stores/roleStore";
 
 /* =======================
    Router & Layout
@@ -42,6 +43,7 @@ const notiStore = useNotificationStore();
 const taskStore = useTaskStore();
 const projectStore = useProjectStore();
 const inviteStore = useInviteStore();
+const roleStore = useRoleStore();
 
 /* =======================
    Auth state

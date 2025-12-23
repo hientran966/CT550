@@ -101,7 +101,7 @@
               @change="stopEditing"
               @click.stop=""
             >
-              <el-option label="Chưa bắt đầu" value="Chưa bắt đầu" />
+              <el-option label="Lên kế hoạch" value="Lên kế hoạch" />
               <el-option label="Đang tiến hành" value="Đang tiến hành" />
               <el-option label="Đã hoàn thành" value="Đã hoàn thành" />
             </el-select>
@@ -204,7 +204,7 @@ function handlePageChange(page) {
 // ------------------ TRẠNG THÁI / EDIT ------------------
 const tableRef = ref(null);
 const statusFilters = [
-  { text: "Chưa bắt đầu", value: "Chưa bắt đầu" },
+  { text: "Lên kế hoạch", value: "Lên kế hoạch" },
   { text: "Đang tiến hành", value: "Đang tiến hành" },
   { text: "Đã hoàn thành", value: "Đã hoàn thành" },
 ];

@@ -75,16 +75,6 @@ class ProjectService {
         }
       }
 
-      await this.chatService.create(
-        {
-          project_id: projectId,
-          name: "Thảo luận chung",
-          description: "Kênh mặc định để thảo luận trong dự án này",
-          created_by: project.created_by,
-        },
-        connection
-      );
-
       await connection.commit();
       return { id: projectId };
     } catch (error) {
@@ -255,6 +245,7 @@ class ProjectService {
           p.created_by = ? 
           OR (pm.user_id = ? AND pm.status = 'accepted')
         )
+        AND pm.deleted_at IS NULL
         AND p.deleted_at IS NULL
     `;
     const [rows] = await this.mysql.execute(sql, [userId, userId]);

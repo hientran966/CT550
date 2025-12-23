@@ -98,7 +98,7 @@
   <MemberList
     v-model="memberListRef"
     :project_id="projectId"
-    @member-updated="() => taskStore.loadTasks(projectId)"
+    @member-updated="onMemberUpdated"
   />
   <TaskDetail
     v-if="selectedTask"
@@ -112,6 +112,7 @@
 import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElLoading } from "element-plus";
+import { getSocket } from "@/plugins/socket";
 
 import { useTaskStore } from "@/stores/taskStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -267,6 +268,11 @@ async function onProjectUpdated() {
   await projectStore.fetchProjects();
 }
 
+async function onMemberUpdated() {
+  await loadMembers();
+  await taskStore.loadTasks(projectId);
+}
+
 onMounted(() => {
   taskStore.loadTasks(projectId);
   loadMembers();
@@ -279,6 +285,14 @@ onMounted(() => {
     activeView.value = "chat";
     selectedChannel.value = Number(route.query.channel);
   }
+
+  const socket = getSocket();
+  if (!socket) return;
+
+  socket.on("project_accepted", async () => {
+    await loadMembers();
+    await taskStore.loadTasks(projectId);
+  });
 });
 
 watch(

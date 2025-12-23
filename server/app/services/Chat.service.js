@@ -14,7 +14,6 @@ class ChatService {
       project_id: payload.project_id ?? null,
       name: payload.name ?? null,
       description: payload.description ?? null,
-      type: payload.type ?? "general",
       created_by: payload.created_by,
     };
   }
@@ -58,7 +57,7 @@ class ChatService {
       const channelId = result.insertId;
 
       await conn.query(
-        `INSERT INTO chat_channel_members (channel_id, user_id)
+        `INSERT IGNORE INTO chat_channel_members (channel_id, user_id)
        VALUES (?, ?)`,
         [channelId, chat.created_by]
       );
@@ -66,7 +65,7 @@ class ChatService {
       if (members.length > 0) {
         const values = members.map((uid) => [channelId, uid]);
         await conn.query(
-          `INSERT INTO chat_channel_members (channel_id, user_id)
+          `INSERT IGNORE INTO chat_channel_members (channel_id, user_id)
          VALUES ?`,
           [values]
         );
@@ -112,6 +111,17 @@ class ChatService {
     return rows[0] || null;
   }
 
+  async getByUserId(user_id) {
+    const [rows] = await this.mysql.execute(
+      `SELECT c.*
+       FROM chat_channels c
+       JOIN chat_channel_members cm ON cm.channel_id = c.id
+        WHERE cm.user_id = ? AND c.deleted_at IS NULL AND cm.deleted_at IS NULL`,
+      [user_id]
+    );
+    return rows;
+  }
+
   async update(id, payload) {
     const chat = await this.extractChatData(payload);
     const fields = [];
@@ -152,7 +162,7 @@ class ChatService {
   //member
   async addMember(channel_id, user_id) {
     await this.mysql.execute(
-      `INSERT INTO chat_channel_members (channel_id, user_id)
+      `INSERT IGNORE INTO chat_channel_members (channel_id, user_id)
        VALUES (?, ?)`,
       [channel_id, user_id]
     );

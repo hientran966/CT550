@@ -19,7 +19,7 @@ router.route("/:id/report")
   .get(checkProjectMember, project.report);
 
 router.route("/:id/role/:user_id")
-  .get(checkProjectMember, project.getRole);
+  .get(project.getRole);
 
 router.route("/account/:id")
   .get(project.findByAccountId);

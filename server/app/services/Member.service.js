@@ -110,12 +110,65 @@ class MemberService {
         return this.findById(id, connection);
     }
 
-    async delete(id, connection = this.mysql) {
-        await connection.execute(
-        "UPDATE project_members SET deleted_at = NOW() WHERE id = ?",
-        [id]
-        );
-        return id;
+    async delete(id) {
+        const connection = await this.mysql.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            // Lấy member để biết project_id & user_id
+            const member = await this.findById(id, connection);
+            if (!member) {
+                await connection.rollback();
+                return null;
+            }
+
+            const { project_id, user_id } = member;
+
+            // 1. Soft delete project_members
+            await connection.execute(
+                `UPDATE project_members 
+                SET deleted_at = NOW() 
+                WHERE id = ?`,
+                [id]
+            );
+
+            // 2. Xóa phân công task (task_assignees) trong project
+            await connection.execute(
+                `
+                UPDATE task_assignees ta
+                JOIN tasks t ON ta.task_id = t.id
+                SET ta.deleted_at = NOW()
+                WHERE 
+                    t.project_id = ?
+                    AND ta.user_id = ?
+                    AND ta.deleted_at IS NULL
+                `,
+                [project_id, user_id]
+            );
+
+            // 3. Xóa member khỏi các chat channel của project
+            await connection.execute(
+                `
+                UPDATE chat_channel_members ccm
+                JOIN chat_channels cc ON ccm.channel_id = cc.id
+                SET ccm.deleted_at = NOW()
+                WHERE 
+                    cc.project_id = ?
+                    AND ccm.user_id = ?
+                    AND ccm.deleted_at IS NULL
+                `,
+                [project_id, user_id]
+            );
+
+            await connection.commit();
+            return id;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
     async getByProjectId(id) {
@@ -124,6 +177,7 @@ class MemberService {
             LEFT JOIN project_members pm ON u.id = pm.user_id 
             WHERE project_id = ? 
             AND pm.status = 'accepted' 
+            AND pm.deleted_at IS NULL
             AND u.deleted_at IS NULL`;
         const [rows] = await this.mysql.execute(sql, [id]);
         return rows;

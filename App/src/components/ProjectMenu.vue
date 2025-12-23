@@ -62,6 +62,7 @@ import { useChatStore } from "@/stores/chatStore";
 import {
   Files, Guide, Menu, PieChart, ChatSquare, Collection, Calendar
 } from "@element-plus/icons-vue";
+import AccountService from "@/services/Account.service";
 
 const props = defineProps({
   activeView: String,
@@ -92,9 +93,10 @@ function handleSelect(key) {
 }
 
 async function loadChannels() {
-  if (!props.projectId) return;
   try {
-    await chatStore.loadChannelsByProject(props.projectId);
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.id || null;
+    await chatStore.loadChannelByUser(userId);
   } catch (err) {
     console.error("Lỗi khi tải kênh chat:", err);
   }

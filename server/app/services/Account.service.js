@@ -67,8 +67,8 @@ class AccountService {
     const params = [];
 
     if (filter.email) {
-      sql += " AND email LIKE ?";
-      params.push(`%${filter.email}%`);
+      sql += " AND email = ?";
+      params.push(filter.email);
     }
 
     if (filter.name) {

@@ -7,12 +7,7 @@
     :close-on-click-modal="false"
     :destroy-on-close="true"
   >
-    <el-form
-      :model="form"
-      :rules="rules"
-      ref="projectForm"
-      label-width="120px"
-    >
+    <el-form :model="form" :rules="rules" ref="projectForm" label-width="120px">
       <el-form-item label="Tên dự án" prop="name">
         <el-input v-model="form.name" autocomplete="off" />
       </el-form-item>
@@ -31,7 +26,7 @@
           v-model="form.start_date"
           type="date"
           placeholder="Chọn ngày bắt đầu"
-          style="width: 100%;"
+          style="width: 100%"
         />
       </el-form-item>
 
@@ -41,10 +36,9 @@
           type="date"
           placeholder="Chọn ngày kết thúc"
           :disabled-date="
-            (date) =>
-                (form.start_date && date < new Date(form.start_date))
+            (date) => form.start_date && date < new Date(form.start_date)
           "
-          style="width: 100%;"
+          style="width: 100%"
         />
       </el-form-item>
 
@@ -52,10 +46,9 @@
         <el-select
           v-model="form.status"
           placeholder="Chọn trạng thái"
-          style="width: 100%;"
+          style="width: 100%"
         >
           <el-option label="Lên kế hoạch" value="Lên kế hoạch" />
-          <el-option label="Chưa bắt đầu" value="Chưa bắt đầu" />
           <el-option label="Đang tiến hành" value="Đang tiến hành" />
         </el-select>
       </el-form-item>
@@ -65,20 +58,18 @@
           <el-input
             v-model="newMember.email"
             placeholder="Nhập email thành viên"
-            style="width: 60%;"
+            style="width: 60%"
           />
           <el-select
             v-model="newMember.role"
             placeholder="Chọn vai trò"
-            style="width: 30%;"
+            style="width: 30%"
           >
             <el-option label="Manager" value="manager" />
             <el-option label="Member" value="member" />
             <el-option label="Viewer" value="viewer" />
           </el-select>
-          <el-button type="primary" plain @click="addMember">
-            Thêm
-          </el-button>
+          <el-button type="primary" plain @click="addMember"> Thêm </el-button>
         </div>
 
         <el-table
@@ -102,6 +93,29 @@
       </el-form-item>
     </el-form>
 
+    <el-dialog
+      v-model="confirmDialogVisible"
+      width="400px"
+      title="Xác nhận thêm thành viên"
+    >
+      <div class="confirm-container">
+        <el-avatar :size="70" :src="avatarUrl" />
+        <div style="margin-top: 10px; text-align: center">
+          <div>
+            <strong>{{ userFound?.email }}</strong>
+          </div>
+          <div style="color: gray">Vai trò: {{ newMember.role }}</div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="confirmDialogVisible = false">Hủy</el-button>
+        <el-button type="primary" @click="confirmAddMember">
+          Xác nhận
+        </el-button>
+      </template>
+    </el-dialog>
+
     <template #footer>
       <el-button @click="handleClose">Hủy</el-button>
       <el-button type="primary" @click="submitForm">Tạo</el-button>
@@ -116,7 +130,8 @@ import { Delete } from "@element-plus/icons-vue";
 
 import ProjectService from "@/services/Project.service";
 import AccountService from "@/services/Account.service";
-import MemberService from "@/services/Member.service";
+import FileService from "@/services/File.service";
+import defaultAvatar from "@/assets/default-avatar.png";
 
 /* ================== PROPS & EMITS ================== */
 const props = defineProps({
@@ -127,6 +142,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue", "project-added"]);
+
+/* ================== REFERENCE VARIABLES ================== */
+const confirmDialogVisible = ref(false);
+const userFound = ref(null);
+const avatarUrl = ref(defaultAvatar);
 
 /* ================== DIALOG VISIBLE ================== */
 const visible = computed({
@@ -153,9 +173,7 @@ const newMember = reactive({
 
 /* ================== VALIDATION RULES ================== */
 const rules = {
-  name: [
-    { required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" },
-  ],
+  name: [{ required: true, message: "Tiêu đề là bắt buộc", trigger: "blur" }],
   start_date: [
     {
       required: true,
@@ -175,9 +193,7 @@ const rules = {
           return callback(new Error("Ngày kết thúc là bắt buộc"));
         }
         if (form.start_date && new Date(value) < new Date(form.start_date)) {
-          return callback(
-            new Error("Ngày kết thúc phải sau ngày bắt đầu")
-          );
+          return callback(new Error("Ngày kết thúc phải sau ngày bắt đầu"));
         }
         callback();
       },
@@ -235,18 +251,38 @@ async function addMember() {
       return ElMessage.warning("Thành viên này đã có trong danh sách");
     }
 
-    form.members.push({
-      user_id: user.id,
-      email: user.email,
-      role: newMember.role,
-    });
+    userFound.value = user;
+    await loadAvatar(user.id);
 
-    ElMessage.success(`Đã thêm ${user.email}`);
-    newMember.email = "";
-    newMember.role = "member";
+    confirmDialogVisible.value = true;
   } catch (err) {
-    console.error("Lỗi kiểm tra email:", err);
+    console.error(err);
     ElMessage.error("Không thể kiểm tra email");
+  }
+}
+
+async function confirmAddMember() {
+  form.members.push({
+    user_id: userFound.value.id,
+    email: userFound.value.email,
+    role: newMember.role,
+  });
+
+  ElMessage.success(`Đã thêm ${userFound.value.email}`);
+
+  confirmDialogVisible.value = false;
+  userFound.value = null;
+
+  newMember.email = "";
+  newMember.role = "member";
+}
+
+async function loadAvatar(userId) {
+  try {
+    const res = await FileService.getAvatar(userId);
+    avatarUrl.value = res?.file_url || defaultAvatar;
+  } catch {
+    avatarUrl.value = defaultAvatar;
   }
 }
 
