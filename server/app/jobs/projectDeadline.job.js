@@ -48,8 +48,8 @@ async function checkProjectDeadlines() {
   }
 }
 
-// Cron job chạy 7h sáng mỗi ngày
-cron.schedule("0 7 * * *", checkProjectDeadlines, {
+// Cron job chạy 5h sáng mỗi ngày
+cron.schedule("0 5 * * *", checkProjectDeadlines, {
   timezone: "Asia/Ho_Chi_Minh",
 });
 

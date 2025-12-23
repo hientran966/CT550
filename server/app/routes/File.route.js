@@ -1,6 +1,7 @@
 const express = require("express");
 const file = require("../controllers/File.controller");
 const upload = require("../middlewares/upload.middleware");
+const checkFileViewer = require("../middlewares/file.middleware");
 
 const router = express.Router();
 
@@ -9,19 +10,19 @@ router.route("/")
     .post(upload.single("file"), file.create)
 
 router.route("/:id")
-    .get(file.findOne)
-    .put(file.update)
-    .delete(file.delete);
+    .get(checkFileViewer, file.findOne)
+    .put(checkFileViewer, file.update)
+    .delete(checkFileViewer, file.delete);
 
 router.route("/:id/version")
-    .get(file.findAllVersion)
-    .post(upload.single("file"), file.addVersion);
+    .get(checkFileViewer, file.findAllVersion)
+    .post(checkFileViewer, upload.single("file"), file.addVersion);
 
 router.route("/:id/role/:user_id")
-    .get(file.getRole);
+    .get(checkFileViewer, file.getRole);
 
 router.route("/:id/version/:versionId")
-    .get(file.findVersion)
+    .get(checkFileViewer, file.findVersion)
 
 router.route("/avatar/:id")
     .get(file.getAvatar)
