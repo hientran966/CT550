@@ -686,7 +686,7 @@ watch(
       await checkRole();
       editRow.value = null;
       editCache.value = {};
-      rightTab.value = "comment";
+      rightTab.value = "activity";
     }
   }
 );
@@ -805,7 +805,9 @@ watch(
   cursor: pointer;
 }
 .user-name {
-  font-weight: 500;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 2px;
 }
 .detail-text {
   font-size: 13px;

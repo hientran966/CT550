@@ -85,7 +85,6 @@ export const useNotificationStore = defineStore("noti", {
     async getReferenceByNoti(noti) {
       try {
         if (!noti?.reference_type || !noti?.reference_id) return null;
-        console.log("Lấy reference cho noti:", noti);
 
         if (noti.reference_type === "project") {
           const projectStore = useProjectStore();
@@ -107,7 +106,6 @@ export const useNotificationStore = defineStore("noti", {
 
         if (noti.reference_type === "chat_message") {
           const channel = await ChatService.getMessageChannel(noti.reference_id);
-          console.log("Lấy reference chat_message:", channel);
           if (!channel) return null;
 
           return {

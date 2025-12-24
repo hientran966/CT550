@@ -36,6 +36,8 @@ const content = ref(props.modelValue);
 const query = ref("");
 const showDropdown = ref(false);
 const activeIndex = ref(0);
+const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+const userId = currentUser?.id || null;
 
 watch(content, (val) => {
   emit("update:modelValue", val);
@@ -48,19 +50,33 @@ watch(content, (val) => {
   }
 });
 
-const filteredUsers = computed(() =>
-  props.users.filter((u) => u.name.toLowerCase().includes(query.value.toLowerCase()))
-);
+const filteredUsers = computed(() => {
+  const list = props.users
+    .filter(u => u.user_id !== userId)
+    .filter(u =>
+      u.name.toLowerCase().includes(query.value.toLowerCase())
+    );
+
+  if ("all".startsWith(query.value.toLowerCase())) {
+    list.unshift({ user_id: "all", name: "All" });
+  }
+
+  return list;
+});
 
 function onInput(val) {
   content.value = val;
 }
 
 function chooseUser(user) {
-  content.value = content.value.replace(
-    /@(\w*)$/,
-    `<@user:${user.user_id}> `
-  );
+  if (user.user_id === "all") {
+    content.value = content.value.replace(/@(\w*)$/, "@All ");
+  } else {
+    content.value = content.value.replace(
+      /@(\w*)$/,
+      `<@user:${user.user_id}> `
+    );
+  }
   emit("mention", user);
   showDropdown.value = false;
 }

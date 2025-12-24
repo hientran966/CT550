@@ -203,11 +203,6 @@ const rules = {
 };
 
 /* ================== METHODS ================== */
-function handleClose() {
-  visible.value = false;
-  resetForm();
-}
-
 function resetForm() {
   Object.assign(form, {
     name: "",
@@ -222,6 +217,11 @@ function resetForm() {
     email: "",
     role: "member",
   });
+}
+
+function handleClose() {
+  visible.value = false;
+  resetForm();
 }
 
 function removeMember(index) {
@@ -331,3 +331,18 @@ async function submitForm() {
   }
 }
 </script>
+
+<style scoped>
+.confirm-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 0;
+}
+
+.confirm-info {
+  margin-top: 10px;
+  text-align: center;
+}
+</style>

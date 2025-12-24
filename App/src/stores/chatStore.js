@@ -50,8 +50,8 @@ export const useChatStore = defineStore("chat", {
       return channel;
     },
 
-    async loadChannelByUser(userId) {
-      const res = await ChatService.getChannelsByUser(userId);
+    async loadChannelByUser(projectId, userId) {
+      const res = await ChatService.getChannelsByUser(projectId, userId);
       this.channels = res || [];
       return this.channels;
     },
@@ -94,6 +94,7 @@ export const useChatStore = defineStore("chat", {
 
     async addChannelMember(channelId, userId) {
       const updated = await ChatService.addMember({channel_id: channelId, user_id: userId});
+      console.log("Adding member", { channelId, userId });
       const idx = this.channels.findIndex(c => c.id === channelId);
       if (idx !== -1) {
         this.channels[idx] = updated;

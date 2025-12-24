@@ -149,7 +149,6 @@ async function loadAvatar(userId) {
 
 function loadUser(user) {
   if (user) {
-    console.log("Loading user into form:", user);
     form.id = user.id;
     form.name = user.name || "";
     form.email = user.email || "";

@@ -30,6 +30,12 @@ function createController(ServiceClass, messages = {}) {
                 } else {
                     documents = await service.find({});
                 }
+
+                if (!documents || documents === []) {
+                    return next(
+                        new ApiError(403, "Không tìm thấy")
+                    );
+                }
                 return res.send(documents);
             } catch (error) {
                 console.error(error);

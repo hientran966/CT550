@@ -19,7 +19,6 @@ const loadFile = async (id) => {
   try {
     const res = await FileService.getAllFiles({ id });
     file.value = res[0] || null;
-    console.log("File loaded:", file.value);
   } catch (error) {
     console.error("Lỗi khi load file:", error);
   }

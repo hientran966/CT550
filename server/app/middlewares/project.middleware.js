@@ -24,11 +24,14 @@ async function checkProjectMember(req, res, next) {
     const rows = await MySQL.query(
       `
       SELECT 1
-      FROM project_members
-      WHERE project_id = ?
-        AND user_id = ?
-        AND status = 'accepted'
-        AND deleted_at IS NULL
+      FROM project_members pm
+      JOIN projects p
+        ON pm.project_id = p.id
+      WHERE pm.project_id = ?
+        AND pm.user_id = ?
+        AND pm.status = 'accepted'
+        AND pm.deleted_at IS NULL
+        AND p.deleted_at IS NULL
       LIMIT 1
       `,
       [projectId, userId]

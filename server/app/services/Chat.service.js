@@ -21,14 +21,14 @@ class ChatService {
   extractMentionIds(content) {
     if (!content) return [];
 
+    if (content.includes("@All")) return ["all"];
+
     const regex = /<@user:(\d+)>/g;
     const ids = new Set();
     let match;
-
     while ((match = regex.exec(content)) !== null) {
       ids.add(Number(match[1]));
     }
-
     return Array.from(ids);
   }
 
@@ -111,13 +111,13 @@ class ChatService {
     return rows[0] || null;
   }
 
-  async getByUserId(user_id) {
+  async getByUserId(user_id, project_id) {
     const [rows] = await this.mysql.execute(
       `SELECT c.*
        FROM chat_channels c
        JOIN chat_channel_members cm ON cm.channel_id = c.id
-        WHERE cm.user_id = ? AND c.deleted_at IS NULL AND cm.deleted_at IS NULL`,
-      [user_id]
+        WHERE cm.user_id = ? AND c.project_id = ? AND c.deleted_at IS NULL AND cm.deleted_at IS NULL`,
+      [user_id, project_id]
     );
     return rows;
   }
@@ -161,11 +161,35 @@ class ChatService {
 
   //member
   async addMember(channel_id, user_id) {
-    await this.mysql.execute(
-      `INSERT IGNORE INTO chat_channel_members (channel_id, user_id)
-       VALUES (?, ?)`,
+    // Kiểm tra xem user đã từng là thành viên nhưng bị xóa chưa
+    const [rows] = await this.mysql.execute(
+      `SELECT * FROM chat_channel_members 
+      WHERE channel_id = ? AND user_id = ?`,
       [channel_id, user_id]
     );
+
+    if (rows.length) {
+      // Nếu đã từng tồn tại
+      if (rows[0].deleted_at) {
+        // Nếu đã bị xóa => update lại deleted_at = NULL
+        await this.mysql.execute(
+          `UPDATE chat_channel_members 
+          SET deleted_at = NULL 
+          WHERE channel_id = ? AND user_id = ?`,
+          [channel_id, user_id]
+        );
+      }
+      // Nếu đã tồn tại và chưa bị xóa thì không làm gì
+    } else {
+      // Nếu chưa tồn tại => thêm mới
+      await this.mysql.execute(
+        `INSERT INTO chat_channel_members (channel_id, user_id)
+        VALUES (?, ?)`,
+        [channel_id, user_id]
+      );
+    }
+
+    // Trả về thông tin member
     return { channel_id, user_id };
   }
 
@@ -340,33 +364,58 @@ class ChatService {
   }
 
   //mentions
-  async addMentions(
-    message_id,
-    mentioned_user_ids = [],
-    actor_id,
-    connection = this.mysql
-  ) {
+  async addMentions(message_id, mentioned_user_ids = [], actor_id, connection = this.mysql) {
     if (!mentioned_user_ids.length) return;
 
-    const values = mentioned_user_ids.map((uid) => [message_id, uid]);
+    if (mentioned_user_ids.includes("all")) {
+      // Lấy tất cả user trong channel
+      const [users] = await connection.execute(
+        `SELECT user_id 
+        FROM chat_channel_members 
+        WHERE channel_id = (SELECT channel_id FROM chat_messages WHERE id = ?) 
+          AND deleted_at IS NULL`,
+        [message_id]
+      );
 
-    await connection.query(
-      `INSERT INTO chat_mentions (message_id, mentioned_user_id)
-      VALUES ?`,
-      [values]
-    );
+      for (const u of users) {
+        // Không tạo notification cho người gửi
+        if (String(u.user_id) === String(actor_id)) continue;
+        
+        await this.notificationService.create({
+          recipient_id: u.user_id,
+          actor_id,
+          type: "mention",
+          reference_type: "chat_message",
+          reference_id: message_id,
+          message: "Bạn được nhắc đến trong cuộc trò chuyện (@All)",
+        });
+      }
 
-    for (const uid of mentioned_user_ids) {
-      if (uid === actor_id) continue;
+      return;
+    }
 
-      await this.notificationService.create({
-        recipient_id: uid,
-        actor_id: actor_id,
-        type: "mention",
-        reference_type: "chat_message",
-        reference_id: message_id,
-        message: "Bạn được nhắc đến trong cuộc trò chuyện",
-      });
+    // Trường hợp nhắc từng người
+    const values = mentioned_user_ids
+      .filter((uid) => uid !== actor_id)
+      .map(uid => [message_id, uid]);
+
+    if (values.length > 0) {
+      await connection.query(
+        `INSERT INTO chat_mentions (message_id, mentioned_user_id) VALUES ?`,
+        [values]
+      );
+
+      for (const uid of mentioned_user_ids) {
+        if (uid === actor_id) continue;
+        await this.notificationService.create({
+          recipient_id: uid,
+          actor_id,
+          type: "mention",
+          reference_type: "chat_message",
+          reference_id: message_id,
+          message: "Bạn được nhắc đến trong cuộc trò chuyện",
+        });
+      }
     }
   }
 

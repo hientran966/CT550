@@ -44,7 +44,7 @@ exports.taskCreate = async function (req, res) {
       if (!Array.isArray(taskList)) taskList = [taskList];
     } catch (err) {
       console.error("AI trả về không hợp lệ:\n", rawTasks);
-      return res.json({ question, intent, answer });
+      return rawTasks;
     }
 
     const createdTasks = [];

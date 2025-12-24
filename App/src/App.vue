@@ -74,6 +74,9 @@ watch(isAuthenticated, async (loggedIn) => {
         message: data.message || "Bạn có thông báo mới",
         type: data.type || "info",
         duration: 4000,
+        onClick: () => {
+            router.push("/notifications");
+        },
       });
 
       await notiStore.addNotification(data);

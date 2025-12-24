@@ -18,7 +18,6 @@ export const useProjectStore = defineStore("project", {
       const data = await ProjectService.getProjectsByAccountId(user.id);
 
       this.projects = data.map(p => ({ ...p }));
-      console.log("Projects reloaded:", this.projects.length);
     },
 
     async updateProject(payload) {

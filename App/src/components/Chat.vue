@@ -116,9 +116,9 @@ const route = useRoute();
 const router = useRouter();
 
 const messages = computed(() => chatStore.getChatByChannel(props.channelId));
-const hasTargetMessage = computed(() => {
-  return !!route.query.message;
-});
+const hasTargetOnOpen = ref(false);
+const targetMessageId = ref(null);
+const lockScrollBottom = ref(false);
 
 let currentChannelId = null;
 const message = ref("");
@@ -220,6 +220,7 @@ function scrollToMessage(messageId) {
 }
 
 function scrollToBottom() {
+  if (lockScrollBottom.value) return; 
   nextTick(() => {
     const wrap = scrollbarRef.value?.wrapRef;
     if (wrap) wrap.scrollTop = wrap.scrollHeight;
@@ -255,6 +256,10 @@ function formatTime(dateStr) {
 }
 
 onMounted(async () => {
+  if (route.query.message) {
+    hasTargetOnOpen.value = true;
+    targetMessageId.value = Number(route.query.message);
+  }
   socket = getSocket();
   if (!socket) return;
 
@@ -265,6 +270,10 @@ onMounted(async () => {
   currentChannelId = props.channelId;
 
   socket.on("chat_message", handleIncomingMessage);
+
+  if (!hasTargetOnOpen.value) {
+    scrollToBottom();
+  }
 });
 
 onBeforeUnmount(() => {
@@ -295,17 +304,25 @@ watch(
 watch(
   messages,
   (newMessages) => {
-    const targetMessageId = Number(route.query.message);
-    if (!targetMessageId) return;
+    if (!hasTargetOnOpen.value || !targetMessageId.value) return;
 
-    const exists = newMessages.some((m) => m.id === targetMessageId);
+    const exists = newMessages.some(
+      (m) => m.id === targetMessageId.value
+    );
     if (!exists) return;
 
-    scrollToMessage(targetMessageId);
+    lockScrollBottom.value = true;
 
-    router.replace({
-      query: {},
-    });
+    scrollToMessage(targetMessageId.value);
+
+    hasTargetOnOpen.value = false;
+    targetMessageId.value = null;
+
+    router.replace({ query: {} });
+
+    setTimeout(() => {
+      lockScrollBottom.value = false;
+    }, 700);
   },
   { flush: "post" }
 );

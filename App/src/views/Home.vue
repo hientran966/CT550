@@ -274,7 +274,7 @@ async function uploadAvatar({ file }) {
 async function loadData() {
   try {
     const data = await AccountService.getCurrentUser();
-    console.log("User data loaded:", data);
+
     Object.assign(user.value, data);
 
     if (user.value.id) {

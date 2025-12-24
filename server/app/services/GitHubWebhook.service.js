@@ -63,13 +63,7 @@ class WebhookService {
       if (event === "push") {
         await this.handlePushEvent(projectId, payload);
       } else if (event === "pull_request") {
-        await sendGitEventToProject(projectId, {
-          type: "pull_request",
-          action: payload.action,
-          title: payload.pull_request.title,
-          user: payload.pull_request.user.login,
-          url: payload.pull_request.html_url,
-        });
+        await this.handlePullRequestEvent(projectId, payload);
       } else if (event === "issues") {
         await sendGitEventToProject(projectId, {
           type: "issue",
@@ -85,14 +79,24 @@ class WebhookService {
   }
 
   async handlePushEvent(projectId, payload) {
+    const branch = payload.ref.replace("refs/heads/", "");
+
     const pushData = {
       repo: payload.repository.full_name,
-      branch: payload.ref.replace("refs/heads/", ""),
+      branch,
       pusher: payload.pusher?.name,
       commits: payload.commits,
     };
 
     await sendGitPushToProject(projectId, pushData);
+
+    if (branch !== "main") return;
+    const isMergeFromPR =
+      payload.compare?.includes("/pull/") ||
+      payload.head_commit?.message?.includes("Merge pull request") ||
+      payload.commits.length > 1;
+
+    if (isMergeFromPR) return;
 
     for (const commit of payload.commits || []) {
       const messages = [commit.message, commit.title, commit.body].filter(
@@ -110,7 +114,7 @@ class WebhookService {
             project_id: projectId,
             task_id: taskId,
             actor_id: 0,
-            detail: `Đã commit: ${commit.message}`,
+            detail: `Có commit mới: ${commit.message}`,
             created_at: new Date(),
           });
         }
@@ -122,6 +126,51 @@ class WebhookService {
         url: commit.url,
       });
     }
+  }
+
+  async handlePullRequestEvent(projectId, payload) {
+    const pr = payload.pull_request;
+    const action = payload.action;
+    console.log(action);
+
+    const isOpened = action === "opened";
+    const isMerged =
+      action === "closed" &&
+      pr.merged === true &&
+      pr.base.ref === "main";
+
+    if (!isOpened && !isMerged) return;
+
+    await sendGitEventToProject(projectId, {
+      type: "pull_request",
+      action,
+      title: pr.title,
+      user: pr.user.login,
+      url: pr.html_url,
+    });
+
+    const fullText = [pr.title, pr.body].filter(Boolean).join("\n");
+    const taskCodes = this.extractTaskCodes(fullText);
+
+    const detail = isOpened
+      ? `Pull Request được mở: ${pr.title}`
+      : `Pull Request đã merged: ${pr.title}`;
+
+    if (taskCodes.length > 0) {
+      for (const code of taskCodes) {
+        const taskId = await this.getTaskId(projectId, code);
+
+        if (taskId) {
+          await this.activityService.create({
+            project_id: projectId,
+            task_id: taskId,
+            actor_id: 0,
+            detail,
+            created_at: new Date(),
+          });
+        }
+      }
+    } 
   }
 }
 

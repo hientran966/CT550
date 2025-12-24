@@ -1,22 +1,22 @@
-import { ElNotification } from "element-plus";
+import { ElMessage } from "element-plus";
 
-let activeMessage = null;
+let activeMessage = false;
 
 export const notify = ({
-  title = "Thông báo",
   message,
   type = "error",
   duration = 3000,
 }) => {
   if (activeMessage) return;
 
-  activeMessage = ElNotification({
-    title,
+  activeMessage = true;
+
+  ElMessage({
     message,
     type,
     duration,
     onClose: () => {
-      activeMessage = null;
+      activeMessage = false;
     },
   });
 };

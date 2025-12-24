@@ -143,6 +143,11 @@ const openNotification = async (noti) => {
       return;
     }
 
+    if (noti.reference_type === "project") {
+      router.push(`/projects`);
+      return;
+    }
+
     if (noti.reference_type === "chat_message" && ref) {
       router.push({
         path: `/projects/${ref.project_id}`,
@@ -186,7 +191,7 @@ onMounted(() => {
 }
 
 .notification-list {
-  height: calc(100vh - 50px);
+  height: calc(100vh - 100px);
   overflow-y: auto;
   background-color: #ebebeb;
 }

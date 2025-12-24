@@ -95,7 +95,7 @@
     v-model="channelMemberRef"
     :project-id="projectId"
     :channel-id="selectedChannel"
-    @member-updated="() => loadMembers()"
+    @member-updated="onMemberUpdated"
   />
   <MemberList
     v-model="memberListRef"
@@ -183,8 +183,18 @@ async function loadMembers() {
     members.value = Array.isArray(res) ? res : [];
     return;
   }
-  const res = await MemberService.getByProjectId(projectId);
+  const res = await MemberService.getByProjectId(projectId.value);
   members.value = Array.isArray(res) ? res : [];
+}
+
+async function loadChannels() {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const userId = user?.id || null;
+    await chatStore.loadChannelByUser(projectId.value, userId);
+  } catch (err) {
+    console.error("Lỗi khi tải kênh chat:", err);
+  }
 }
 
 function openTaskDetail(task) {
@@ -223,7 +233,7 @@ async function handleAIGen(count) {
     });
 
     await OllamaService.generateTasks({
-      projectId,
+      projectId: projectId.value,
       userId,
       taskCount: count,
     });
@@ -273,11 +283,13 @@ async function onProjectUpdated() {
 async function onMemberUpdated() {
   await loadMembers();
   await taskStore.loadTasks(projectId);
+  await loadChannels();
 }
 
 onMounted(() => {
   taskStore.loadTasks(projectId);
   loadMembers();
+  loadChannels();
 
   if (route.query.task) {
     openTaskDetailById(Number(route.query.task));
@@ -320,6 +332,15 @@ watch(
   async () => {
     await loadMembers();
   }
+);
+watch(
+  [activeView, projectId],
+  async ([view]) => {
+    if (view === 'chat') {
+      await loadChannels();
+    }
+  },
+  { immediate: true }
 );
 </script>
 

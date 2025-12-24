@@ -440,6 +440,7 @@ class ProjectService {
         return { date: d, progress: normalized };
       });
     }
+    console.log(progress_trend)
 
     return {
       project,

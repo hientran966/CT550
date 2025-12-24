@@ -91,20 +91,6 @@ function handleSelect(key) {
 
   emit("update:view", key);
 }
-
-async function loadChannels() {
-  try {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const userId = user?.id || null;
-    await chatStore.loadChannelByUser(userId);
-  } catch (err) {
-    console.error("Lỗi khi tải kênh chat:", err);
-  }
-}
-
-onMounted(loadChannels);
-
-watch(() => props.projectId, loadChannels);
 </script>
 
 <style scoped>

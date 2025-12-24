@@ -52,9 +52,6 @@ const dataSource = ref([]);
 
 const chatStore = useChatStore();
 
-const channelForm = ref();
-const users = ref([]);
-
 const form = reactive({
   members: [],
 });

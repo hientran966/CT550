@@ -365,7 +365,6 @@ onMounted(async () => {
     projectStore.fetchProjects?.();
   }
   await checkRole();
-  console.log("load", props.members);
 });
 
 watch(

@@ -38,7 +38,7 @@ const customMethods = {
   getByUserId: async (req, res, next) => {
     try {
       const service = new ChatService(MySQL.pool);
-      const channels = await service.getByUserId(req.params.user_id);
+      const channels = await service.getByUserId(req.params.user_id, req.params.project_id);
       res.send(channels);
     } catch (error) {
       next(new ApiError(500, error.message || "Lỗi khi lấy kênh chat theo ID người dùng"));
