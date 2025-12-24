@@ -300,6 +300,10 @@ onMounted(async () => {
   socket.on("activity", async (data) => {
     await taskStore.loadTasks(props.projectId);
   });
+
+  socket.on("task_updated", async (event) => {
+    await roleStore.fetchTaskRole(data.task_id, data.project_id);
+  });
 });
 
 watch(

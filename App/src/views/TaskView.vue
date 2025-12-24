@@ -309,6 +309,7 @@ onMounted(() => {
   });
 
   socket.on("task_updated", async () => {
+    loadMembers();
     await taskStore.loadTasks(projectId);
   });
 });

@@ -1,4 +1,5 @@
 const NotificationService = require("./Notification.service");
+const { sendToProject } = require("../socket/index");
 
 class MemberService {
     constructor(mysql) {
@@ -161,6 +162,12 @@ class MemberService {
                 [project_id, user_id]
             );
 
+            if (project_id) {
+                sendToProject(project_id, "task_updated", {
+                    project_id: project_id,
+                });
+            }
+
             await connection.commit();
             return id;
         } catch (error) {
@@ -238,6 +245,12 @@ class MemberService {
                     },
                     connection
                 );
+            }
+
+            if (member.project_id) {
+                sendToProject(member.project_id, "task_updated", {
+                    project_id: member.project_id,
+                });
             }
 
             await connection.commit();

@@ -595,7 +595,7 @@ const saveEdit = async (key) => {
 
 // UPLOAD
 const onUpload = () => {
-  if (!canEdit.value)
+  if (!canUpdate.value)
     return ElMessage.warning("Bạn không có quyền upload file cho task này");
   uploadRef.value = true;
 };

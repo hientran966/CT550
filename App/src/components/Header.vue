@@ -43,14 +43,16 @@
           v-model:visible="aiGenVisible"
           @generate="emit('ai-gen', $event)"
         >
-          <template #trigger>
+        <template #trigger>
+          <el-tooltip content="Tạo task tự động" placement="top">
             <el-button
               type="primary"
               :icon="MagicStick"
               plain
               @click="aiGenVisible = true"
             />
-          </template>
+          </el-tooltip>
+        </template>
         </AiTaskGen>
         <h5 class="channel-description">{{ channelDescription }}</h5>
       </div>

@@ -77,7 +77,10 @@
           </template>
           <template v-else>
             <span
-              :class="{ 'view-only': !canEditProject(row.id) }"
+              :class="[
+                { 'view-only': !canEditProject(row.id) },
+                { 'overdue': isOverdue(row) }
+              ]"
               @click.stop="startEditing(row, 'end_date')"
             >
               {{ formatDate(row.end_date) }}
@@ -227,6 +230,13 @@ function canEditProject(projectId) {
   return ["owner", "manager"].includes(role);
 }
 
+function isOverdue(row) {
+  if (!row.end_date) return false;
+  const today = new Date();
+  const endDate = new Date(row.end_date);
+  return row.status !== "Đã hoàn thành" && endDate < today;
+}
+
 function startEditing(row, field) {
   if (!canEditProject(row.id)) return;
   editingRow.value = row;
@@ -367,5 +377,10 @@ watch(
   opacity: 0.8;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.overdue {
+  color: red;
+  font-weight: bold;
 }
 </style>
