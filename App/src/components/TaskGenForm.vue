@@ -19,6 +19,7 @@
         type="number"
         placeholder="VD: 5"
         min="1"
+        max="10"
         style="margin-top:6px"
       />
 
