@@ -5,8 +5,8 @@ class AuthService {
         this.api = createApiClient(baseUrl);
     }
 
-    async login(email, Password) {
-        return (await this.api.post("/login", { email, Password })).data;
+    async login(email, password) {
+        return (await this.api.post("/login", { email, password })).data;
     }
 
     async createAccount(data) {

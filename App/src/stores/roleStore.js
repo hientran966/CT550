@@ -6,7 +6,13 @@ import TaskService from '@/services/Task.service';
 import FileService from '@/services/File.service';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 phút
-const currentUser = JSON.parse(localStorage.getItem("user"));
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user"));
+  } catch {
+    return null;
+  }
+}
 
 export const useRoleStore = defineStore('role', () => {
   const user = ref(null);
@@ -19,12 +25,20 @@ export const useRoleStore = defineStore('role', () => {
   }
 
   async function loadMe() {
-    const { data } = await AccountService.getAccountById(currentUser.id);
-    user.value = data.user;
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) return null;
+
+    user.value = await AccountService.getAccountById(currentUser.id);
+    return user.value;
   }
 
   // ---------- PROJECT ----------
   async function fetchProjectRole(projectId, force = false) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      return { role: 'viewer', fetchedAt: Date.now() };
+    }
+
     const cached = projectRoles.get(projectId);
     if (cached && !force && !_isExpired(cached)) return cached;
 
@@ -39,6 +53,16 @@ export const useRoleStore = defineStore('role', () => {
 
   // ---------- TASK ----------
   async function fetchTaskRole(taskId, projectId, force = false) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      return {
+        isCreator: false,
+        isAssigned: false,
+        projectRole: 'viewer',
+        fetchedAt: Date.now()
+      };
+    }
+
     const cached = taskRoles.get(taskId);
     if (cached && !force && !_isExpired(cached)) return cached;
 
@@ -58,6 +82,16 @@ export const useRoleStore = defineStore('role', () => {
 
   // ---------- FILE ----------
   async function fetchFileRole(fileId, projectId, force = false) {
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      return {
+        isCreator: false,
+        isAssigned: false,
+        projectRole: 'viewer',
+        fetchedAt: Date.now()
+      };
+    }
+
     const cached = fileRoles.get(fileId);
     if (cached && !force && !_isExpired(cached)) return cached;
 

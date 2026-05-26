@@ -136,9 +136,9 @@ dist
 .pnp.*
 
 # Thư mục lưu file upload
-uploads/
+uploads/*
 
-server/app/temp/
-app/temp/
+server/app/temp/*
+app/temp/*
 
-config/
+config/*
