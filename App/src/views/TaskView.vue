@@ -23,7 +23,6 @@
         @delete-channel="onDeleteChannel"
 
         @add="onAdd"
-        @ai-gen="handleAIGen"
         @member-click="openMemberList"
         @toggle-menu="isExpanded = !isExpanded"
       />
@@ -122,7 +121,6 @@ import { useChatStore } from "@/stores/chatStore";
 
 import MemberService from "@/services/Member.service";
 import ChatService from "@/services/Chat.service";
-import OllamaService from "@/services/Ollama.service";
 import ProjectService from "@/services/Project.service";
 
 import ProjectMenu from "@/components/ProjectMenu.vue";
@@ -219,34 +217,6 @@ function removeQueryParam(param) {
   router.replace({
     query: newQuery
   });
-}
-
-async function handleAIGen(count) {
-  let loadingInstance;
-  try {
-    aiLoading.value = true;
-
-    loadingInstance = ElLoading.service({
-      lock: true,
-      text: "AI đang tạo công việc...",
-      background: "rgba(0, 0, 0, 0.7)",
-    });
-
-    await OllamaService.generateTasks({
-      projectId: projectId.value,
-      userId,
-      taskCount: count,
-    });
-
-    await taskStore.loadTasks(projectId);
-    ElMessage.success("Tạo task bằng AI thành công");
-  } catch (err) {
-    console.error(err);
-    ElMessage.error("Tạo task thất bại");
-  } finally {
-    aiLoading.value = false;
-    loadingInstance?.close();
-  }
 }
 
 async function onDeleteProject(projectId) {

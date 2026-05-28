@@ -226,91 +226,39 @@ export class FileService {
   }
 
   async getAvatar(userId: number) {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-
     const [rows] = await this.mysql.execute(
-      `
-      SELECT f.*, fv.file_url, fv.file_type
-      FROM files f
-      JOIN file_versions fv ON fv.file_id = f.id
-      WHERE f.created_by = ?
-        AND f.category = 'user_avatar'
-        AND f.deleted_at IS NULL
-      ORDER BY fv.version_number DESC
-      LIMIT 1
-      `,
+      `SELECT id, avatar_url FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
       [userId],
     );
 
-    const avatar = rows[0] || null;
-    if (avatar?.file_url && !avatar.file_url.startsWith('http')) {
-      avatar.file_url = `${baseUrl}/${avatar.file_url.replace(/\\/g, '/')}`;
+    if (!rows.length) {
+      return null;
     }
-    return avatar;
+
+    const user = rows[0];
+    return {
+      avatar_url: user.avatar_url || null,
+    };
   }
 
   async uploadAvatar(userId: number, payload: any) {
-    const connection = await this.mysql.getConnection();
-    try {
-      await connection.beginTransaction();
+    // Verify user exists
+    const [userRows] = await this.mysql.execute(
+      'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+      [userId],
+    );
 
-      const fileUrl = this.saveFile(payload);
-      const fileType = path.extname(payload.file_name).replace('.', '').toLowerCase();
-
-      const [userRows] = await connection.execute(
-        'SELECT name FROM users WHERE id = ? LIMIT 1',
-        [userId],
+    if (!userRows.length) {
+      throw new NotFoundException(
+        `Không tìm thấy người dùng với id = ${userId}`,
       );
-
-      if (!userRows.length) {
-        throw new NotFoundException(`Khong tim thay nguoi dung voi id = ${userId}`);
-      }
-
-      const userName = userRows[0].name || `user_${userId}`;
-      const [rows] = await connection.execute(
-        `SELECT id FROM files
-         WHERE created_by = ?
-           AND deleted_at IS NULL
-           AND category = 'user_avatar'`,
-        [userId],
-      );
-
-      let fileId: number;
-      if (rows.length) {
-        fileId = rows[0].id;
-        const [verCount] = await connection.execute(
-          `SELECT COUNT(*) AS count FROM file_versions
-           WHERE file_id = ? AND deleted_at IS NULL`,
-          [fileId],
-        );
-        await connection.execute(
-          `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
-           VALUES (?, ?, ?, ?)`,
-          [fileId, verCount[0].count + 1, fileUrl, fileType],
-        );
-      } else {
-        const [fileRes] = await connection.execute(
-          `INSERT INTO files (file_name, category, created_by, project_id, task_id)
-           VALUES (?, 'user_avatar', ?, NULL, NULL)`,
-          [userName, userId],
-        );
-        fileId = fileRes.insertId;
-
-        await connection.execute(
-          `INSERT INTO file_versions (file_id, version_number, file_url, file_type)
-           VALUES (?, 1, ?, ?)`,
-          [fileId, fileUrl, fileType],
-        );
-      }
-
-      await connection.commit();
-      return { file_id: fileId, file_url: fileUrl };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
     }
+
+    // Save file to uploads folder
+    const fileUrl = this.saveFile(payload);
+
+    // Return file URL - AccountController/AccountService will handle updating users.avatar_url
+    return { file_url: fileUrl };
   }
 
   async findAllVersion(id: number) {
@@ -350,10 +298,10 @@ export class FileService {
 
     if (!fields.length) return this.findOne(id);
 
-    await this.mysql.execute(`UPDATE files SET ${fields.join(', ')} WHERE id = ?`, [
-      ...params,
-      id,
-    ]);
+    await this.mysql.execute(
+      `UPDATE files SET ${fields.join(', ')} WHERE id = ?`,
+      [...params, id],
+    );
     return this.findOne(id);
   }
 

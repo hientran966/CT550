@@ -28,7 +28,10 @@ export class GitHubController {
     @Headers('x-hub-signature-256') signature: string,
     @Req() req: Request & { rawBody?: Buffer },
   ) {
-    this.webhookService.verifySignature(signature, req.rawBody || Buffer.from(''));
+    this.webhookService.verifySignature(
+      signature,
+      req.rawBody || Buffer.from(''),
+    );
     const result = await this.webhookService.processGitWebhook(event, req.body);
     return result.message;
   }
@@ -38,7 +41,8 @@ export class GitHubController {
     const { installation_id, state } = query;
     const projectId = state;
 
-    if (!installation_id) throw new BadRequestException('Missing installation_id');
+    if (!installation_id)
+      throw new BadRequestException('Missing installation_id');
 
     await this.service.saveInstallation(installation_id, 'unknown_user');
 
@@ -53,7 +57,9 @@ export class GitHubController {
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    return res.redirect(`${frontendUrl}/git?connected=true&project=${projectId}`);
+    return res.redirect(
+      `${frontendUrl}/git?connected=true&project=${projectId}`,
+    );
   }
 
   @Post('project/:projectId/link/:installationId')
@@ -77,7 +83,10 @@ export class GitHubController {
   }
 
   @Post('project/:projectId/repos')
-  async saveProjectRepos(@Param('projectId') projectId: string, @Body() body: any) {
+  async saveProjectRepos(
+    @Param('projectId') projectId: string,
+    @Body() body: any,
+  ) {
     await this.service.saveProjectRepositories(projectId, body.repos);
     return { message: 'Saved project repositories' };
   }
@@ -96,7 +105,9 @@ export class GitHubController {
 
   @Get('installations/:installationId/repos/:owner/:repo/tree/*path')
   listRepoFiles(@Param() params: any) {
-    const path = Array.isArray(params.path) ? params.path.join('/') : params.path || '';
+    const path = Array.isArray(params.path)
+      ? params.path.join('/')
+      : params.path || '';
     return this.service.listRepoFiles(
       params.installationId,
       params.owner,
@@ -116,7 +127,11 @@ export class GitHubController {
 
   @Get('installations/:installationId/repos/:owner/:repo/branches')
   listBranches(@Param() params: any) {
-    return this.service.listBranches(params.installationId, params.owner, params.repo);
+    return this.service.listBranches(
+      params.installationId,
+      params.owner,
+      params.repo,
+    );
   }
 
   @Get('installations/:installationId/repos/:owner/:repo/pulls')

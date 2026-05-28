@@ -38,22 +38,6 @@
         >
           <strong>Thêm mới</strong>
         </el-button>
-        <AiTaskGen
-          v-if="props.view === 'kanban' && canAdd"
-          v-model:visible="aiGenVisible"
-          @generate="emit('ai-gen', $event)"
-        >
-        <template #trigger>
-          <el-tooltip content="Tạo task tự động" placement="top">
-            <el-button
-              type="primary"
-              :icon="MagicStick"
-              plain
-              @click="aiGenVisible = true"
-            />
-          </el-tooltip>
-        </template>
-        </AiTaskGen>
         <h5 class="channel-description">{{ channelDescription }}</h5>
       </div>
 

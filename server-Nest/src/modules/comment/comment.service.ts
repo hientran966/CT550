@@ -88,7 +88,7 @@ export class CommentService {
       const fullComment = await this.findById(commentId);
 
       if (payload.project_id) {
-        await this.socketService.sendToProject(this.mysql, payload.project_id, 'comment', {
+        this.socketService.sendToProject(payload.project_id, 'comment', {
           action: 'create',
           data: fullComment,
         });
@@ -234,10 +234,10 @@ export class CommentService {
     if (!comment) return null;
 
     const deletedAt = new Date();
-    await this.mysql.execute('UPDATE comments SET deleted_at = ? WHERE id = ?', [
-      deletedAt,
-      id,
-    ]);
+    await this.mysql.execute(
+      'UPDATE comments SET deleted_at = ? WHERE id = ?',
+      [deletedAt, id],
+    );
     return { ...comment, deleted_at: deletedAt };
   }
 }

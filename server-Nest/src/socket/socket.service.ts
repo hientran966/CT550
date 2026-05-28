@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { Server } from 'socket.io';
+import { Inject, Injectable } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
 
 @Injectable()
 export class SocketService {
   private io?: Server;
-  private readonly onlineUsers = new Map<string, string>();
+
+  constructor(@Inject('MYSQL') private readonly mysql: any) {}
 
   init(server: any) {
     this.io = new Server(server, {
@@ -16,8 +17,7 @@ export class SocketService {
 
     this.io.on('connection', (socket) => {
       socket.on('register', (userId) => {
-        this.onlineUsers.set(String(userId), socket.id);
-        (socket as any).userId = userId;
+        void this.registerSocket(socket, userId);
       });
 
       socket.on('join_channel', (channelId) => {
@@ -33,54 +33,63 @@ export class SocketService {
           this.sendMessageToChannel(data.channel_id, data);
         }
       });
-
-      socket.on('disconnect', () => {
-        for (const [userId, socketId] of this.onlineUsers.entries()) {
-          if (socketId === socket.id) {
-            this.onlineUsers.delete(userId);
-            break;
-          }
-        }
-      });
     });
   }
 
+  private userRoom(userId: number | string) {
+    return `user_${userId}`;
+  }
+
+  private projectRoom(projectId: number | string) {
+    return `project_${projectId}`;
+  }
+
+  private leaveProjectRooms(socket: Socket) {
+    for (const room of socket.rooms) {
+      if (room.startsWith('project_')) {
+        socket.leave(room);
+      }
+    }
+  }
+
+  private async registerSocket(socket: Socket, userId: number | string) {
+    const normalizedUserId = String(userId);
+    (socket as any).userId = normalizedUserId;
+
+    socket.join(this.userRoom(normalizedUserId));
+    this.leaveProjectRooms(socket);
+
+    const [rows] = await this.mysql.execute(
+      `SELECT project_id FROM project_members WHERE user_id = ? AND deleted_at IS NULL`,
+      [normalizedUserId],
+    );
+
+    for (const row of rows) {
+      socket.join(this.projectRoom(row.project_id));
+    }
+  }
+
   sendToUser(userId: number | string, event: string, payload: any) {
-    const socketId = this.onlineUsers.get(String(userId));
-    if (this.io && socketId) this.io.to(socketId).emit(event, payload);
+    this.io?.to(this.userRoom(userId)).emit(event, payload);
   }
 
   sendMessageToChannel(channelId: number | string, message: any) {
     this.io?.to(`channel_${channelId}`).emit('chat_message', message);
   }
 
-  async sendToProject(
-    mysql: any,
-    projectId: number | string,
-    event: string,
-    payload: any,
-  ) {
-    if (!this.io) return;
-
-    const [rows] = await mysql.execute(
-      `SELECT user_id FROM project_members WHERE project_id = ? AND deleted_at IS NULL`,
-      [projectId],
-    );
-
-    for (const row of rows) {
-      this.sendToUser(row.user_id, event, payload);
-    }
+  sendToProject(projectId: number | string, event: string, payload: any) {
+    this.io?.to(this.projectRoom(projectId)).emit(event, payload);
   }
 
-  sendGitPushToProject(mysql: any, projectId: number | string, payload: any) {
-    return this.sendToProject(mysql, projectId, 'git_push', payload);
+  sendGitPushToProject(projectId: number | string, payload: any) {
+    return this.sendToProject(projectId, 'git_push', payload);
   }
 
-  sendGitCommitToProject(mysql: any, projectId: number | string, payload: any) {
-    return this.sendToProject(mysql, projectId, 'git_commit', payload);
+  sendGitCommitToProject(projectId: number | string, payload: any) {
+    return this.sendToProject(projectId, 'git_commit', payload);
   }
 
-  sendGitEventToProject(mysql: any, projectId: number | string, payload: any) {
-    return this.sendToProject(mysql, projectId, 'git_event', payload);
+  sendGitEventToProject(projectId: number | string, payload: any) {
+    return this.sendToProject(projectId, 'git_event', payload);
   }
 }

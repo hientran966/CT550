@@ -19,7 +19,10 @@ export class GitHubService {
     }
   }
 
-  async saveInstallation(installationId: number | string, accountLogin: string) {
+  async saveInstallation(
+    installationId: number | string,
+    accountLogin: string,
+  ) {
     await this.mysql.query(
       `
       INSERT INTO github_installations (installation_id, account_login)
@@ -94,10 +97,14 @@ export class GitHubService {
   }
 
   async listRepositories(installationId: number | string) {
-    const token = await this.authService.getInstallationAccessToken(installationId);
-    const res = await axios.get('https://api.github.com/installation/repositories', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const token =
+      await this.authService.getInstallationAccessToken(installationId);
+    const res = await axios.get(
+      'https://api.github.com/installation/repositories',
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     return res.data.repositories;
   }
 
@@ -107,9 +114,10 @@ export class GitHubService {
     const conn = await this.mysql.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.query('DELETE FROM project_repositories WHERE project_id = ?', [
-        projectId,
-      ]);
+      await conn.query(
+        'DELETE FROM project_repositories WHERE project_id = ?',
+        [projectId],
+      );
 
       for (const repo of repos) {
         await conn.query(
@@ -143,7 +151,8 @@ export class GitHubService {
     repo: string,
     path = '',
   ) {
-    const token = await this.authService.getInstallationAccessToken(installationId);
+    const token =
+      await this.authService.getInstallationAccessToken(installationId);
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -157,7 +166,8 @@ export class GitHubService {
     repo: string,
     limit = 4,
   ) {
-    const token = await this.authService.getInstallationAccessToken(installationId);
+    const token =
+      await this.authService.getInstallationAccessToken(installationId);
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${limit}`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -165,8 +175,13 @@ export class GitHubService {
     return res.data;
   }
 
-  async listBranches(installationId: number | string, owner: string, repo: string) {
-    const token = await this.authService.getInstallationAccessToken(installationId);
+  async listBranches(
+    installationId: number | string,
+    owner: string,
+    repo: string,
+  ) {
+    const token =
+      await this.authService.getInstallationAccessToken(installationId);
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/branches`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -185,7 +200,8 @@ export class GitHubService {
     repo: string,
     state = 'all',
   ) {
-    const token = await this.authService.getInstallationAccessToken(installationId);
+    const token =
+      await this.authService.getInstallationAccessToken(installationId);
     const res = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/pulls?state=${state}`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -218,12 +234,14 @@ export class GitHubService {
         return new Error('Khong tim thay installation');
       }
 
-      await conn.query('DELETE FROM project_repositories WHERE project_id = ?', [
-        projectId,
-      ]);
-      await conn.query('DELETE FROM project_installations WHERE project_id = ?', [
-        projectId,
-      ]);
+      await conn.query(
+        'DELETE FROM project_repositories WHERE project_id = ?',
+        [projectId],
+      );
+      await conn.query(
+        'DELETE FROM project_installations WHERE project_id = ?',
+        [projectId],
+      );
 
       await conn.commit();
       return { installationId: rows[0].installation_id };

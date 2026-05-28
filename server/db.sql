@@ -7,11 +7,9 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('admin','user') DEFAULT 'user',
-    avatar_url VARCHAR(500) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
-    KEY idx_users_deleted_at (deleted_at)
+    deleted_at TIMESTAMP NULL
 );
 
 -- PROJECTS
@@ -27,8 +25,6 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_projects_created_by_deleted_at (created_by, deleted_at),
-    KEY idx_projects_status_deleted_at (status, deleted_at),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
@@ -44,9 +40,6 @@ CREATE TABLE project_members (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_project_members_project_user (project_id, user_id),
-    KEY idx_project_members_user_deleted_at (user_id, deleted_at),
-    KEY idx_project_members_project_status_deleted_at (project_id, status, deleted_at),
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (invited_by) REFERENCES users(id)
@@ -60,7 +53,6 @@ CREATE TABLE tasks (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     status ENUM('todo', 'in_progress', 'review', 'done') DEFAULT 'todo',
-    order_index INT NOT NULL DEFAULT 0,
     priority ENUM('low','medium','high') DEFAULT 'medium',
     start_date DATE,
     due_date DATE,
@@ -68,10 +60,6 @@ CREATE TABLE tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_tasks_project_status_order (project_id, status, order_index),
-    KEY idx_tasks_project_deleted_status_order (project_id, deleted_at, status, order_index),
-    KEY idx_tasks_created_by_deleted_at (created_by, deleted_at),
-    KEY idx_tasks_due_date (due_date),
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
@@ -83,8 +71,6 @@ CREATE TABLE task_assignees (
     task_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     deleted_at TIMESTAMP NULL,
-    KEY idx_task_assignees_task_user (task_id, user_id),
-    KEY idx_task_assignees_user_deleted_at (user_id, deleted_at),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -98,8 +84,6 @@ CREATE TABLE activity_logs (
     detail VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_activity_logs_task_created_at (task_id, created_at),
-    KEY idx_activity_logs_actor_created_at (actor_id, created_at),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (actor_id) REFERENCES users(id)
 );
@@ -113,8 +97,6 @@ CREATE TABLE progress_logs (
     progress INT CHECK (progress >= 0 AND progress <= 100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_progress_logs_task_created_at (task_id, created_at),
-    KEY idx_progress_logs_updated_by_created_at (updated_by, created_at),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (updated_by) REFERENCES users(id)
 );
@@ -129,9 +111,6 @@ CREATE TABLE comments (
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_comments_task_created_at (task_id, created_at),
-    KEY idx_comments_user_created_at (user_id, created_at),
-    KEY idx_comments_file_version_created_at (file_version_id, created_at),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (file_version_id) REFERENCES file_versions(id)
@@ -145,12 +124,9 @@ CREATE TABLE files (
     task_id BIGINT NULL,
     created_by BIGINT NOT NULL,
     file_name VARCHAR(255) NOT NULL,
-    category ENUM('project', 'task', 'other') DEFAULT 'other',
+    category ENUM('project', 'task', 'user_avatar', 'other') DEFAULT 'other',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_files_project_deleted_at (project_id, deleted_at),
-    KEY idx_files_task_deleted_at (task_id, deleted_at),
-    KEY idx_files_created_by_deleted_at (created_by, deleted_at),
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (task_id) REFERENCES tasks(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
@@ -166,7 +142,6 @@ CREATE TABLE file_versions (
     file_type VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	deleted_at TIMESTAMP NULL,
-    KEY idx_file_versions_file_created_at (file_id, created_at),
     FOREIGN KEY (file_id) REFERENCES files(id),
     UNIQUE (file_id, version_number)
 );
@@ -182,8 +157,6 @@ CREATE TABLE visual_annotations (
     opacity DECIMAL(3,2) DEFAULT 0.5,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_visual_annotations_comment (comment_id),
-    KEY idx_visual_annotations_file_version (file_version_id),
     FOREIGN KEY (comment_id) REFERENCES comments(id),
     FOREIGN KEY (file_version_id) REFERENCES file_versions(id)
 );
@@ -201,9 +174,6 @@ CREATE TABLE notifications (
     status ENUM('new','unread','read') DEFAULT 'new',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_notifications_recipient_status_created_at (recipient_id, status, created_at),
-    KEY idx_notifications_reference (reference_type, reference_id),
-    KEY idx_notifications_actor_created_at (actor_id, created_at),
     FOREIGN KEY (recipient_id) REFERENCES users(id),
     FOREIGN KEY (actor_id) REFERENCES users(id)
 );
@@ -218,8 +188,6 @@ CREATE TABLE chat_channels (
     created_by BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_chat_channels_project_deleted_at (project_id, deleted_at),
-    KEY idx_chat_channels_created_by (created_by),
     FOREIGN KEY (project_id) REFERENCES projects(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
@@ -231,7 +199,6 @@ CREATE TABLE chat_channel_members (
     user_id BIGINT NOT NULL,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_chat_channel_members_user_deleted_at (user_id, deleted_at),
     FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
 	UNIQUE KEY unique_channel_user (channel_id, user_id)
@@ -247,8 +214,6 @@ CREATE TABLE chat_messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    KEY idx_chat_messages_channel_created_at (channel_id, created_at),
-    KEY idx_chat_messages_sender_created_at (sender_id, created_at),
     FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
     FOREIGN KEY (sender_id) REFERENCES users(id)
 );
@@ -258,7 +223,6 @@ CREATE TABLE chat_message_files (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     message_id BIGINT NOT NULL,
     file_id BIGINT NOT NULL,
-    KEY idx_chat_message_files_file (file_id),
     FOREIGN KEY (message_id) REFERENCES chat_messages(id),
     FOREIGN KEY (file_id) REFERENCES files(id)
 );
@@ -268,7 +232,6 @@ CREATE TABLE chat_mentions (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     message_id BIGINT NOT NULL,
     mentioned_user_id BIGINT NOT NULL,
-    KEY idx_chat_mentions_mentioned_user (mentioned_user_id),
     FOREIGN KEY (message_id) REFERENCES chat_messages(id),
     FOREIGN KEY (mentioned_user_id) REFERENCES users(id)
 );
@@ -288,7 +251,6 @@ CREATE TABLE project_installations (
   project_id BIGINT NOT NULL,
   installation_id BIGINT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_project_installations_installation_id (installation_id),
   FOREIGN KEY (project_id) REFERENCES projects(id),
   FOREIGN KEY (installation_id) REFERENCES github_installations(installation_id),
   UNIQUE KEY unique_project_installation (project_id, installation_id)
@@ -302,7 +264,6 @@ CREATE TABLE project_repositories (
   full_name VARCHAR(255) NOT NULL,
   html_url VARCHAR(255),
   is_private BOOLEAN,
-  KEY idx_project_repositories_full_name (full_name),
   FOREIGN KEY (project_id) REFERENCES projects(id),
   UNIQUE KEY unique_project_repo (project_id, repo_id)
 );

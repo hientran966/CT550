@@ -146,6 +146,24 @@ export class AccountService {
     return this.findById(id);
   }
 
+  // ===== UPDATE AVATAR =====
+  async updateAvatar(id: number, avatarUrl: string) {
+    const user = await this.findById(id);
+    if (!user) throw new NotFoundException('Tài khoản không tồn tại');
+
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    const fullAvatarUrl = !avatarUrl.startsWith('http')
+      ? `${baseUrl}/${avatarUrl.replace(/\\/g, '/')}`
+      : avatarUrl;
+
+    await this.mysql.execute(
+      'UPDATE users SET avatar_url = ?, updated_at = ? WHERE id = ?',
+      [fullAvatarUrl, new Date(), id],
+    );
+
+    return this.findById(id);
+  }
+
   // ===== DELETE (SOFT) =====
   async delete(id: number) {
     const user = await this.findById(id);

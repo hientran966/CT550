@@ -19,7 +19,8 @@ export class GitHubWebhookService {
     if (!signature) throw new Error('No signature');
 
     const digest =
-      'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      'sha256=' +
+      crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
 
     if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
       throw new Error('Invalid signature');
@@ -62,7 +63,7 @@ export class GitHubWebhookService {
       } else if (event === 'pull_request') {
         await this.handlePullRequestEvent(projectId, payload);
       } else if (event === 'issues') {
-        await this.socketService.sendGitEventToProject(this.mysql, projectId, {
+        this.socketService.sendGitEventToProject(projectId, {
           type: 'issue',
           action: payload.action,
           title: payload.issue.title,
@@ -78,7 +79,7 @@ export class GitHubWebhookService {
   async handlePushEvent(projectId: number, payload: any) {
     const branch = payload.ref.replace('refs/heads/', '');
 
-    await this.socketService.sendGitPushToProject(this.mysql, projectId, {
+    this.socketService.sendGitPushToProject(projectId, {
       repo: payload.repository.full_name,
       branch,
       pusher: payload.pusher?.name,
@@ -113,7 +114,7 @@ export class GitHubWebhookService {
         }
       }
 
-      await this.socketService.sendGitCommitToProject(this.mysql, projectId, {
+      this.socketService.sendGitCommitToProject(projectId, {
         message: commit.message,
         author: commit.author,
         url: commit.url,
@@ -125,11 +126,12 @@ export class GitHubWebhookService {
     const pr = payload.pull_request;
     const action = payload.action;
     const isOpened = action === 'opened';
-    const isMerged = action === 'closed' && pr.merged === true && pr.base.ref === 'main';
+    const isMerged =
+      action === 'closed' && pr.merged === true && pr.base.ref === 'main';
 
     if (!isOpened && !isMerged) return;
 
-    await this.socketService.sendGitEventToProject(this.mysql, projectId, {
+    this.socketService.sendGitEventToProject(projectId, {
       type: 'pull_request',
       action,
       title: pr.title,
@@ -137,8 +139,12 @@ export class GitHubWebhookService {
       url: pr.html_url,
     });
 
-    const taskCodes = this.extractTaskCodes([pr.title, pr.body].filter(Boolean).join('\n'));
-    const detail = isOpened ? `Pull Request duoc mo: ${pr.title}` : `Pull Request da merged: ${pr.title}`;
+    const taskCodes = this.extractTaskCodes(
+      [pr.title, pr.body].filter(Boolean).join('\n'),
+    );
+    const detail = isOpened
+      ? `Pull Request duoc mo: ${pr.title}`
+      : `Pull Request da merged: ${pr.title}`;
 
     for (const code of taskCodes) {
       const taskId = await this.getTaskId(projectId, code);

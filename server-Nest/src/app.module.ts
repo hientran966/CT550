@@ -11,8 +11,6 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { FileModule } from './modules/file/file.module';
 import { CommentModule } from './modules/comment/comment.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { OllamaModule } from './modules/ollama/ollama.module';
-import { GitHubModule } from './modules/github/github.module';
 import { SocketModule } from './socket/socket.module';
 
 @Module({
@@ -32,8 +30,6 @@ import { SocketModule } from './socket/socket.module';
     FileModule,
     CommentModule,
     ChatModule,
-    OllamaModule,
-    GitHubModule,
   ],
 })
 export class AppModule {}

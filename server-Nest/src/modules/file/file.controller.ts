@@ -13,12 +13,16 @@ import {
   Req,
 } from '@nestjs/common';
 import { FileService } from './file.service';
+import { AccountService } from '../account/account.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../../common/guards/auth.guard';
 
 @Controller('file')
 export class FileController {
-  constructor(private readonly fileService: FileService) {}
+  constructor(
+    private readonly fileService: FileService,
+    private readonly accountService: AccountService,
+  ) {}
 
   @Get()
   findAll(@Query() query: any) {
@@ -32,11 +36,23 @@ export class FileController {
 
   @Post('avatar/:id')
   @UseInterceptors(FileInterceptor('file'))
-  uploadAvatar(@Param('id') id: string, @UploadedFile() file, @Body() body) {
-    return this.fileService.uploadAvatar(Number(id), {
+  async uploadAvatar(@Param('id') id: string, @UploadedFile() file, @Body() body) {
+    // Step 1: Save file to uploads folder
+    const result = await this.fileService.uploadAvatar(Number(id), {
       file_name: file?.originalname || body.file_name,
       file,
     });
+
+    // Step 2: Update user's avatar_url in database
+    const updatedUser = await this.accountService.updateAvatar(
+      Number(id),
+      result.file_url,
+    );
+
+    return {
+      message: 'Cập nhật ảnh đại diện thành công',
+      result: updatedUser,
+    };
   }
 
   @Get(':id')
